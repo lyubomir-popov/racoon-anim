@@ -158,6 +158,9 @@
           duration_sec: 1,
           spins: 3,
           emit_frac: 0.05,
+          animate_orbit_count: true,
+          orbit_count_start_frac: 0,
+          orbit_count_end_frac: 1,
           capture_start_frac: 0.25,
           orbit_stagger_frac: 1,
           speed_mult_per_orbit: 0.85,
@@ -177,10 +180,8 @@
           color: "#edece7",
           alpha: 0.95,
           base_pscale_px_per_unit: 4.0,
-          aspect_min: 0.84,
-          aspect_max: 1.28,
           min_scale: 0.3,
-          min_rect_px: 0.9
+          min_diameter_px: 0.9
         },
         spoke_lines: {
           enabled: true,
@@ -420,6 +421,14 @@
         const start_delay_sec = frame_delay_sec + lead_in_duration_sec;
         const duration_sec = Math.max(0.001, transition.duration_sec);
         const emit_duration_sec = duration_sec * clamp(transition.emit_frac, 0.001, 1);
+        const orbit_count_start_frac = clamp(transition.orbit_count_start_frac ?? 0, 0, 1);
+        const orbit_count_end_frac = clamp(
+          transition.orbit_count_end_frac ?? 1,
+          orbit_count_start_frac,
+          1
+        );
+        const orbit_count_start_sec = start_delay_sec + orbit_count_start_frac * duration_sec;
+        const orbit_count_end_sec = start_delay_sec + orbit_count_end_frac * duration_sec;
         const blink_start_sec = start_delay_sec + duration_sec + config.blink.start_delay_sec;
         const blink_end_sec = config.blink.enabled
           ? blink_start_sec + config.blink.duration_sec
@@ -479,6 +488,8 @@
         const capture_start_sec = start_delay_sec + transition.capture_start_frac * duration_sec;
         const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
         const spawn_angle_rad = radians(generator.anim_start_angle_deg + transition.spawn_angle_offset_deg) + rotation_rad;
+        const orbit_count_from = clamp(generator.min_active_orbits, 1, generator.num_orbits);
+        const orbit_count_to = clamp(generator.num_orbits, orbit_count_from, generator.num_orbits);
 
         state.dot_end_sec = start_delay_sec + duration_sec;
         state.playback_end_sec = blink_end_sec;
@@ -526,9 +537,21 @@
             const speed_deg_per_sec = base_speed_deg_per_sec *
               Math.pow(Math.max(0.0001, transition.speed_mult_per_orbit), speed_index);
             const visible_delay_sec = transition.occlusion_arc_deg / Math.max(0.0001, speed_deg_per_sec);
-            const birth_sec = start_delay_sec +
+            const raw_birth_sec = start_delay_sec +
               orbit_rank * shot_interval_sec +
               orbit_id * transition.orbit_stagger_frac * shot_interval_sec;
+            let orbit_unlock_sec = start_delay_sec;
+            if (transition.animate_orbit_count && orbit_count_to > orbit_count_from) {
+              const orbit_target_index = orbit_id + 1;
+              const orbit_unlock_u = clamp(
+                (orbit_target_index - orbit_count_from) / (orbit_count_to - orbit_count_from),
+                0,
+                1
+              );
+              orbit_unlock_sec = lerp(orbit_count_start_sec, orbit_count_end_sec, orbit_unlock_u);
+            }
+
+            const birth_sec = Math.max(raw_birth_sec, orbit_unlock_sec);
             const visible_sec = birth_sec + visible_delay_sec;
             const point_capture_start_sec = Math.max(capture_start_sec, visible_sec);
 
@@ -541,24 +564,22 @@
             );
 
             const final_scale = base_pscale_px * orbital_frontier_scale * phase_frontier_scale;
-            const aspect_u = hash_01(spoke_id + 11.17, orbit_id + 29.31);
-            const aspect_scale = lerp(config.point_style.aspect_min, config.point_style.aspect_max, aspect_u);
-            const width_px = Math.max(config.point_style.min_rect_px, final_scale * aspect_scale);
-            const height_px = Math.max(config.point_style.min_rect_px, final_scale / aspect_scale);
+            const min_diameter_px =
+              config.point_style.min_diameter_px ?? config.point_style.min_rect_px ?? 0.9;
+            const diameter_px = Math.max(min_diameter_px, final_scale);
 
             points[point_index] = {
               center_x_px,
               center_y_px,
               radius,
               target_angle,
+              orbit_id,
               speed_rad_per_sec: radians(speed_deg_per_sec),
               birth_sec,
               visible_sec,
               capture_start_sec: point_capture_start_sec,
-              width_px,
-              height_px,
-              half_width_px: width_px * 0.5,
-              half_height_px: height_px * 0.5
+              diameter_px,
+              radius_px: diameter_px * 0.5
             };
 
             orbit_rank_counts[orbit_id] += 1;
@@ -759,12 +780,8 @@
           const point_x = point.center_x_px + Math.cos(angle) * point.radius;
           const point_y = point.center_y_px + Math.sin(angle) * point.radius;
 
-          context.rect(
-            point_x - point.half_width_px,
-            point_y - point.half_height_px,
-            point.width_px,
-            point.height_px
-          );
+          context.moveTo(point_x + point.radius_px, point_y);
+          context.arc(point_x, point_y, point.radius_px, 0, TAU);
         }
 
         context.fill();
