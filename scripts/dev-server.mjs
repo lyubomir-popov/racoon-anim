@@ -3,6 +3,7 @@ import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { compile_styles_to_string } from "./styles.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const project_root = path.resolve(__dirname, "..");
@@ -130,7 +131,7 @@ function open_browser(url) {
   exec(`xdg-open "${url}"`);
 }
 
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
   const request_url = request.url || "/";
 
   if (request_url === "/__live") {
@@ -145,6 +146,21 @@ const server = http.createServer((request, response) => {
     request.on("close", () => {
       live_clients.delete(response);
     });
+    return;
+  }
+
+  if (request_url.split("?")[0] === "/assets/app.css") {
+    try {
+      const css = await compile_styles_to_string({ style: "expanded" });
+      response.writeHead(200, {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/css; charset=utf-8"
+      });
+      response.end(css);
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      response.end(`Stylesheet compilation failed: ${error.message}`);
+    }
     return;
   }
 

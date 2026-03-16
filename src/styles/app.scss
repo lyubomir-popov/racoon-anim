@@ -1,0 +1,279 @@
+@import "vanilla-framework";
+
+@include vanilla;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: #262626;
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+}
+
+.mascot-app {
+  --vf-color-text-default: #ffffff;
+  --vf-color-text-muted: #c8c8c8;
+  --vf-color-text-inactive: #8f8f8f;
+  --vf-color-link-default: #ffffff;
+  --vf-color-link-visited: #ffffff;
+  --vf-color-focus: #ffffff;
+  --vf-color-background-default: #262626;
+  --vf-color-background-alt: #262626;
+  --vf-color-background-code: #303030;
+  --vf-color-background-inputs: #303030;
+  --vf-color-background-active: #383838;
+  --vf-color-background-hover: #333333;
+  --vf-color-background-overlay: rgba(0, 0, 0, 0.72);
+  --vf-color-border-default: #4b4b4b;
+  --vf-color-border-high-contrast: #6a6a6a;
+  --vf-color-border-low-contrast: #3a3a3a;
+  background: #262626;
+  height: 100%;
+  width: 100%;
+}
+
+.mascot-app.l-application {
+  grid-template-areas: "main aside";
+  grid-template-columns: minmax(0, 1fr) minmax(0, min-content);
+  grid-template-rows: 1fr;
+}
+
+.mascot-app .l-main {
+  overflow: hidden;
+}
+
+.mascot-app .l-aside {
+  max-width: min(100vw, 24rem);
+  overscroll-behavior: contain;
+  width: 24rem;
+}
+
+.mascot-app .p-panel,
+.mascot-app .p-panel__header.is-sticky {
+  background: var(--vf-color-background-default);
+}
+
+.mascot-app .p-panel__content {
+  background: transparent;
+}
+
+.drawer-toggle {
+  position: fixed;
+  right: 1rem;
+  top: 1rem;
+  z-index: 110;
+}
+
+.drawer-backdrop {
+  background: rgba(0, 0, 0, 0.44);
+  border: 0;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: fixed;
+  transition: opacity 160ms ease;
+  z-index: 100;
+}
+
+body.drawer-open .drawer-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.viewer-panel__content {
+  align-content: center;
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  min-height: 100dvh;
+  padding: 1rem;
+  place-items: center;
+}
+
+.stage {
+  aspect-ratio: 1;
+  background: #262626;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  width: min(600px, calc(100vw - 3rem), calc(100svh - 5.5rem));
+}
+
+canvas {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.overlay {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+}
+
+.overlay-inner {
+  height: 600px;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transform-origin: top left;
+  width: 600px;
+}
+
+.mascot {
+  position: absolute;
+  transform-origin: center;
+}
+
+.mascot-svg {
+  inset: 0;
+  position: absolute;
+}
+
+.mascot svg {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.drawer-panel {
+  min-height: 100dvh;
+}
+
+.drawer-panel .p-panel__header {
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.drawer-panel .p-panel__controls {
+  padding-top: 1rem;
+}
+
+.drawer-copy {
+  max-width: 34ch;
+}
+
+.drawer-content {
+  display: grid;
+  gap: 1rem;
+}
+
+.preset-editor,
+.config-section,
+.config-group,
+.editor-form {
+  display: grid;
+}
+
+.preset-editor,
+.config-sections {
+  gap: 1rem;
+}
+
+.editor-form,
+.config-group {
+  gap: 0.5rem;
+}
+
+.preset-toolbar {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.preset-toolbar > * {
+  width: 100%;
+}
+
+.preset-toolbar__name {
+  grid-column: 1 / -1;
+}
+
+.file-button {
+  justify-content: center;
+  position: relative;
+}
+
+.file-button__input {
+  cursor: pointer;
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.preset-tabs .p-tabs__list {
+  margin-bottom: 0.75rem;
+}
+
+.preset-tabs .p-tabs__item:last-child {
+  margin-right: 0;
+}
+
+.control-composite {
+  width: 100%;
+}
+
+.control-composite input[type="range"] {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+.control-color {
+  inline-size: 4rem;
+  min-block-size: 2.5rem;
+  padding: 0.125rem;
+}
+
+.control-checkbox {
+  margin-bottom: 0;
+}
+
+.p-form-help-text.preset-meta {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.preset-meta.is-error {
+  color: var(--vf-color-border-negative);
+}
+
+.preset-empty {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .drawer-toggle {
+    right: 0.75rem;
+    top: 0.75rem;
+  }
+
+  .mascot-app .l-aside {
+    max-width: 100vw;
+    width: min(24rem, 100vw);
+  }
+
+  .stage {
+    width: min(600px, calc(100vw - 1.5rem));
+  }
+
+  .viewer-panel__content {
+    padding: 3rem 0.75rem 0.75rem;
+  }
+}

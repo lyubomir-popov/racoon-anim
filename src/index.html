@@ -4,421 +4,69 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Radial Mascot Transition</title>
-  <style>
-    :root {
-      color-scheme: dark;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      background: #262626;
-      overflow: hidden;
-    }
-
-    body {
-      min-height: 100svh;
-      padding: 0;
-      font-family: "Segoe UI", sans-serif;
-      color: #e8ebe6;
-    }
-
-    button,
-    input {
-      font: inherit;
-    }
-
-    .app-shell {
-      width: 100%;
-      min-height: 100svh;
-    }
-
-    .viewer-panel {
-      display: grid;
-      min-height: 100svh;
-      justify-items: center;
-      align-content: center;
-      gap: 8px;
-      padding: 20px 24px;
-    }
-
-    .stage {
-      position: relative;
-      width: min(600px, calc(100vw - 48px), calc(100svh - 88px));
-      aspect-ratio: 1;
-      overflow: hidden;
-      cursor: pointer;
-      background: #262626;
-      border: 0;
-      border-radius: 0;
-      box-shadow: none;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    .overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .overlay-inner {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 600px;
-      height: 600px;
-      transform-origin: top left;
-    }
-
-    .mascot {
-      position: absolute;
-      transform-origin: center;
-    }
-
-    .mascot-svg {
-      position: absolute;
-    }
-
-    .mascot-svg {
-      inset: 0;
-    }
-
-    .mascot svg {
-      display: block;
-      width: 100%;
-      height: auto;
-      color: inherit;
-    }
-
-    .viewer-actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .drawer-toggle {
-      position: fixed;
-      top: 14px;
-      right: 14px;
-      z-index: 40;
-    }
-
-    .drawer-backdrop {
-      position: fixed;
-      inset: 0;
-      border: 0;
-      background: rgba(0, 0, 0, 0.24);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 160ms ease;
-      z-index: 20;
-    }
-
-    body.drawer-open .drawer-backdrop {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .control-panel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      width: min(390px, calc(100vw - 16px));
-      background: #262626;
-      border-left: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 0;
-      padding: 14px 14px 18px;
-      box-shadow: none;
-      transform: translateX(calc(100% + 16px));
-      transition: transform 180ms ease;
-      overflow: auto;
-      overscroll-behavior: contain;
-      z-index: 30;
-    }
-
-    body.drawer-open .control-panel {
-      transform: translateX(0);
-    }
-
-    .panel-header {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      background: #262626;
-    }
-
-    .panel-kicker {
-      margin: 0 0 4px;
-      font-size: 10px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: #8f988f;
-    }
-
-    .panel-header h1 {
-      margin: 0;
-      font-size: 20px;
-      line-height: 1.1;
-    }
-
-    .panel-header p:last-child {
-      margin: 6px 0 0;
-      color: #a6ada5;
-      font-size: 12px;
-      line-height: 1.35;
-    }
-
-    .preset-actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-
-    .preset-actions input[type="text"] {
-      grid-column: 1 / -1;
-    }
-
-    .preset-tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 8px;
-    }
-
-    .preset-empty {
-      color: #8f988f;
-      font-size: 12px;
-    }
-
-    .preset-meta {
-      margin: 0 0 10px;
-      color: #9ea69d;
-      font-size: 12px;
-      line-height: 1.3;
-    }
-
-    .preset-meta.is-error {
-      color: #ff8f8f;
-    }
-
-    .preset-tab,
-    .action-button,
-    .file-button {
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.04);
-      color: #eef1ec;
-      border-radius: 999px;
-      padding: 7px 11px;
-      cursor: pointer;
-      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
-      font-size: 12px;
-      line-height: 1.2;
-    }
-
-    .preset-tab:hover,
-    .action-button:hover,
-    .file-button:hover {
-      background: rgba(255, 255, 255, 0.09);
-      border-color: rgba(255, 255, 255, 0.18);
-    }
-
-    .preset-tab.is-active {
-      background: #edece7;
-      color: #07090c;
-      border-color: #edece7;
-    }
-
-    .action-button:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
-    .file-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .file-button input {
-      display: none;
-    }
-
-    .control-panel input[type="text"],
-    .control-panel input[type="number"] {
-      width: 100%;
-      padding: 7px 10px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.04);
-      color: inherit;
-      font-size: 12px;
-    }
-
-    .control-panel input[type="color"] {
-      width: 100%;
-      min-height: 34px;
-      padding: 2px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.04);
-    }
-
-    .config-sections {
-      display: grid;
-      gap: 8px;
-    }
-
-    .config-section {
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.03);
-      overflow: hidden;
-    }
-
-    .config-section summary {
-      list-style: none;
-      cursor: pointer;
-      padding: 10px 12px;
-      font-weight: 600;
-      font-size: 13px;
-      letter-spacing: 0.02em;
-    }
-
-    .config-section summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .config-section-body {
-      display: grid;
-      gap: 6px;
-      padding: 0 12px 10px;
-    }
-
-    .config-group {
-      display: grid;
-      gap: 6px;
-      padding-top: 6px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
-    .config-group-title {
-      margin: 0;
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.12em;
-      color: #8f988f;
-    }
-
-    .control-row {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 140px;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .control-row.is-boolean {
-      grid-template-columns: minmax(0, 1fr) auto;
-    }
-
-    .control-label {
-      font-size: 12px;
-      line-height: 1.2;
-      color: #d8ddd7;
-    }
-
-    .control-row.is-boolean .control-label {
-      color: #eef1ec;
-    }
-
-    .control-row input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
-      accent-color: #edece7;
-      justify-self: end;
-    }
-
-    .control-number-field {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 76px;
-      gap: 6px;
-      align-items: center;
-    }
-
-    .control-number-field input[type="range"] {
-      width: 100%;
-      accent-color: #edece7;
-    }
-
-    @media (max-width: 1080px) {
-      .viewer-panel {
-        padding: 56px 12px 12px;
-      }
-
-      .stage {
-        width: min(600px, calc(100vw - 24px));
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="./assets/app.css">
 </head>
-<body>
-  <button class="action-button drawer-toggle" type="button" data-drawer-toggle aria-expanded="false" aria-controls="control-drawer">Controls</button>
+<body class="is-dark">
+  <button class="p-button is-dense drawer-toggle" type="button" data-drawer-toggle aria-expanded="false" aria-controls="control-drawer">Controls</button>
   <button class="drawer-backdrop" type="button" data-drawer-backdrop aria-label="Close controls"></button>
-  <div class="app-shell">
-    <section class="viewer-panel">
-      <main class="stage" data-stage aria-label="Animated mascot point field">
-        <canvas aria-hidden="true"></canvas>
-        <div class="overlay" aria-hidden="true">
-          <div class="overlay-inner" data-overlay-inner>
-            <div class="mascot" data-mascot>
-              <div class="mascot-svg" data-mascot-svg></div>
+  <div class="l-application mascot-app is-dark">
+    <main class="l-main">
+      <div class="p-panel">
+        <div class="p-panel__content viewer-panel__content">
+          <section class="stage" data-stage aria-label="Animated mascot point field">
+            <canvas aria-hidden="true"></canvas>
+            <div class="overlay" aria-hidden="true">
+              <div class="overlay-inner" data-overlay-inner>
+                <div class="mascot" data-mascot>
+                  <div class="mascot-svg" data-mascot-svg></div>
+                </div>
+              </div>
             </div>
+          </section>
+          <div class="viewer-actions">
+            <button class="p-button is-dense" type="button" data-replay-button>Replay</button>
+            <button class="p-button--base is-dense" type="button" data-reset-button>Reset Defaults</button>
           </div>
         </div>
-      </main>
-      <div class="viewer-actions">
-        <button class="action-button" type="button" data-replay-button>Replay</button>
-        <button class="action-button" type="button" data-reset-button>Reset Defaults</button>
       </div>
-    </section>
+    </main>
 
-    <aside class="control-panel" id="control-drawer" aria-label="Animation controls">
-      <div class="panel-header">
-        <p class="panel-kicker">Preset Editor</p>
-        <h1>Radial Mascot Transition</h1>
-        <p>Adjust values live, save versions as local preset tabs, export or import presets as JSON, click the stage to replay, and click the mascot to trigger a sneeze.</p>
+    <aside class="l-aside is-narrow is-collapsed" id="control-drawer" data-control-panel aria-label="Animation controls">
+      <div class="p-panel drawer-panel">
+        <div class="p-panel__header is-sticky">
+          <div>
+            <p class="p-text--small-caps u-no-margin--bottom">Preset Editor</p>
+            <h1 class="p-panel__title u-no-padding--top u-no-margin--bottom">Radial Mascot Transition</h1>
+            <p class="p-text--small drawer-copy u-no-margin--bottom">Adjust values live, save versions as local presets, export or import JSON, click the stage to replay, and click the mascot to trigger a sneeze.</p>
+          </div>
+          <div class="p-panel__controls">
+            <button class="p-button--base is-dense" type="button" data-drawer-close>Close</button>
+          </div>
+        </div>
+        <div class="p-panel__content drawer-content">
+          <form class="p-form p-form--stacked preset-editor" onsubmit="return false;">
+            <div class="p-form__group preset-toolbar__name">
+              <label class="p-form__label" for="preset-name">Preset name</label>
+              <div class="p-form__control">
+                <input class="p-form-validation__input is-dense" id="preset-name" type="text" data-preset-name placeholder="Preset name">
+              </div>
+            </div>
+          </form>
+          <div class="preset-toolbar">
+            <button class="p-button is-dense" type="button" data-preset-save>Save New</button>
+            <button class="p-button--base is-dense" type="button" data-preset-overwrite>Update</button>
+            <button class="p-button--base is-dense" type="button" data-preset-export>Export</button>
+            <label class="p-button--base is-dense file-button" for="preset-import">Import
+              <input class="file-button__input" id="preset-import" type="file" accept=".json,application/json" data-preset-import>
+            </label>
+            <button class="p-button--base is-dense" type="button" data-preset-delete>Delete</button>
+          </div>
+
+          <div class="preset-tabs" data-preset-tabs></div>
+          <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save New adds another preset.</p>
+          <div class="config-sections" data-config-editor></div>
+        </div>
       </div>
-
-      <div class="preset-actions">
-        <input type="text" data-preset-name placeholder="Preset name">
-        <button class="action-button" type="button" data-preset-save>Save New</button>
-        <button class="action-button" type="button" data-preset-overwrite>Overwrite</button>
-        <button class="action-button" type="button" data-preset-export>Export JSON</button>
-        <label class="file-button" for="preset-import">Import JSON
-          <input id="preset-import" type="file" accept=".json,application/json" data-preset-import>
-        </label>
-        <button class="action-button" type="button" data-preset-delete>Delete</button>
-      </div>
-
-      <div class="preset-tabs" data-preset-tabs></div>
-      <p class="preset-meta" data-preset-meta>Presets are stored in this browser. Save New adds another tab.</p>
-      <div class="config-sections" data-config-editor></div>
     </aside>
   </div>
 
@@ -535,8 +183,10 @@
       const overlay_inner = stage.querySelector("[data-overlay-inner]");
       const mascot = stage.querySelector("[data-mascot]");
       const mascot_svg = stage.querySelector("[data-mascot-svg]");
+      const control_panel = document.querySelector("[data-control-panel]") || document.querySelector("#control-drawer");
       const drawer_toggle_button = document.querySelector("[data-drawer-toggle]");
       const drawer_backdrop = document.querySelector("[data-drawer-backdrop]");
+      const drawer_close_button = document.querySelector("[data-drawer-close]");
       const replay_button = document.querySelector("[data-replay-button]");
       const reset_button = document.querySelector("[data-reset-button]");
       const preset_name_input = document.querySelector("[data-preset-name]");
@@ -724,7 +374,7 @@
 
       function apply_stage_styles() {
         document.body.style.background = STAGE_BACKGROUND_COLOR;
-        stage.style.width = `min(${STAGE_DISPLAY_SIZE_PX}px, calc(100vw - 32px), calc(100svh - 32px))`;
+        stage.style.width = `min(${STAGE_DISPLAY_SIZE_PX}px, calc(100vw - 3rem), calc(100svh - 5.5rem))`;
         stage.style.borderRadius = "0";
         stage.style.background = STAGE_BACKGROUND_COLOR;
         stage.style.borderColor = "transparent";
@@ -854,6 +504,7 @@
 
       function set_drawer_open(next_state) {
         document.body.classList.toggle("drawer-open", next_state);
+        control_panel.classList.toggle("is-collapsed", !next_state);
         drawer_toggle_button.setAttribute("aria-expanded", String(next_state));
         drawer_toggle_button.textContent = next_state ? "Close" : "Controls";
       }
@@ -918,26 +569,43 @@
         preset_tabs.innerHTML = "";
 
         if (state.presets.length === 0) {
-          const empty_state = document.createElement("span");
-          empty_state.className = "preset-empty";
+          const empty_state = document.createElement("p");
+          empty_state.className = "p-form-help-text preset-empty";
           empty_state.textContent = "No saved presets yet.";
           preset_tabs.appendChild(empty_state);
           update_preset_controls();
           return;
         }
 
+        const tabs = document.createElement("div");
+        tabs.className = "p-tabs";
+
+        const list = document.createElement("div");
+        list.className = "p-tabs__list";
+        list.setAttribute("role", "tablist");
+        list.setAttribute("aria-label", "Saved presets");
+
         for (let index = 0; index < state.presets.length; index += 1) {
           const preset = state.presets[index];
+          const item = document.createElement("div");
+          item.className = "p-tabs__item";
+
           const tab = document.createElement("button");
           tab.type = "button";
-          tab.className = preset.id === state.active_preset_id ? "preset-tab is-active" : "preset-tab";
+          tab.className = "p-tabs__link";
+          tab.setAttribute("role", "tab");
+          tab.setAttribute("aria-selected", String(preset.id === state.active_preset_id));
+          tab.setAttribute("tabindex", preset.id === state.active_preset_id ? "0" : "-1");
           tab.textContent = preset.name;
           tab.addEventListener("click", () => {
             void apply_preset_by_id(preset.id);
           });
-          preset_tabs.appendChild(tab);
+          item.appendChild(tab);
+          list.appendChild(item);
         }
 
+        tabs.appendChild(list);
+        preset_tabs.appendChild(tabs);
         update_preset_controls();
       }
 
@@ -945,10 +613,11 @@
         if (typeof value === "number") {
           const numeric_spec = get_numeric_control_spec(path_key, value);
           const field = document.createElement("div");
-          field.className = "control-number-field";
+          field.className = "p-slider__wrapper control-composite";
 
           const range_input = document.createElement("input");
           range_input.type = "range";
+          range_input.className = "u-no-margin--bottom";
           range_input.min = String(numeric_spec.min);
           range_input.max = String(numeric_spec.max);
           range_input.step = String(numeric_spec.step);
@@ -959,6 +628,7 @@
 
           const number_input = document.createElement("input");
           number_input.type = "number";
+          number_input.className = "p-slider__input p-form-validation__input is-dense u-no-margin--bottom";
           number_input.step = "any";
           number_input.value = String(value);
           number_input.dataset.configPath = path_key;
@@ -982,11 +652,22 @@
         input.dataset.configPath = path_key;
 
         if (typeof value === "boolean") {
+          const checkbox = document.createElement("label");
+          checkbox.className = "p-checkbox control-checkbox";
+
           input.type = "checkbox";
+          input.className = "p-checkbox__input";
           input.checked = value;
           input.addEventListener("change", handle_control_commit);
+
+          const label = document.createElement("span");
+          label.className = "p-checkbox__label";
+          label.textContent = humanize_key(path_key.split(".").pop());
+
+          checkbox.appendChild(input);
+          checkbox.appendChild(label);
           return {
-            element: input,
+            element: checkbox,
             control: {
               type: "single",
               input
@@ -996,6 +677,7 @@
 
         if (is_hex_color_string(value)) {
           input.type = "color";
+          input.className = "p-form-validation__input is-dense control-color u-no-margin--bottom";
           input.value = value;
           input.addEventListener("input", handle_control_commit);
           return {
@@ -1008,6 +690,7 @@
         }
 
         input.type = "text";
+        input.className = "p-form-validation__input is-dense u-no-margin--bottom";
         input.value = value;
         input.addEventListener("change", handle_control_commit);
         return {
@@ -1021,22 +704,39 @@
 
       function create_control_row(path_parts, value) {
         const path_key = path_parts.join(".");
-        const row = document.createElement("label");
-        row.className = "control-row";
+        const row = document.createElement("div");
+        row.className = "p-form__group";
 
-        const label = document.createElement("span");
-        label.className = "control-label";
+        if (typeof value === "boolean") {
+          const input_bundle = create_control_input(path_key, value);
+          state.editor_controls.set(path_key, input_bundle.control);
+          const control = document.createElement("div");
+          control.className = "p-form__control";
+          control.appendChild(input_bundle.element);
+          row.appendChild(control);
+          return row;
+        }
+
+        const label = document.createElement("label");
+        label.className = "p-form__label";
+        label.htmlFor = `control-${path_key.replace(/\./g, "-")}`;
         label.textContent = humanize_key(path_parts[path_parts.length - 1]);
 
         const input_bundle = create_control_input(path_key, value);
         state.editor_controls.set(path_key, input_bundle.control);
-
-        if (typeof value === "boolean") {
-          row.classList.add("is-boolean");
+        if (input_bundle.control.type === "number") {
+          input_bundle.control.range_input.id = label.htmlFor;
+          input_bundle.control.number_input.id = `${label.htmlFor}-value`;
+        } else {
+          input_bundle.control.input.id = label.htmlFor;
         }
 
+        const control = document.createElement("div");
+        control.className = "p-form__control";
+        control.appendChild(input_bundle.element);
+
         row.appendChild(label);
-        row.appendChild(input_bundle.element);
+        row.appendChild(control);
         return row;
       }
 
@@ -1048,7 +748,7 @@
             group.className = "config-group";
 
             const title = document.createElement("h3");
-            title.className = "config-group-title";
+            title.className = "p-text--small-caps u-no-margin--bottom";
             title.textContent = humanize_key(key);
             group.appendChild(title);
 
@@ -1070,18 +770,21 @@
             continue;
           }
 
-          const section = document.createElement("details");
+          const section = document.createElement("section");
           section.className = "config-section";
-          section.open = true;
 
-          const summary = document.createElement("summary");
-          summary.textContent = humanize_key(section_key);
-          section.appendChild(summary);
+          const title = document.createElement("h2");
+          title.className = "p-heading--5 u-no-margin--bottom";
+          title.textContent = humanize_key(section_key);
+          section.appendChild(title);
 
-          const section_body = document.createElement("div");
-          section_body.className = "config-section-body";
-          append_editor_fields(section_body, section_value, [section_key]);
-          section.appendChild(section_body);
+          const form = document.createElement("form");
+          form.className = "p-form p-form--stacked editor-form";
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+          });
+          append_editor_fields(form, section_value, [section_key]);
+          section.appendChild(form);
 
           config_editor.appendChild(section);
         }
@@ -1905,6 +1608,10 @@
         });
 
         drawer_backdrop.addEventListener("click", () => {
+          set_drawer_open(false);
+        });
+
+        drawer_close_button.addEventListener("click", () => {
           set_drawer_open(false);
         });
 

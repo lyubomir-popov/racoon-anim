@@ -6,5 +6,9 @@
     "build": "node scripts/build-site.mjs",
     "dev": "node scripts/dev-server.mjs",
     "serve": "node scripts/dev-server.mjs --no-open --no-watch"
+  },
+  "dependencies": {
+    "sass": "^1.98.0",
+    "vanilla-framework": "^4.46.0"
   }
 }

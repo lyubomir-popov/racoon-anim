@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { write_stylesheet } from "./styles.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const project_root = path.resolve(__dirname, "..");
@@ -27,5 +28,6 @@ fs.rmSync(dist_root, { recursive: true, force: true });
 fs.mkdirSync(dist_root, { recursive: true });
 fs.copyFileSync(path.join(project_root, "src", "index.html"), path.join(dist_root, "index.html"));
 copy_directory(path.join(project_root, "assets"), path.join(dist_root, "assets"));
+await write_stylesheet(path.join(dist_root, "assets", "app.css"), { style: "compressed" });
 fs.writeFileSync(path.join(dist_root, ".nojekyll"), "");
 console.log("built dist/");
