@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Radial Mascot Transition</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: #0b0d10;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      min-height: 100svh;
+      padding: 16px;
+      font-family: sans-serif;
+    }
+
+    .stage {
+      position: relative;
+      width: min(600px, calc(100vw - 32px), calc(100svh - 32px));
+      aspect-ratio: 1;
+      overflow: hidden;
+      background: #050608;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 28px;
+      box-shadow:
+        0 24px 72px rgba(0, 0, 0, 0.45),
+        inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .overlay-inner {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 600px;
+      height: 600px;
+      transform-origin: top left;
+    }
+
+    .core-disc,
+    .mascot {
+      position: absolute;
+      transform-origin: center;
+    }
+
+    .core-disc {
+      border-radius: 999px;
+    }
+
+    .mascot-svg {
+      position: absolute;
+    }
+
+    .mascot-svg {
+      inset: 0;
+    }
+
+    .mascot svg {
+      display: block;
+      width: 100%;
+      height: auto;
+      color: inherit;
+    }
+
+  </style>
+</head>
+<body>
+  <main class="stage" data-stage aria-label="Animated mascot point field">
+    <canvas aria-hidden="true"></canvas>
+    <div class="overlay" aria-hidden="true">
+      <div class="overlay-inner" data-overlay-inner>
+        <div class="core-disc" data-core-disc></div>
+        <div class="mascot" data-mascot>
+          <div class="mascot-svg" data-mascot-svg></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (() => {
+      const TAU = Math.PI * 2;
+      const mascot_viewbox_width = 227.9;
+      const mascot_viewbox_height = 182.85;
+
+      const config = {
+        stage: {
+          canvas_size_px: 600,
+          css_size_px: 600,
+          viewport_margin_px: 16,
+          border_radius_px: 28,
+          page_background_color: "#0b0d10",
+          stage_background_color: "#050608",
+          border_color: "rgba(255, 255, 255, 0.06)",
+          shadow: "0 24px 72px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03)"
+        },
+        timeline: {
+          frames_per_second: 24,
+          stop_on_finish: true
+        },
+        mascot_fade: {
+          enabled: true,
+          duration_sec: 0.25
+        },
+        head_turn: {
+          enabled: true,
+          duration_sec: 0.2,
+          peak_angle_deg: 5,
+          overshoot_angle_deg: -3,
+          peak_frac: 0.38,
+          overshoot_frac: 0.76
+        },
+        composition: {
+          center_x_px: 300,
+          center_y_px: 300,
+          radial_scale: 0.92,
+          global_rotation_deg: 0
+        },
+        generator_wrangle: {
+          inner_radius: 0.253,
+          outer_radius: 0.493,
+          num_orbits: 12,
+          spoke_count: 60,
+          phase_count: 2,
+          min_active_orbits: 3,
+          base_angle_deg: 6,
+          pattern_offset_spokes: 0,
+          anim_start_angle_deg: 0
+        },
+        transition_wrangle: {
+          start_frame: 1,
+          duration_sec: 1,
+          spins: 3,
+          emit_frac: 0.05,
+          capture_start_frac: 0.25,
+          orbit_stagger_frac: 1,
+          speed_mult_per_orbit: 0.85,
+          inner_faster: true,
+          spawn_angle_offset_deg: 0,
+          occlusion_arc_deg: 0,
+          hide_invisible_by_pscale: true,
+          base_pscale: 0.628,
+          orbital_frontier_amount: -1,
+          orbital_frontier_width_u: 1,
+          orbital_frontier_bias: 0.676,
+          phase_frontier_amount: 0.655,
+          phase_frontier_width_u: 0.57,
+          phase_frontier_bias: 1
+        },
+        point_style: {
+          color: "#edece7",
+          alpha: 0.95,
+          base_pscale_px_per_unit: 4.0,
+          aspect_min: 0.84,
+          aspect_max: 1.28,
+          min_scale: 0.3,
+          min_rect_px: 0.9
+        },
+        spoke_lines: {
+          enabled: true,
+          color: "#cfcfc9",
+          alpha: 0.16,
+          width_px: 1,
+          start_radius_px: 100,
+          end_radius_extra_px: 10
+        },
+        core_disc: {
+          enabled: true,
+          radius_px: 86,
+          fill_color: "#050608",
+          opacity: 1,
+          border_width_px: 0,
+          border_color: "rgba(255, 255, 255, 0)"
+        },
+        mascot: {
+          enabled: true,
+          asset_path: "./assets/racoon-mascot-01.svg",
+          base_width_px: 176,
+          scale: 1,
+          offset_x_px: 0,
+          offset_y_px: 8,
+          color: "#c2c0bc",
+          opacity: 0.94
+        },
+        sneeze: {
+          enabled: true,
+          nose_bob_up_px: 1.5,
+          nose_color: "#050608"
+        },
+        blink: {
+          enabled: true,
+          start_delay_sec: 0.04,
+          duration_sec: 0.12,
+          close_frac: 0.42,
+          hold_closed_frac: 0.12,
+          eye_scale_y_closed: 0.08
+        },
+        reduced_motion: {
+          render_static_final_frame: true
+        },
+        performance: {
+          max_device_pixel_ratio: 2,
+          desynchronized: true
+        }
+      };
+
+      const stage = document.querySelector("[data-stage]");
+      const canvas = stage.querySelector("canvas");
+      const overlay_inner = stage.querySelector("[data-overlay-inner]");
+      const core_disc = stage.querySelector("[data-core-disc]");
+      const mascot = stage.querySelector("[data-mascot]");
+      const mascot_svg = stage.querySelector("[data-mascot-svg]");
+      const context = canvas.getContext("2d", {
+        alpha: false,
+        desynchronized: config.performance.desynchronized
+      });
+      const reduce_motion_query = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+      const state = {
+        dpr: 1,
+        dot_end_sec: 1,
+        playback_end_sec: 1,
+        blink_start_sec: 1,
+        blink_end_sec: 1,
+        spawn_angle_rad: 0,
+        points: [],
+        spokes: [],
+        eye_nodes: [],
+        nose_node: null,
+        animation_frame_id: 0,
+        animation_start_ms: performance.now(),
+        reduced_motion: reduce_motion_query.matches
+      };
+
+      function clamp(value, min_value, max_value) {
+        return Math.min(max_value, Math.max(min_value, value));
+      }
+
+      function lerp(min_value, max_value, amount) {
+        return min_value + (max_value - min_value) * amount;
+      }
+
+      function smoothstep(edge_0, edge_1, value) {
+        if (edge_0 === edge_1) {
+          return value < edge_0 ? 0 : 1;
+        }
+
+        const t = clamp((value - edge_0) / (edge_1 - edge_0), 0, 1);
+        return t * t * (3 - 2 * t);
+      }
+
+      function radians(value_deg) {
+        return value_deg * Math.PI / 180;
+      }
+
+      function wrap_positive(value, modulus) {
+        const wrapped = value % modulus;
+        return wrapped < 0 ? wrapped + modulus : wrapped;
+      }
+
+      function hash_01(a, b) {
+        const sample = Math.sin(a * 127.1 + b * 311.7) * 43758.5453123;
+        return sample - Math.floor(sample);
+      }
+
+      function compute_frontier_scale(distance_u, amount, width_u, bias) {
+        const safe_width_u = Math.max(0.0001, width_u);
+        const safe_bias = Math.max(0.001, bias);
+        const frontier_u = Math.pow(smoothstep(0, safe_width_u, distance_u), safe_bias);
+        return Math.max(config.point_style.min_scale, 1 - amount * (1 - frontier_u));
+      }
+
+      function compute_phase_frontier_dist_u(spoke_pattern_id, spoke_count, phase_count) {
+        const segment_id = Math.min(
+          phase_count - 1,
+          Math.floor(spoke_pattern_id * phase_count / spoke_count)
+        );
+        const segment_start = Math.floor(segment_id * spoke_count / phase_count);
+        const segment_end = Math.floor((segment_id + 1) * spoke_count / phase_count) - 1;
+        const segment_length = Math.max(1, segment_end - segment_start + 1);
+        const segment_index = spoke_pattern_id - segment_start;
+
+        if (segment_length <= 1) {
+          return 1;
+        }
+
+        return clamp(segment_index / (segment_length - 1), 0, 1);
+      }
+
+      function apply_stage_styles() {
+        const stage_config = config.stage;
+        document.body.style.background = stage_config.page_background_color;
+        document.body.style.padding = stage_config.viewport_margin_px + "px";
+        stage.style.width = `min(${stage_config.css_size_px}px, calc(100vw - ${stage_config.viewport_margin_px * 2}px), calc(100svh - ${stage_config.viewport_margin_px * 2}px))`;
+        stage.style.borderRadius = stage_config.border_radius_px + "px";
+        stage.style.background = stage_config.stage_background_color;
+        stage.style.borderColor = stage_config.border_color;
+        stage.style.boxShadow = stage_config.shadow;
+      }
+
+      function cache_eye_nodes() {
+        const circles = mascot_svg.querySelectorAll("circle");
+        state.eye_nodes = Array.from(circles, (circle) => ({
+          node: circle,
+          cx: Number(circle.getAttribute("cx") || 0),
+          cy: Number(circle.getAttribute("cy") || 0)
+        }));
+      }
+
+      function cache_mascot_nodes() {
+        const all_paths = mascot_svg.querySelectorAll("path");
+        const nose_node = mascot_svg.querySelector("path.st0") || all_paths[all_paths.length - 1] || null;
+        const head_nodes = mascot_svg.querySelectorAll("path.st1, circle.st1");
+
+        for (const head_node of head_nodes) {
+          head_node.setAttribute("fill", config.mascot.color);
+        }
+
+        if (nose_node) {
+          nose_node.setAttribute("fill", config.sneeze.nose_color);
+        }
+
+        state.nose_node = nose_node;
+      }
+
+      async function load_mascot_svg() {
+        if (!config.mascot.enabled) {
+          mascot_svg.innerHTML = "";
+          state.eye_nodes = [];
+          return;
+        }
+
+        const response = await fetch(config.mascot.asset_path, { cache: "no-store" });
+        const svg_markup = await response.text();
+        mascot_svg.innerHTML = svg_markup.replace(/<\?xml[\s\S]*?\?>\s*/i, "");
+        cache_eye_nodes();
+        cache_mascot_nodes();
+        update_mascot_animation(0, false);
+      }
+
+      function apply_overlay_styles() {
+        const stage_size_px = config.stage.canvas_size_px;
+        const display_scale = stage.getBoundingClientRect().width / stage_size_px;
+        const center_x_px = config.composition.center_x_px;
+        const center_y_px = config.composition.center_y_px;
+
+        overlay_inner.style.width = stage_size_px + "px";
+        overlay_inner.style.height = stage_size_px + "px";
+        overlay_inner.style.transform = `scale(${display_scale})`;
+
+        core_disc.style.display = config.core_disc.enabled ? "block" : "none";
+        if (config.core_disc.enabled) {
+          const diameter_px = config.core_disc.radius_px * 2;
+          core_disc.style.left = center_x_px - config.core_disc.radius_px + "px";
+          core_disc.style.top = center_y_px - config.core_disc.radius_px + "px";
+          core_disc.style.width = diameter_px + "px";
+          core_disc.style.height = diameter_px + "px";
+          core_disc.style.background = config.core_disc.fill_color;
+          core_disc.style.opacity = String(config.core_disc.opacity);
+          core_disc.style.border = `${config.core_disc.border_width_px}px solid ${config.core_disc.border_color}`;
+        }
+
+        mascot.style.display = config.mascot.enabled ? "block" : "none";
+        if (config.mascot.enabled) {
+          const mascot_width_px = config.mascot.base_width_px * config.mascot.scale;
+          const mascot_height_px = mascot_width_px * mascot_viewbox_height / mascot_viewbox_width;
+          const mascot_center_x = center_x_px + config.mascot.offset_x_px;
+          const mascot_center_y = center_y_px + config.mascot.offset_y_px;
+
+          mascot.style.left = mascot_center_x - mascot_width_px * 0.5 + "px";
+          mascot.style.top = mascot_center_y - mascot_height_px * 0.5 + "px";
+          mascot.style.width = mascot_width_px + "px";
+          mascot.style.height = mascot_height_px + "px";
+          mascot.style.opacity = String(config.mascot.opacity);
+        }
+      }
+
+      function build_scene_data() {
+        const generator = config.generator_wrangle;
+        const transition = config.transition_wrangle;
+        const stage_size_px = config.stage.canvas_size_px;
+        const center_x_px = config.composition.center_x_px;
+        const center_y_px = config.composition.center_y_px;
+        const radial_scale = config.composition.radial_scale;
+        const rotation_rad = radians(config.composition.global_rotation_deg);
+        const inner_radius = stage_size_px * radial_scale * generator.inner_radius;
+        const outer_radius = stage_size_px * radial_scale * generator.outer_radius;
+        const radius_span = outer_radius - inner_radius;
+        const base_pscale_px = transition.base_pscale * config.point_style.base_pscale_px_per_unit;
+        const frame_delay_sec = Math.max(0, transition.start_frame - 1) / config.timeline.frames_per_second;
+        const fade_delay_sec = config.mascot_fade.enabled ? config.mascot_fade.duration_sec : 0;
+        const head_turn_delay_sec = config.head_turn.enabled ? config.head_turn.duration_sec : 0;
+        const start_delay_sec = frame_delay_sec + fade_delay_sec + head_turn_delay_sec;
+        const duration_sec = Math.max(0.001, transition.duration_sec);
+        const emit_duration_sec = duration_sec * clamp(transition.emit_frac, 0.001, 1);
+        const blink_start_sec = start_delay_sec + duration_sec + config.blink.start_delay_sec;
+        const blink_end_sec = config.blink.enabled
+          ? blink_start_sec + config.blink.duration_sec
+          : start_delay_sec + duration_sec;
+
+        const active_by_spoke = new Array(generator.spoke_count);
+        const pattern_index_by_spoke = new Array(generator.spoke_count);
+        let total_points = 0;
+
+        // Match the generator wrangle: spoke lengths ramp within repeating phase segments.
+        for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
+          const spoke_pattern_id = wrap_positive(
+            spoke_id - generator.pattern_offset_spokes,
+            generator.spoke_count
+          );
+          pattern_index_by_spoke[spoke_id] = spoke_pattern_id;
+
+          const segment_id = Math.min(
+            generator.phase_count - 1,
+            Math.floor(spoke_pattern_id * generator.phase_count / generator.spoke_count)
+          );
+          const segment_start = Math.floor(segment_id * generator.spoke_count / generator.phase_count);
+          const segment_end = Math.floor((segment_id + 1) * generator.spoke_count / generator.phase_count) - 1;
+          const segment_length = Math.max(1, segment_end - segment_start + 1);
+          const segment_index = spoke_pattern_id - segment_start;
+          const fill_u = segment_length <= 1 ? 1 : segment_index / (segment_length - 1);
+
+          const active_orbits = clamp(
+            Math.round(
+              generator.min_active_orbits +
+              fill_u * (generator.num_orbits - generator.min_active_orbits)
+            ),
+            generator.min_active_orbits,
+            generator.num_orbits
+          );
+
+          active_by_spoke[spoke_id] = active_orbits;
+          total_points += active_orbits;
+        }
+
+        const orbit_counts = new Array(generator.num_orbits).fill(0);
+        for (let orbit_id = 0; orbit_id < generator.num_orbits; orbit_id += 1) {
+          let count = 0;
+          for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
+            if (active_by_spoke[spoke_id] > orbit_id) {
+              count += 1;
+            }
+          }
+          orbit_counts[orbit_id] = count;
+        }
+
+        const max_orbit_count = Math.max(1, ...orbit_counts);
+        const shot_interval_sec = max_orbit_count > 1
+          ? emit_duration_sec / (max_orbit_count - 1)
+          : emit_duration_sec;
+        const base_speed_deg_per_sec = 360 * transition.spins / duration_sec;
+        const capture_start_sec = start_delay_sec + transition.capture_start_frac * duration_sec;
+        const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
+        const spawn_angle_rad = radians(generator.anim_start_angle_deg + transition.spawn_angle_offset_deg) + rotation_rad;
+
+        state.dot_end_sec = start_delay_sec + duration_sec;
+        state.playback_end_sec = blink_end_sec;
+        state.blink_start_sec = blink_start_sec;
+        state.blink_end_sec = blink_end_sec;
+        state.spawn_angle_rad = spawn_angle_rad;
+
+        const points = new Array(total_points);
+        const spokes = new Array(generator.spoke_count);
+        const orbit_rank_counts = new Array(generator.num_orbits).fill(0);
+        let point_index = 0;
+
+        // Static geometry is precomputed so the frame loop only solves angular position.
+        for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
+          const target_angle = base_angle_rad + TAU * spoke_id / generator.spoke_count;
+          const spoke_pattern_id = pattern_index_by_spoke[spoke_id];
+          const active_orbits = active_by_spoke[spoke_id];
+          const reach_u = generator.num_orbits <= 1 ? 1 : (active_orbits - 1) / (generator.num_orbits - 1);
+
+          spokes[spoke_id] = {
+            angle: target_angle,
+            start_radius: config.spoke_lines.start_radius_px,
+            end_radius: outer_radius + config.spoke_lines.end_radius_extra_px
+          };
+
+          const phase_frontier_dist_u = compute_phase_frontier_dist_u(
+            spoke_pattern_id,
+            generator.spoke_count,
+            generator.phase_count
+          );
+          const phase_frontier_scale = compute_frontier_scale(
+            phase_frontier_dist_u,
+            transition.phase_frontier_amount,
+            transition.phase_frontier_width_u,
+            transition.phase_frontier_bias
+          );
+
+          for (let orbit_id = 0; orbit_id < active_orbits; orbit_id += 1) {
+            const orbit_u = generator.num_orbits <= 1 ? 0 : orbit_id / (generator.num_orbits - 1);
+            const radius = inner_radius + radius_span * orbit_u;
+            const orbit_rank = orbit_rank_counts[orbit_id];
+            const speed_index = transition.inner_faster
+              ? orbit_id
+              : (generator.num_orbits - 1 - orbit_id);
+            const speed_deg_per_sec = base_speed_deg_per_sec *
+              Math.pow(Math.max(0.0001, transition.speed_mult_per_orbit), speed_index);
+            const visible_delay_sec = transition.occlusion_arc_deg / Math.max(0.0001, speed_deg_per_sec);
+            const birth_sec = start_delay_sec +
+              orbit_rank * shot_interval_sec +
+              orbit_id * transition.orbit_stagger_frac * shot_interval_sec;
+            const visible_sec = birth_sec + visible_delay_sec;
+            const point_capture_start_sec = Math.max(capture_start_sec, visible_sec);
+
+            const orbital_frontier_dist_u = Math.max(0, reach_u - orbit_u);
+            const orbital_frontier_scale = compute_frontier_scale(
+              orbital_frontier_dist_u,
+              transition.orbital_frontier_amount,
+              transition.orbital_frontier_width_u,
+              transition.orbital_frontier_bias
+            );
+
+            const final_scale = base_pscale_px * orbital_frontier_scale * phase_frontier_scale;
+            const aspect_u = hash_01(spoke_id + 11.17, orbit_id + 29.31);
+            const aspect_scale = lerp(config.point_style.aspect_min, config.point_style.aspect_max, aspect_u);
+            const width_px = Math.max(config.point_style.min_rect_px, final_scale * aspect_scale);
+            const height_px = Math.max(config.point_style.min_rect_px, final_scale / aspect_scale);
+
+            points[point_index] = {
+              center_x_px,
+              center_y_px,
+              radius,
+              target_angle,
+              speed_rad_per_sec: radians(speed_deg_per_sec),
+              birth_sec,
+              visible_sec,
+              capture_start_sec: point_capture_start_sec,
+              width_px,
+              height_px,
+              half_width_px: width_px * 0.5,
+              half_height_px: height_px * 0.5
+            };
+
+            orbit_rank_counts[orbit_id] += 1;
+            point_index += 1;
+          }
+        }
+
+        state.points = points;
+        state.spokes = spokes;
+      }
+
+      function compute_mascot_fade_amount(playback_time_sec) {
+        if (!config.mascot_fade.enabled) {
+          return 1;
+        }
+
+        return smoothstep(
+          0,
+          Math.max(0.0001, config.mascot_fade.duration_sec),
+          playback_time_sec
+        );
+      }
+
+      function compute_blink_amount(playback_time_sec) {
+        if (!config.blink.enabled || playback_time_sec < state.blink_start_sec || playback_time_sec > state.blink_end_sec) {
+          return 0;
+        }
+
+        const blink_u = clamp(
+          (playback_time_sec - state.blink_start_sec) / Math.max(0.0001, config.blink.duration_sec),
+          0,
+          1
+        );
+        const close_frac = clamp(config.blink.close_frac, 0.05, 0.9);
+        const hold_end_frac = clamp(close_frac + config.blink.hold_closed_frac, close_frac, 0.98);
+
+        if (blink_u < close_frac) {
+          return smoothstep(0, close_frac, blink_u);
+        }
+
+        if (blink_u < hold_end_frac) {
+          return 1;
+        }
+
+        return 1 - smoothstep(hold_end_frac, 1, blink_u);
+      }
+
+      function compute_head_turn_deg(playback_time_sec) {
+        if (!config.head_turn.enabled) {
+          return 0;
+        }
+
+        const duration_sec = Math.max(0.0001, config.head_turn.duration_sec);
+        const head_turn_start_sec = config.mascot_fade.enabled ? config.mascot_fade.duration_sec : 0;
+        const local_time_sec = playback_time_sec - head_turn_start_sec;
+
+        if (local_time_sec <= 0 || local_time_sec >= duration_sec) {
+          return 0;
+        }
+
+        const turn_u = clamp(local_time_sec / duration_sec, 0, 1);
+        const peak_frac = clamp(config.head_turn.peak_frac, 0.05, 0.8);
+        const overshoot_frac = clamp(config.head_turn.overshoot_frac, peak_frac, 0.98);
+
+        if (turn_u < peak_frac) {
+          return lerp(0, config.head_turn.peak_angle_deg, smoothstep(0, peak_frac, turn_u));
+        }
+
+        if (turn_u < overshoot_frac) {
+          return lerp(
+            config.head_turn.peak_angle_deg,
+            config.head_turn.overshoot_angle_deg,
+            smoothstep(peak_frac, overshoot_frac, turn_u)
+          );
+        }
+
+        return lerp(
+          config.head_turn.overshoot_angle_deg,
+          0,
+          smoothstep(overshoot_frac, 1, turn_u)
+        );
+      }
+
+      function update_mascot_animation(playback_time_sec, force_final) {
+        if (!state.eye_nodes.length) {
+          return;
+        }
+
+        const fade_amount = force_final ? 1 : compute_mascot_fade_amount(playback_time_sec);
+        const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec);
+        const head_turn_deg = force_final ? 0 : compute_head_turn_deg(playback_time_sec);
+        const eye_scale_y = force_final ? 1 : lerp(1, clamp(config.blink.eye_scale_y_closed, 0.02, 1), blink_amount);
+
+        for (let eye_index = 0; eye_index < state.eye_nodes.length; eye_index += 1) {
+          const eye = state.eye_nodes[eye_index];
+          eye.node.setAttribute(
+            "transform",
+            `translate(${eye.cx} ${eye.cy}) scale(1 ${eye_scale_y}) translate(${-eye.cx} ${-eye.cy})`
+          );
+        }
+
+        mascot.style.opacity = String(config.mascot.opacity * fade_amount);
+        mascot.style.transform = `rotate(${head_turn_deg}deg)`;
+
+        if (state.nose_node) {
+          const nose_bob_px = config.sneeze.enabled ? config.sneeze.nose_bob_up_px * blink_amount : 0;
+          state.nose_node.setAttribute("transform", `translate(0 ${-nose_bob_px})`);
+        }
+      }
+
+      function resize_canvas() {
+        const stage_size_px = config.stage.canvas_size_px;
+        const dpr = Math.min(window.devicePixelRatio || 1, config.performance.max_device_pixel_ratio);
+
+        canvas.width = Math.round(stage_size_px * dpr);
+        canvas.height = Math.round(stage_size_px * dpr);
+
+        state.dpr = dpr;
+        context.setTransform(dpr, 0, 0, dpr, 0, 0);
+        context.imageSmoothingEnabled = false;
+
+        apply_overlay_styles();
+        build_scene_data();
+        render_current_frame(performance.now(), true);
+      }
+
+      function draw_spoke_lines() {
+        if (!config.spoke_lines.enabled || state.spokes.length === 0) {
+          return;
+        }
+
+        context.save();
+        context.globalAlpha = config.spoke_lines.alpha;
+        context.strokeStyle = config.spoke_lines.color;
+        context.lineWidth = config.spoke_lines.width_px;
+        context.beginPath();
+
+        for (let spoke_index = 0; spoke_index < state.spokes.length; spoke_index += 1) {
+          const spoke = state.spokes[spoke_index];
+          const x0 = config.composition.center_x_px + Math.cos(spoke.angle) * spoke.start_radius;
+          const y0 = config.composition.center_y_px + Math.sin(spoke.angle) * spoke.start_radius;
+          const x1 = config.composition.center_x_px + Math.cos(spoke.angle) * spoke.end_radius;
+          const y1 = config.composition.center_y_px + Math.sin(spoke.angle) * spoke.end_radius;
+          context.moveTo(x0, y0);
+          context.lineTo(x1, y1);
+        }
+
+        context.stroke();
+        context.restore();
+      }
+
+      function draw_points(time_sec, force_final) {
+        if (state.points.length === 0) {
+          return;
+        }
+
+        context.save();
+        context.globalAlpha = config.point_style.alpha;
+        context.fillStyle = config.point_style.color;
+        context.beginPath();
+
+        for (let point_index = 0; point_index < state.points.length; point_index += 1) {
+          const point = state.points[point_index];
+
+          if (!force_final && time_sec < point.birth_sec) {
+            continue;
+          }
+
+          if (
+            !force_final &&
+            config.transition_wrangle.hide_invisible_by_pscale &&
+            time_sec < point.visible_sec
+          ) {
+            continue;
+          }
+
+          let angle = point.target_angle;
+
+          if (!force_final) {
+            const live_age_sec = Math.max(0, time_sec - point.birth_sec);
+            const live_angle = state.spawn_angle_rad - point.speed_rad_per_sec * live_age_sec;
+
+            // Capture blends angularly from the live orbit into the target angle, never across the circle.
+            const capture_duration_sec = Math.max(
+              0.0001,
+              state.dot_end_sec - point.capture_start_sec
+            );
+            const raw_capture_u = clamp(
+              (time_sec - point.capture_start_sec) / capture_duration_sec,
+              0,
+              1
+            );
+            const capture_u = raw_capture_u * raw_capture_u * (3 - 2 * raw_capture_u);
+            const delta_angle = wrap_positive(live_angle - point.target_angle, TAU);
+
+            angle = live_angle - delta_angle * capture_u;
+          }
+
+          const point_x = point.center_x_px + Math.cos(angle) * point.radius;
+          const point_y = point.center_y_px + Math.sin(angle) * point.radius;
+
+          context.rect(
+            point_x - point.half_width_px,
+            point_y - point.half_height_px,
+            point.width_px,
+            point.height_px
+          );
+        }
+
+        context.fill();
+        context.restore();
+      }
+
+      function render_scene(time_sec, options = {}) {
+        const force_final = Boolean(options.force_final);
+
+        context.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+        context.globalAlpha = 1;
+        context.fillStyle = config.stage.stage_background_color;
+        context.fillRect(0, 0, config.stage.canvas_size_px, config.stage.canvas_size_px);
+
+        draw_spoke_lines();
+        draw_points(time_sec, force_final);
+      }
+
+      function render_current_frame(_now_ms, skip_schedule) {
+        if (state.reduced_motion && config.reduced_motion.render_static_final_frame) {
+          render_scene(state.dot_end_sec, { force_final: true });
+          update_mascot_animation(state.playback_end_sec, true);
+          return;
+        }
+
+        const elapsed_sec = Math.max(0, (performance.now() - state.animation_start_ms) / 1000);
+        const playback_time_sec = clamp(elapsed_sec, 0, state.playback_end_sec);
+        const dot_time_sec = Math.min(playback_time_sec, state.dot_end_sec);
+        const is_dot_animation_complete = playback_time_sec >= state.dot_end_sec;
+        const is_playback_complete = playback_time_sec >= state.playback_end_sec;
+
+        render_scene(dot_time_sec, { force_final: is_dot_animation_complete });
+        update_mascot_animation(playback_time_sec, is_playback_complete);
+
+        if (!skip_schedule && !(config.timeline.stop_on_finish && is_playback_complete)) {
+          state.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
+            render_current_frame(frame_now_ms, false);
+          });
+        } else if (!skip_schedule) {
+          stop_animation();
+        }
+      }
+
+      function stop_animation() {
+        if (state.animation_frame_id) {
+          cancelAnimationFrame(state.animation_frame_id);
+          state.animation_frame_id = 0;
+        }
+      }
+
+      function start_animation() {
+        stop_animation();
+
+        if (state.reduced_motion && config.reduced_motion.render_static_final_frame) {
+          render_scene(state.dot_end_sec, { force_final: true });
+          update_mascot_animation(state.playback_end_sec, true);
+          return;
+        }
+
+        state.animation_start_ms = performance.now();
+        state.animation_frame_id = requestAnimationFrame(() => {
+          render_current_frame(undefined, false);
+        });
+      }
+
+      function handle_reduce_motion_change(event) {
+        state.reduced_motion = event.matches;
+        start_animation();
+      }
+
+      async function init() {
+        apply_stage_styles();
+        await load_mascot_svg();
+        resize_canvas();
+        start_animation();
+
+        const resize_observer = new ResizeObserver(() => {
+          apply_stage_styles();
+          resize_canvas();
+        });
+
+        resize_observer.observe(stage);
+
+        if (typeof reduce_motion_query.addEventListener === "function") {
+          reduce_motion_query.addEventListener("change", handle_reduce_motion_change);
+        } else if (typeof reduce_motion_query.addListener === "function") {
+          reduce_motion_query.addListener(handle_reduce_motion_change);
+        }
+      }
+
+      init().catch((error) => {
+        console.error(error);
+      });
+    })();
+  </script>
+</body>
+</html>

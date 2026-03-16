@@ -1,0 +1,171 @@
+float innerRadius        = chf("innerRadius");
+float outerRadius        = chf("outerRadius");
+int   numOrbits          = max(1, chi("numOrbits"));
+int   spokeCount         = max(1, chi("spokeCount"));
+int   phaseCount         = max(1, chi("phase"));
+float baseAngleDeg       = chf("baseAngleDeg");
+int   patternOffsetSpokes= chi("patternOffsetSpokes");
+float animStartAngleDeg  = chf("animStartAngleDeg");
+int   minActiveOrbits    = clamp(chi("minActiveOrbits"), 1, numOrbits);
+
+float TAU = 6.283185307179586;
+
+// wrap safely
+patternOffsetSpokes = ((patternOffsetSpokes % spokeCount) + spokeCount) % spokeCount;
+
+// point attrs
+addpointattrib(0, "id", 0);
+addpointattrib(0, "id_spoke", 0);
+addpointattrib(0, "id_orbit", 0);
+addpointattrib(0, "spoke_id", 0);
+addpointattrib(0, "spoke_pattern_id", 0);
+addpointattrib(0, "orbit_id", 0);
+addpointattrib(0, "orbit_rank", 0);     // order within same orbit
+addpointattrib(0, "orbit_count", 0);    // total points on that orbit
+addpointattrib(0, "spoke_u", 0.0);
+addpointattrib(0, "orbit_u", 0.0);
+addpointattrib(0, "radius", 0.0);
+addpointattrib(0, "active_orbits", 0);
+addpointattrib(0, "reach_u", 0.0);
+addpointattrib(0, "reach_radius", 0.0);
+
+// detail attrs
+adddetailattrib(0, "spokeCountGenerated", 0);
+adddetailattrib(0, "numOrbitsGenerated", 0);
+adddetailattrib(0, "phaseGenerated", 0);
+adddetailattrib(0, "minActiveOrbitsGenerated", 0);
+adddetailattrib(0, "baseAngleDegGenerated", 0.0);
+adddetailattrib(0, "patternOffsetSpokesGenerated", 0);
+adddetailattrib(0, "animStartAngleDegGenerated", 0.0);
+
+setdetailattrib(0, "spokeCountGenerated", spokeCount, "set");
+setdetailattrib(0, "numOrbitsGenerated", numOrbits, "set");
+setdetailattrib(0, "phaseGenerated", phaseCount, "set");
+setdetailattrib(0, "minActiveOrbitsGenerated", minActiveOrbits, "set");
+setdetailattrib(0, "baseAngleDegGenerated", baseAngleDeg, "set");
+setdetailattrib(0, "patternOffsetSpokesGenerated", patternOffsetSpokes, "set");
+setdetailattrib(0, "animStartAngleDegGenerated", animStartAngleDeg, "set");
+
+// ------------------------------------------------------------
+// 1) active orbit count per spoke, with pattern offset
+// ------------------------------------------------------------
+
+int active[];
+resize(active, spokeCount);
+
+int pattern_index[];
+resize(pattern_index, spokeCount);
+
+for (int s = 0; s < spokeCount; s++)
+{
+    int sp = (s - patternOffsetSpokes + spokeCount) % spokeCount;
+    pattern_index[s] = sp;
+
+    int seg = int(floor(float(sp) * float(phaseCount) / float(spokeCount)));
+    seg = clamp(seg, 0, phaseCount - 1);
+
+    int seg_start = int(floor(float(seg)     * float(spokeCount) / float(phaseCount)));
+    int seg_end   = int(floor(float(seg + 1) * float(spokeCount) / float(phaseCount))) - 1;
+
+    int seg_len = max(1, seg_end - seg_start + 1);
+    int seg_i   = sp - seg_start;
+
+    float fill_u = (seg_len <= 1) ? 1.0 : float(seg_i) / float(seg_len - 1);
+
+    int nactive = minActiveOrbits + int(rint(fill_u * float(numOrbits - minActiveOrbits)));
+    nactive = clamp(nactive, minActiveOrbits, numOrbits);
+
+    active[s] = nactive;
+}
+
+// ------------------------------------------------------------
+// 2) prefix sums
+// ------------------------------------------------------------
+
+int prefix_spoke[];
+resize(prefix_spoke, spokeCount);
+
+int accum = 0;
+for (int s = 0; s < spokeCount; s++)
+{
+    prefix_spoke[s] = accum;
+    accum += active[s];
+}
+
+int orbit_counts[];
+resize(orbit_counts, numOrbits);
+
+for (int o = 0; o < numOrbits; o++)
+{
+    int c = 0;
+    for (int s = 0; s < spokeCount; s++)
+    {
+        if (active[s] > o)
+            c++;
+    }
+    orbit_counts[o] = c;
+}
+int maxOrbitCount = 0;
+for (int o = 0; o < numOrbits; o++)
+{
+    if (orbit_counts[o] > maxOrbitCount)
+        maxOrbitCount = orbit_counts[o];
+}
+setdetailattrib(0, "maxOrbitCountGenerated", maxOrbitCount, "set");
+int prefix_orbit[];
+resize(prefix_orbit, numOrbits);
+
+accum = 0;
+for (int o = 0; o < numOrbits; o++)
+{
+    prefix_orbit[o] = accum;
+    accum += orbit_counts[o];
+}
+
+// ------------------------------------------------------------
+// 3) build points
+// ------------------------------------------------------------
+
+for (int s = 0; s < spokeCount; s++)
+{
+    float theta   = radians(baseAngleDeg) + TAU * float(s) / float(spokeCount);
+    float spoke_u = float(s) / float(max(1, spokeCount - 1));
+
+    float reach_u = (numOrbits <= 1) ? 1.0 : float(active[s] - 1) / float(numOrbits - 1);
+    float reach_r = innerRadius + (outerRadius - innerRadius) * reach_u;
+
+    for (int o = 0; o < active[s]; o++)
+    {
+        float orbit_u = (numOrbits <= 1) ? 0.0 : float(o) / float(numOrbits - 1);
+        float r = innerRadius + (outerRadius - innerRadius) * orbit_u;
+
+        vector P = set(cos(theta) * r, sin(theta) * r, 0.0);
+        int pt = addpoint(0, P);
+
+        int id_spoke = prefix_spoke[s] + o;
+
+        int rank_in_orbit = 0;
+        for (int ss = 0; ss < s; ss++)
+        {
+            if (active[ss] > o)
+                rank_in_orbit++;
+        }
+
+        int id_orbit = prefix_orbit[o] + rank_in_orbit;
+
+        setpointattrib(0, "id",               pt, id_orbit, "set");
+        setpointattrib(0, "id_spoke",         pt, id_spoke, "set");
+        setpointattrib(0, "id_orbit",         pt, id_orbit, "set");
+        setpointattrib(0, "spoke_id",         pt, s, "set");
+        setpointattrib(0, "spoke_pattern_id", pt, pattern_index[s], "set");
+        setpointattrib(0, "orbit_id",         pt, o, "set");
+        setpointattrib(0, "orbit_rank",       pt, rank_in_orbit, "set");
+        setpointattrib(0, "orbit_count",      pt, orbit_counts[o], "set");
+        setpointattrib(0, "spoke_u",          pt, spoke_u, "set");
+        setpointattrib(0, "orbit_u",          pt, orbit_u, "set");
+        setpointattrib(0, "radius",           pt, r, "set");
+        setpointattrib(0, "active_orbits",    pt, active[s], "set");
+        setpointattrib(0, "reach_u",          pt, reach_u, "set");
+        setpointattrib(0, "reach_radius",     pt, reach_r, "set");
+    }
+}

@@ -1,0 +1,228 @@
+// full wrangle 2
+// parameter names to create on this wrangle:
+//
+// timing / motion
+// start_frame
+// duration_sec
+// spins
+// emit_frac
+// capture_start_frac
+// orbit_stagger_frac
+// speed_mult_per_orbit
+// inner_faster
+// spawn_angle_offset_deg
+// occlusion_arc_deg
+// hide_invisible_by_pscale
+//
+// pscale
+// base_pscale
+//
+// orbital frontier
+// orbital_frontier_amount        // set UI range -1 to 1
+// orbital_frontier_width_u
+// orbital_frontier_bias
+//
+// phase frontier
+// phase_frontier_amount          // set UI range -1 to 1
+// phase_frontier_width_u
+// phase_frontier_bias
+
+float start_frame                = chf("start_frame");
+float duration_sec               = max(0.001, chf("duration_sec"));
+float spins                      = chf("spins");
+
+float emit_frac                  = clamp(chf("emit_frac"), 0.001, 1.0);
+float capture_start_frac         = clamp(chf("capture_start_frac"), 0.0, 1.0);
+float orbit_stagger_frac         = chf("orbit_stagger_frac");
+
+float speed_mult_per_orbit       = chf("speed_mult_per_orbit");
+int   inner_faster               = chi("inner_faster");
+
+float spawn_angle_offset_deg     = chf("spawn_angle_offset_deg");
+float occlusion_arc_deg          = max(0.0, chf("occlusion_arc_deg"));
+
+int   hide_invisible_by_pscale   = chi("hide_invisible_by_pscale");
+
+// pscale
+float base_pscale                = chf("base_pscale");
+
+// orbital frontier controls
+float orbital_frontier_amount    = clamp(chf("orbital_frontier_amount"), -1.0, 1.0);
+float orbital_frontier_width_u   = clamp(chf("orbital_frontier_width_u"), 0.0001, 1.0);
+float orbital_frontier_bias      = max(0.001, chf("orbital_frontier_bias"));
+
+// phase frontier controls
+float phase_frontier_amount      = clamp(chf("phase_frontier_amount"), -1.0, 1.0);
+float phase_frontier_width_u     = clamp(chf("phase_frontier_width_u"), 0.0001, 1.0);
+float phase_frontier_bias        = max(0.001, chf("phase_frontier_bias"));
+
+float TAU = 6.283185307179586;
+
+// target point from generator
+vector P_target = @P;
+float r = length(set(P_target.x, P_target.y, 0.0));
+float theta_target = atan2(P_target.y, P_target.x);
+
+// actual scene time step
+float fps = 1.0 / max(1e-6, @TimeInc);
+float duration_frames = duration_sec * fps;
+float end_frame = start_frame + duration_frames;
+
+// shared base spawn angle
+float spawn_angle_deg = detail(0, "animStartAngleDegGenerated", 0) + spawn_angle_offset_deg;
+float theta_spawn_0 = radians(spawn_angle_deg);
+
+// derive one common shot interval from duration and densest orbit
+int max_orbit_count = max(1, detail(0, "maxOrbitCountGenerated", 0));
+float emit_frames = duration_frames * emit_frac;
+float shot_interval_frames = (max_orbit_count > 1)
+    ? emit_frames / float(max_orbit_count - 1)
+    : emit_frames;
+
+// per-point birth time
+float birth_frame =
+    start_frame +
+    float(i@orbit_rank) * shot_interval_frames +
+    float(i@orbit_id)   * orbit_stagger_frac * shot_interval_frames;
+
+// orbit-dependent constant speed
+int num_orbits = max(1, detail(0, "numOrbitsGenerated", 0));
+int speed_index = inner_faster ? i@orbit_id : (num_orbits - 1 - i@orbit_id);
+
+// base spins over full shot duration
+float base_speed_deg_per_frame = 360.0 * spins / max(1e-6, duration_frames);
+float speed_deg = base_speed_deg_per_frame * pow(max(0.0001, speed_mult_per_orbit), float(speed_index));
+float speed_rad = radians(speed_deg);
+
+// delay visibility so bullets appear after passing the hidden gun / building
+float visible_delay_frames = occlusion_arc_deg / max(0.0001, speed_deg);
+float visible_frame = birth_frame + visible_delay_frames;
+
+// state
+int born    = (@Frame >= birth_frame);
+int visible = (@Frame >= visible_frame);
+
+i@born = born;
+i@visible = visible;
+f@birth_frame = birth_frame;
+f@visible_frame = visible_frame;
+f@orbit_speed_deg = speed_deg;
+@group_born = born;
+@group_visible = visible;
+
+// live motion: clockwise, constant angular speed
+float age_birth = max(0.0, @Frame - birth_frame);
+float theta_live = theta_spawn_0 - speed_rad * age_birth;
+vector P_live = set(cos(theta_live) * r, sin(theta_live) * r, 0.0);
+
+// ------------------------------------------------------------
+// orbital_frontier
+// 0 at the outermost active orbit on this spoke
+// 1 deeper inward from that spoke frontier
+// ------------------------------------------------------------
+float orbital_frontier_dist_u = max(0.0, f@reach_u - f@orbit_u);
+float orbital_frontier_u = smooth(0.0, orbital_frontier_width_u, orbital_frontier_dist_u);
+orbital_frontier_u = pow(orbital_frontier_u, orbital_frontier_bias);
+
+// reversible amount:
+//   0  = no effect
+//   1  = smallest at frontier
+//  -1  = biggest at frontier
+float orbital_frontier_scale =
+    1.0 - orbital_frontier_amount * (1.0 - orbital_frontier_u);
+
+orbital_frontier_scale = max(0.001, orbital_frontier_scale);
+
+// ------------------------------------------------------------
+// phase_frontier
+// driven by the phase reset boundary in pattern space
+// seg_local_u = 0 at the start of each phase segment
+// ------------------------------------------------------------
+int phase_count = max(1, detail(0, "phaseGenerated", 0));
+int spoke_count = max(1, detail(0, "spokeCountGenerated", 0));
+
+// use pattern-space spoke index so pattern offset is already baked in
+int sp = i@spoke_pattern_id;
+
+int seg = int(floor(float(sp) * float(phase_count) / float(spoke_count)));
+seg = clamp(seg, 0, phase_count - 1);
+
+int seg_start = int(floor(float(seg)     * float(spoke_count) / float(phase_count)));
+int seg_end   = int(floor(float(seg + 1) * float(spoke_count) / float(phase_count))) - 1;
+
+int seg_len = max(1, seg_end - seg_start + 1);
+int seg_i   = sp - seg_start;
+
+// 0 at phase frontier, 1 at far end of segment
+float phase_frontier_dist_u = (seg_len <= 1)
+    ? 1.0
+    : float(seg_i) / float(seg_len - 1);
+
+phase_frontier_dist_u = clamp(phase_frontier_dist_u, 0.0, 1.0);
+
+float phase_frontier_u = smooth(0.0, phase_frontier_width_u, phase_frontier_dist_u);
+phase_frontier_u = pow(phase_frontier_u, phase_frontier_bias);
+
+// reversible amount:
+//   0  = no effect
+//   1  = smallest at frontier
+//  -1  = biggest at frontier
+float phase_frontier_scale =
+    1.0 - phase_frontier_amount * (1.0 - phase_frontier_u);
+
+phase_frontier_scale = max(0.001, phase_frontier_scale);
+
+// combined pscale
+float final_pscale = base_pscale * orbital_frontier_scale * phase_frontier_scale;
+
+// debug attrs
+f@orbital_frontier_dist_u = orbital_frontier_dist_u;
+f@orbital_frontier_u      = orbital_frontier_u;
+f@orbital_frontier_scale  = orbital_frontier_scale;
+
+i@phase_segment_id        = seg;
+f@phase_frontier_dist_u   = phase_frontier_dist_u;
+f@phase_frontier_u        = phase_frontier_u;
+f@phase_frontier_scale    = phase_frontier_scale;
+
+// hidden before visible
+if (!visible)
+{
+    @P = P_live;
+
+    if (hide_invisible_by_pscale)
+        @pscale = 0.0;
+    else
+        @pscale = final_pscale;
+
+    return;
+}
+
+@pscale = final_pscale;
+
+// global capture starts at a fraction of total duration,
+// but each point only starts capturing after it is visible
+float capture_start_frame = start_frame + capture_start_frac * duration_frames;
+float point_capture_start = max(capture_start_frame, visible_frame);
+
+// each point still reaches target exactly at end_frame
+float capture_eff = 1.0;
+if (end_frame > point_capture_start)
+{
+    capture_eff = clamp(
+        (@Frame - point_capture_start) / (end_frame - point_capture_start),
+        0.0,
+        1.0
+    );
+}
+
+// smooth the capture a bit
+capture_eff = capture_eff * capture_eff * (3.0 - 2.0 * capture_eff);
+
+// capture along the orbit, not across the circle
+float delta = theta_live - theta_target;
+while (delta < 0.0)  delta += TAU;
+while (delta >= TAU) delta -= TAU;
+
+float theta = theta_live - delta * capture_eff;
+@P = set(cos(theta) * r, sin(theta) * r, 0.0);
