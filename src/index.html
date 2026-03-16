@@ -125,16 +125,16 @@
           stop_on_finish: true
         },
         mascot_fade: {
-          enabled: true,
+          enabled: false,
           duration_sec: 0.25
         },
         head_turn: {
           enabled: true,
-          duration_sec: 0.2,
-          peak_angle_deg: 5,
+          duration_sec: 0.3,
+          peak_angle_deg: -30,
           overshoot_angle_deg: -3,
-          peak_frac: 0.38,
-          overshoot_frac: 0.76
+          peak_frac: 0.22,
+          overshoot_frac: 0.75
         },
         composition: {
           center_x_px: 300,
@@ -416,7 +416,8 @@
         const frame_delay_sec = Math.max(0, transition.start_frame - 1) / config.timeline.frames_per_second;
         const fade_delay_sec = config.mascot_fade.enabled ? config.mascot_fade.duration_sec : 0;
         const head_turn_delay_sec = config.head_turn.enabled ? config.head_turn.duration_sec : 0;
-        const start_delay_sec = frame_delay_sec + fade_delay_sec + head_turn_delay_sec;
+        const lead_in_duration_sec = Math.max(fade_delay_sec, head_turn_delay_sec);
+        const start_delay_sec = frame_delay_sec + lead_in_duration_sec;
         const duration_sec = Math.max(0.001, transition.duration_sec);
         const emit_duration_sec = duration_sec * clamp(transition.emit_frac, 0.001, 1);
         const blink_start_sec = start_delay_sec + duration_sec + config.blink.start_delay_sec;
@@ -611,8 +612,7 @@
         }
 
         const duration_sec = Math.max(0.0001, config.head_turn.duration_sec);
-        const head_turn_start_sec = config.mascot_fade.enabled ? config.mascot_fade.duration_sec : 0;
-        const local_time_sec = playback_time_sec - head_turn_start_sec;
+        const local_time_sec = playback_time_sec;
 
         if (local_time_sec <= 0 || local_time_sec >= duration_sec) {
           return 0;
