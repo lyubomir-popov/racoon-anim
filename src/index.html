@@ -93,7 +93,6 @@
           peak_frac: 0.25,
           reverse_frac: 0.56,
           dot_overlap_sec: 0.27,
-          eye_scale_y_closed: 0.18,
           overshoot_frac: 0.75
         },
         composition: {
@@ -498,7 +497,6 @@
           "head_turn.peak_frac": { min: 0, max: 1, step: 0.01 },
           "head_turn.reverse_frac": { min: 0, max: 1, step: 0.01 },
           "head_turn.dot_overlap_sec": { min: 0, max: 1, step: 0.01 },
-          "head_turn.eye_scale_y_closed": { min: 0.02, max: 1, step: 0.01 },
           "head_turn.overshoot_frac": { min: 0, max: 1, step: 0.01 },
           "composition.center_x_px": { min: 0, max: 600, step: 1 },
           "composition.center_y_px": { min: 0, max: 600, step: 1 },
@@ -1831,11 +1829,9 @@
           return 0;
         }
 
-        const turn_u = clamp(local_time_sec / duration_sec, 0, 1);
-        const close_end_frac = clamp(config.head_turn.peak_frac * 0.8, 0.04, 0.3);
-        const open_start_frac = clamp(config.head_turn.overshoot_frac, close_end_frac + 0.1, 0.96);
-        const close_amount = smoothstep(0, close_end_frac, turn_u);
-        const open_amount = 1 - smoothstep(open_start_frac, 1, turn_u);
+        const ease_sec = Math.min(0.03, duration_sec * 0.18);
+        const close_amount = smoothstep(0, ease_sec, local_time_sec);
+        const open_amount = 1 - smoothstep(duration_sec - ease_sec, duration_sec, local_time_sec);
         return clamp(close_amount * open_amount, 0, 1);
       }
 
@@ -1848,9 +1844,10 @@
         const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec, now_ms);
         const head_turn_eye_amount = force_final ? 0 : compute_head_turn_eye_squint_amount(playback_time_sec);
         const head_turn_deg = force_final ? 0 : compute_head_turn_deg(playback_time_sec);
-        const blink_eye_scale_y = lerp(1, clamp(config.blink.eye_scale_y_closed, 0.02, 1), blink_amount);
-        const shake_eye_scale_y = lerp(1, clamp(config.head_turn.eye_scale_y_closed, 0.02, 1), head_turn_eye_amount);
-        const eye_scale_y = force_final ? 1 : Math.min(blink_eye_scale_y, shake_eye_scale_y);
+        const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
+        const eye_scale_y = force_final
+          ? 1
+          : lerp(1, clamp(config.blink.eye_scale_y_closed, 0.02, 1), combined_eye_amount);
 
         for (let eye_index = 0; eye_index < state.eye_nodes.length; eye_index += 1) {
           const eye = state.eye_nodes[eye_index];
