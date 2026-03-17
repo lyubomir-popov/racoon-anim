@@ -31,40 +31,40 @@
       </div>
     </main>
 
-    <aside class="l-aside is-narrow is-collapsed" id="control-drawer" data-control-panel aria-label="Animation controls">
+    <aside class="l-aside is-collapsed" id="control-drawer" data-control-panel aria-label="Animation controls">
       <div class="p-panel drawer-panel">
         <div class="p-panel__header is-sticky">
-          <div>
-            <p class="p-text--small-caps u-no-margin--bottom">Preset Editor</p>
-            <h1 class="p-panel__title u-no-padding--top u-no-margin--bottom">Radial Mascot Transition</h1>
-            <p class="p-text--small drawer-copy u-no-margin--bottom">Adjust values live, save versions as local presets, export or import JSON, click the stage to replay, and click the mascot to trigger a sneeze.</p>
-          </div>
+          <h1 class="p-panel__title">Radial Mascot Transition</h1>
           <div class="p-panel__controls">
             <button class="p-button--base is-dense" type="button" data-drawer-close>Close</button>
           </div>
         </div>
-        <div class="p-panel__content drawer-content">
-          <form class="p-form p-form--stacked preset-editor" onsubmit="return false;">
-            <div class="p-form__group preset-toolbar__name">
-              <label class="p-form__label" for="preset-name">Preset name</label>
-              <div class="p-form__control">
-                <input class="p-form-validation__input is-dense" id="preset-name" type="text" data-preset-name placeholder="Preset name">
+        <div class="p-panel__content drawer-panel__content">
+          <div class="u-fixed-width drawer-content">
+            <div class="preset-panel-content" data-preset-panel hidden>
+              <form class="p-form p-form--stacked preset-editor" onsubmit="return false;">
+                <div class="p-form__group preset-toolbar__name">
+                  <label class="p-form__label" for="preset-name">Preset name</label>
+                  <div class="p-form__control">
+                    <input class="p-form-validation__input is-dense" id="preset-name" type="text" data-preset-name placeholder="Preset name">
+                  </div>
+                </div>
+              </form>
+              <div class="preset-toolbar">
+                <button class="p-button is-dense" type="button" data-preset-save>Save New</button>
+                <button class="p-button--base is-dense" type="button" data-preset-overwrite>Update</button>
+                <button class="p-button--base is-dense" type="button" data-preset-export>Export</button>
+                <label class="p-button--base is-dense file-button" for="preset-import">Import
+                  <input class="file-button__input" id="preset-import" type="file" accept=".json,application/json" data-preset-import>
+                </label>
+                <button class="p-button--base is-dense" type="button" data-preset-delete>Delete</button>
               </div>
-            </div>
-          </form>
-          <div class="preset-toolbar">
-            <button class="p-button is-dense" type="button" data-preset-save>Save New</button>
-            <button class="p-button--base is-dense" type="button" data-preset-overwrite>Update</button>
-            <button class="p-button--base is-dense" type="button" data-preset-export>Export</button>
-            <label class="p-button--base is-dense file-button" for="preset-import">Import
-              <input class="file-button__input" id="preset-import" type="file" accept=".json,application/json" data-preset-import>
-            </label>
-            <button class="p-button--base is-dense" type="button" data-preset-delete>Delete</button>
-          </div>
 
-          <div class="preset-tabs" data-preset-tabs></div>
-          <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save New adds another preset.</p>
-          <div class="config-sections" data-config-editor></div>
+              <div class="preset-tabs" data-preset-tabs></div>
+              <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save New adds another preset.</p>
+            </div>
+            <div class="config-sections" data-config-editor></div>
+          </div>
         </div>
       </div>
     </aside>
@@ -183,6 +183,7 @@
       const overlay_inner = stage.querySelector("[data-overlay-inner]");
       const mascot = stage.querySelector("[data-mascot]");
       const mascot_svg = stage.querySelector("[data-mascot-svg]");
+      const app_root = document.querySelector(".mascot-app");
       const control_panel = document.querySelector("[data-control-panel]") || document.querySelector("#control-drawer");
       const drawer_toggle_button = document.querySelector("[data-drawer-toggle]");
       const drawer_backdrop = document.querySelector("[data-drawer-backdrop]");
@@ -197,6 +198,7 @@
       const preset_delete_button = document.querySelector("[data-preset-delete]");
       const preset_tabs = document.querySelector("[data-preset-tabs]");
       const preset_meta = document.querySelector("[data-preset-meta]");
+      const preset_panel = document.querySelector("[data-preset-panel]");
       const config_editor = document.querySelector("[data-config-editor]");
       const context = canvas.getContext("2d", {
         alpha: false,
@@ -220,11 +222,44 @@
         refresh_serial: 0,
         presets: [],
         active_preset_id: null,
+        active_editor_tab_key: null,
         editor_controls: new Map()
       };
 
+      const is_webkit_slider_engine = /\b(?:Chrome|CriOS|Safari|Edg|HeadlessChrome)\b/i.test(navigator.userAgent) &&
+        !/\bFirefox\b/i.test(navigator.userAgent);
+
       const PRESET_STORAGE_KEY = "radial-mascot-presets-v1";
       const ACTIVE_PRESET_STORAGE_KEY = "radial-mascot-active-preset-v1";
+      const is_local_editor = location.protocol === "file:" ||
+        ["localhost", "127.0.0.1", "::1", "[::1]"].includes(location.hostname);
+      const EDITOR_TAB_GROUPS = [
+        {
+          key: "presets",
+          label: "Presets",
+          sections: []
+        },
+        {
+          key: "timing",
+          label: "Timing",
+          sections: ["mascot_fade", "head_turn", "sneeze", "blink"]
+        },
+        {
+          key: "mascot",
+          label: "Mascot",
+          sections: []
+        },
+        {
+          key: "orbits",
+          label: "Orbits",
+          sections: ["generator_wrangle", "transition_wrangle", "point_style", "spoke_lines"]
+        },
+        {
+          key: "behavior",
+          label: "Behavior",
+          sections: ["interactivity", "performance"]
+        }
+      ];
 
       function clamp(value, min_value, max_value) {
         return Math.min(max_value, Math.max(min_value, value));
@@ -272,6 +307,36 @@
           .replace(/_/g, " ")
           .replace(/([a-z])([A-Z])/g, "$1 $2")
           .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      }
+
+      function set_active_editor_tab(next_tab_key) {
+        state.active_editor_tab_key = next_tab_key;
+
+        for (const tab of config_editor.querySelectorAll("[data-editor-tab]")) {
+          const is_active = tab.dataset.editorTab === next_tab_key;
+          tab.setAttribute("aria-selected", String(is_active));
+          tab.setAttribute("tabindex", is_active ? "0" : "-1");
+        }
+
+        for (const panel of config_editor.querySelectorAll("[data-editor-panel]")) {
+          panel.hidden = panel.dataset.editorPanel !== next_tab_key;
+        }
+      }
+
+      function focus_adjacent_editor_tab(current_tab_key, direction) {
+        const current_index = EDITOR_TAB_GROUPS.findIndex((group) => group.key === current_tab_key);
+        if (current_index === -1) {
+          return;
+        }
+
+        const next_index = wrap_positive(current_index + direction, EDITOR_TAB_GROUPS.length);
+        const next_group = EDITOR_TAB_GROUPS[next_index];
+        set_active_editor_tab(next_group.key);
+
+        const next_tab = config_editor.querySelector(`[data-editor-tab="${next_group.key}"]`);
+        if (next_tab) {
+          next_tab.focus();
+        }
       }
 
       function is_hex_color_string(value) {
@@ -338,6 +403,14 @@
       function normalize_config_snapshot(source) {
         const snapshot = deep_clone(default_config);
         merge_known_config_values(snapshot, source);
+        snapshot.composition = deep_clone(default_config.composition);
+        snapshot.mascot.enabled = default_config.mascot.enabled;
+        snapshot.mascot.asset_path = default_config.mascot.asset_path;
+        snapshot.mascot.base_width_px = default_config.mascot.base_width_px;
+        snapshot.mascot.offset_x_px = default_config.mascot.offset_x_px;
+        snapshot.mascot.offset_y_px = default_config.mascot.offset_y_px;
+        snapshot.mascot.color = default_config.mascot.color;
+        snapshot.mascot.opacity = default_config.mascot.opacity;
         return snapshot;
       }
 
@@ -480,6 +553,48 @@
         };
       }
 
+      function get_slider_palette() {
+        const styles = getComputedStyle(app_root);
+        return {
+          progress: styles.getPropertyValue("--vf-color-link-default").trim() || "#ffffff",
+          empty: styles.getPropertyValue("--vf-color-border-default").trim() || "#4b4b4b"
+        };
+      }
+
+      function render_slider_track(range_input) {
+        if (!range_input) {
+          return;
+        }
+
+        const min = Number(range_input.min || 0);
+        const max = Number(range_input.max || 100);
+        const value = Number(range_input.value || 0);
+        const span = Math.max(0.0001, max - min);
+        const fill_ratio = clamp((value - min) / span, 0, 1);
+        const palette = get_slider_palette();
+
+        range_input.style.accentColor = palette.progress;
+        range_input.style.backgroundRepeat = "no-repeat";
+        range_input.style.backgroundSize = "100% 100%";
+
+        if (!is_webkit_slider_engine) {
+          range_input.style.backgroundImage = "";
+          return;
+        }
+
+        const fill_percent = (fill_ratio * 100).toFixed(3);
+        range_input.style.backgroundImage =
+          `linear-gradient(to right, ${palette.progress} 0%, ${palette.progress} ${fill_percent}%, ${palette.empty} ${fill_percent}%, ${palette.empty} 100%)`;
+      }
+
+      function refresh_slider_tracks() {
+        for (const control of state.editor_controls.values()) {
+          if (control.type === "number") {
+            render_slider_track(control.range_input);
+          }
+        }
+      }
+
       function sync_editor_values() {
         for (const [path_key, control] of state.editor_controls.entries()) {
           const value = get_config_value(path_key.split("."));
@@ -495,6 +610,8 @@
             control.input.value = String(value);
           }
         }
+
+        refresh_slider_tracks();
       }
 
       function update_preset_controls() {
@@ -765,29 +882,119 @@
         config_editor.innerHTML = "";
         state.editor_controls = new Map();
 
-        for (const [section_key, section_value] of Object.entries(config)) {
-          if (!is_plain_object(section_value)) {
-            continue;
-          }
+        const tabs = document.createElement("div");
+        tabs.className = "p-tabs config-tabs";
 
-          const section = document.createElement("section");
-          section.className = "config-section";
+        const list = document.createElement("div");
+        list.className = "p-tabs__list";
+        list.setAttribute("role", "tablist");
+        list.setAttribute("aria-label", "Animation settings");
 
-          const title = document.createElement("h2");
-          title.className = "p-heading--5 u-no-margin--bottom";
-          title.textContent = humanize_key(section_key);
-          section.appendChild(title);
+        const panels = document.createElement("div");
+        panels.className = "config-panels";
+
+        for (const group of EDITOR_TAB_GROUPS) {
+          const item = document.createElement("div");
+          item.className = "p-tabs__item";
+
+          const tab = document.createElement("button");
+          tab.type = "button";
+          tab.className = "p-tabs__link";
+          tab.id = `editor-tab-${group.key}`;
+          tab.dataset.editorTab = group.key;
+          tab.setAttribute("role", "tab");
+          tab.setAttribute("aria-controls", `editor-panel-${group.key}`);
+          tab.textContent = group.label;
+          tab.addEventListener("click", () => {
+            set_active_editor_tab(group.key);
+          });
+          tab.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowRight") {
+              event.preventDefault();
+              focus_adjacent_editor_tab(group.key, 1);
+            }
+
+            if (event.key === "ArrowLeft") {
+              event.preventDefault();
+              focus_adjacent_editor_tab(group.key, -1);
+            }
+          });
+
+          item.appendChild(tab);
+          list.appendChild(item);
+
+          const panel = document.createElement("section");
+          panel.className = "config-panel";
+          panel.id = `editor-panel-${group.key}`;
+          panel.dataset.editorPanel = group.key;
+          panel.setAttribute("role", "tabpanel");
+          panel.setAttribute("tabindex", "0");
+          panel.setAttribute("aria-labelledby", tab.id);
 
           const form = document.createElement("form");
           form.className = "p-form p-form--stacked editor-form";
           form.addEventListener("submit", (event) => {
             event.preventDefault();
           });
-          append_editor_fields(form, section_value, [section_key]);
-          section.appendChild(form);
 
-          config_editor.appendChild(section);
+          if (group.key === "presets" && preset_panel) {
+            preset_panel.hidden = false;
+            panel.appendChild(preset_panel);
+            panels.appendChild(panel);
+            continue;
+          }
+
+          if (group.key === "mascot") {
+            const section = document.createElement("div");
+            section.className = "config-section";
+
+            const title = document.createElement("h2");
+            title.className = "p-heading--5 u-no-margin--bottom";
+            title.textContent = "Mascot";
+            section.appendChild(title);
+
+            section.appendChild(create_control_row(["mascot", "scale"], config.mascot.scale));
+            form.appendChild(section);
+            panel.appendChild(form);
+            panels.appendChild(panel);
+            continue;
+          }
+
+          for (const section_key of group.sections) {
+            const section_value = config[section_key];
+            if (!is_plain_object(section_value)) {
+              continue;
+            }
+
+            const section = document.createElement("div");
+            section.className = "config-section";
+
+            const title = document.createElement("h2");
+            title.className = "p-heading--5 u-no-margin--bottom";
+            title.textContent = humanize_key(section_key);
+            section.appendChild(title);
+
+            append_editor_fields(section, section_value, [section_key]);
+            form.appendChild(section);
+          }
+
+          panel.appendChild(form);
+          panels.appendChild(panel);
         }
+
+        tabs.appendChild(list);
+        config_editor.appendChild(tabs);
+        config_editor.appendChild(panels);
+
+        if (!EDITOR_TAB_GROUPS.some((group) => group.key === state.active_editor_tab_key)) {
+          state.active_editor_tab_key = EDITOR_TAB_GROUPS[0]?.key || null;
+        }
+
+        if (state.active_editor_tab_key) {
+          set_active_editor_tab(state.active_editor_tab_key);
+        }
+
+        refresh_slider_tracks();
       }
 
       function parse_control_value(input, current_value) {
@@ -854,6 +1061,7 @@
             Number(control.range_input.min),
             Number(control.range_input.max)
           ));
+          render_slider_track(control.range_input);
         }
 
         try {
@@ -1603,6 +1811,16 @@
       }
 
       function attach_ui_events() {
+        replay_button.addEventListener("click", () => {
+          start_animation();
+        });
+
+        stage.addEventListener("click", handle_stage_click);
+
+        if (!is_local_editor) {
+          return;
+        }
+
         drawer_toggle_button.addEventListener("click", () => {
           toggle_drawer();
         });
@@ -1613,10 +1831,6 @@
 
         drawer_close_button.addEventListener("click", () => {
           set_drawer_open(false);
-        });
-
-        replay_button.addEventListener("click", () => {
-          start_animation();
         });
 
         reset_button.addEventListener("click", () => {
@@ -1655,7 +1869,6 @@
             });
         });
 
-        stage.addEventListener("click", handle_stage_click);
         document.addEventListener("keydown", (event) => {
           if (event.key === "Escape") {
             set_drawer_open(false);
@@ -1664,24 +1877,34 @@
       }
 
       async function init() {
-        load_presets_from_storage();
-        if (state.active_preset_id) {
-          const active_preset = state.presets.find((preset) => preset.id === state.active_preset_id);
-          if (active_preset) {
-            replace_config(active_preset.config);
-            preset_name_input.value = active_preset.name;
+        if (is_local_editor) {
+          load_presets_from_storage();
+          if (state.active_preset_id) {
+            const active_preset = state.presets.find((preset) => preset.id === state.active_preset_id);
+            if (active_preset) {
+              replace_config(active_preset.config);
+              preset_name_input.value = active_preset.name;
+            }
+          } else {
+            preset_name_input.value = get_next_preset_name();
           }
+
+          build_config_editor();
+          sync_editor_values();
+          render_preset_tabs();
+          set_drawer_open(false);
         } else {
-          preset_name_input.value = get_next_preset_name();
+          drawer_toggle_button.hidden = true;
+          drawer_backdrop.hidden = true;
+          control_panel.hidden = true;
+          reset_button.hidden = true;
         }
 
-        build_config_editor();
-        sync_editor_values();
-        render_preset_tabs();
-        set_drawer_open(false);
         attach_ui_events();
         await refresh_scene({ reload_mascot: true });
-        set_preset_meta("Presets are stored in this browser. Save New adds another preset tab.", false);
+        if (is_local_editor) {
+          set_preset_meta("Presets are stored in this browser. Save New adds another preset tab.", false);
+        }
 
         const resize_observer = new ResizeObserver(() => {
           apply_stage_styles();

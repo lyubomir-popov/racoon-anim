@@ -40,29 +40,18 @@ body {
   width: 100%;
 }
 
-.mascot-app.l-application {
-  grid-template-areas: "main aside";
-  grid-template-columns: minmax(0, 1fr) minmax(0, min-content);
-  grid-template-rows: 1fr;
-}
-
 .mascot-app .l-main {
   overflow: hidden;
 }
 
 .mascot-app .l-aside {
-  max-width: min(100vw, 24rem);
   overscroll-behavior: contain;
-  width: 24rem;
 }
 
 .mascot-app .p-panel,
-.mascot-app .p-panel__header.is-sticky {
-  background: var(--vf-color-background-default);
-}
-
+.mascot-app .p-panel__header.is-sticky,
 .mascot-app .p-panel__content {
-  background: transparent;
+  background: var(--vf-color-background-default);
 }
 
 .drawer-toggle {
@@ -73,8 +62,10 @@ body {
 }
 
 .drawer-backdrop {
-  background: rgba(0, 0, 0, 0.44);
+  appearance: none;
+  background: transparent;
   border: 0;
+  box-shadow: none;
   inset: 0;
   opacity: 0;
   pointer-events: none;
@@ -84,8 +75,16 @@ body {
 }
 
 body.drawer-open .drawer-backdrop {
-  opacity: 1;
+  opacity: 0;
   pointer-events: auto;
+}
+
+.drawer-backdrop:hover,
+.drawer-backdrop:focus,
+.drawer-backdrop:active {
+  background: transparent;
+  box-shadow: none;
+  outline: none;
 }
 
 .viewer-panel__content {
@@ -153,27 +152,22 @@ canvas {
 }
 
 .drawer-panel {
-  min-height: 100dvh;
+  min-height: 100%;
 }
 
-.drawer-panel .p-panel__header {
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.drawer-panel .p-panel__controls {
-  padding-top: 1rem;
-}
-
-.drawer-copy {
-  max-width: 34ch;
+.drawer-panel__content {
+  padding-bottom: 0;
+  padding-top: 0;
 }
 
 .drawer-content {
   display: grid;
-  gap: 1rem;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+  padding-top: 1rem;
 }
 
+.preset-panel-content,
 .preset-editor,
 .config-section,
 .config-group,
@@ -181,9 +175,42 @@ canvas {
   display: grid;
 }
 
+.preset-panel-content {
+  gap: 0.75rem;
+}
+
 .preset-editor,
 .config-sections {
   gap: 1rem;
+}
+
+.config-sections {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.config-tabs .p-tabs__list {
+  margin-bottom: 0.75rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  white-space: nowrap;
+}
+
+.config-tabs .p-tabs__item {
+  white-space: nowrap;
+}
+
+.config-panels {
+  display: grid;
+}
+
+.config-panel {
+  display: grid;
+}
+
+.config-panel[hidden] {
+  display: none;
 }
 
 .editor-form,
@@ -231,6 +258,8 @@ canvas {
 
 .control-composite input[type="range"] {
   flex: 1 1 auto;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
   margin-bottom: 0;
   min-width: 0;
 }
@@ -262,11 +291,6 @@ canvas {
   .drawer-toggle {
     right: 0.75rem;
     top: 0.75rem;
-  }
-
-  .mascot-app .l-aside {
-    max-width: 100vw;
-    width: min(24rem, 100vw);
   }
 
   .stage {
