@@ -82,17 +82,17 @@
       const config = {
         mascot_fade: {
           enabled: false,
-          duration_sec: 0.25
+          duration_sec: 3
         },
         head_turn: {
           enabled: true,
-          duration_sec: 0.15,
+          duration_sec: 0.333,
           peak_angle_deg: -30,
-          reverse_angle_deg: 24,
+          reverse_angle_deg: 30,
           overshoot_angle_deg: -3,
-          peak_frac: 0.22,
+          peak_frac: 0.25,
           reverse_frac: 0.56,
-          dot_overlap_sec: 0.03,
+          dot_overlap_sec: 0.27,
           overshoot_frac: 0.75
         },
         composition: {
@@ -226,6 +226,7 @@
         presets: [],
         active_preset_id: null,
         active_editor_tab_key: null,
+        export_directory_handle: null,
         editor_controls: new Map()
       };
 
@@ -234,6 +235,9 @@
 
       const PRESET_STORAGE_KEY = "radial-mascot-presets-v1";
       const ACTIVE_PRESET_STORAGE_KEY = "radial-mascot-active-preset-v1";
+      const EXPORT_DIRECTORY_DB_NAME = "radial-mascot-local-editor";
+      const EXPORT_DIRECTORY_STORE_NAME = "handles";
+      const EXPORT_DIRECTORY_KEY = "preset-export-directory";
       const is_local_editor = location.protocol === "file:" ||
         ["localhost", "127.0.0.1", "::1", "[::1]"].includes(location.hostname);
       const EDITOR_TAB_GROUPS = [
@@ -648,6 +652,164 @@
           console.error(error);
           set_preset_meta("Preset storage is not available in this browser.", true);
         }
+      }
+
+      function open_editor_storage_db() {
+        return new Promise((resolve, reject) => {
+          if (!("indexedDB" in window)) {
+            resolve(null);
+            return;
+          }
+
+          const request = window.indexedDB.open(EXPORT_DIRECTORY_DB_NAME, 1);
+          request.addEventListener("upgradeneeded", () => {
+            if (!request.result.objectStoreNames.contains(EXPORT_DIRECTORY_STORE_NAME)) {
+              request.result.createObjectStore(EXPORT_DIRECTORY_STORE_NAME);
+            }
+          });
+          request.addEventListener("success", () => {
+            resolve(request.result);
+          });
+          request.addEventListener("error", () => {
+            reject(request.error);
+          });
+        });
+      }
+
+      async function read_editor_storage_value(key) {
+        const database = await open_editor_storage_db();
+        if (!database) {
+          return null;
+        }
+
+        return new Promise((resolve, reject) => {
+          const transaction = database.transaction(EXPORT_DIRECTORY_STORE_NAME, "readonly");
+          const store = transaction.objectStore(EXPORT_DIRECTORY_STORE_NAME);
+          const request = store.get(key);
+          request.addEventListener("success", () => {
+            resolve(request.result ?? null);
+          });
+          request.addEventListener("error", () => {
+            reject(request.error);
+          });
+          transaction.addEventListener("complete", () => {
+            database.close();
+          });
+        });
+      }
+
+      async function write_editor_storage_value(key, value) {
+        const database = await open_editor_storage_db();
+        if (!database) {
+          return;
+        }
+
+        return new Promise((resolve, reject) => {
+          const transaction = database.transaction(EXPORT_DIRECTORY_STORE_NAME, "readwrite");
+          const store = transaction.objectStore(EXPORT_DIRECTORY_STORE_NAME);
+          const request = store.put(value, key);
+          request.addEventListener("success", () => {
+            resolve();
+          });
+          request.addEventListener("error", () => {
+            reject(request.error);
+          });
+          transaction.addEventListener("complete", () => {
+            database.close();
+          });
+        });
+      }
+
+      function is_abort_error(error) {
+        return Boolean(error) && (
+          error.name === "AbortError" ||
+          error.code === 20
+        );
+      }
+
+      async function ensure_directory_write_permission(directory_handle, request_if_needed = true) {
+        if (!directory_handle) {
+          return false;
+        }
+
+        if (typeof directory_handle.queryPermission !== "function") {
+          return true;
+        }
+
+        const permission_options = { mode: "readwrite" };
+        let permission_state = await directory_handle.queryPermission(permission_options);
+        if (permission_state !== "granted" && request_if_needed && typeof directory_handle.requestPermission === "function") {
+          permission_state = await directory_handle.requestPermission(permission_options);
+        }
+
+        return permission_state === "granted";
+      }
+
+      async function load_export_directory_handle() {
+        try {
+          const saved_handle = await read_editor_storage_value(EXPORT_DIRECTORY_KEY);
+          return saved_handle && saved_handle.kind === "directory" ? saved_handle : null;
+        } catch (error) {
+          console.error(error);
+          return null;
+        }
+      }
+
+      async function persist_export_directory_handle(directory_handle) {
+        try {
+          await write_editor_storage_value(EXPORT_DIRECTORY_KEY, directory_handle);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      async function get_export_directory_handle() {
+        if (state.export_directory_handle) {
+          const has_permission = await ensure_directory_write_permission(state.export_directory_handle, true);
+          if (has_permission) {
+            return state.export_directory_handle;
+          }
+          state.export_directory_handle = null;
+        }
+
+        const saved_handle = await load_export_directory_handle();
+        if (!saved_handle) {
+          return null;
+        }
+
+        const has_permission = await ensure_directory_write_permission(saved_handle, true);
+        if (!has_permission) {
+          return null;
+        }
+
+        state.export_directory_handle = saved_handle;
+        return saved_handle;
+      }
+
+      async function request_export_directory_handle() {
+        if (typeof window.showDirectoryPicker !== "function") {
+          return null;
+        }
+
+        const directory_handle = await window.showDirectoryPicker({
+          id: "radial-mascot-presets",
+          mode: "readwrite",
+          startIn: "documents"
+        });
+        const has_permission = await ensure_directory_write_permission(directory_handle, true);
+        if (!has_permission) {
+          return null;
+        }
+
+        state.export_directory_handle = directory_handle;
+        await persist_export_directory_handle(directory_handle);
+        return directory_handle;
+      }
+
+      async function write_json_file(file_handle, payload) {
+        const writable = await file_handle.createWritable();
+        await writable.write(JSON.stringify(payload, null, 2));
+        await writable.close();
       }
 
       function normalize_preset_entry(entry, fallback_name) {
@@ -1167,24 +1329,64 @@
         set_preset_meta("Preset deleted. Current config stayed in place.", false);
       }
 
-      function export_current_preset() {
+      async function export_current_preset() {
         const preset_name = get_requested_preset_name();
         const payload = {
           name: preset_name,
           config: normalize_config_snapshot(config)
         };
+        const file_name = `${sanitize_file_name(preset_name)}.json`;
 
-        const blob = new Blob([JSON.stringify(payload, null, 2)], {
-          type: "application/json"
-        });
-        const object_url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = object_url;
-        link.download = `${sanitize_file_name(preset_name)}.json`;
-        link.click();
-        URL.revokeObjectURL(object_url);
+        try {
+          let directory_handle = await get_export_directory_handle();
+          if (!directory_handle) {
+            directory_handle = await request_export_directory_handle();
+          }
 
-        set_preset_meta(`Exported "${preset_name}" as JSON.`, false);
+          if (directory_handle) {
+            const file_handle = await directory_handle.getFileHandle(file_name, { create: true });
+            await write_json_file(file_handle, payload);
+            set_preset_meta(`Exported "${preset_name}" to ${directory_handle.name}/${file_name}.`, false);
+            return;
+          }
+
+          if (typeof window.showSaveFilePicker === "function") {
+            const file_handle = await window.showSaveFilePicker({
+              id: "radial-mascot-preset-file",
+              suggestedName: file_name,
+              startIn: "documents",
+              types: [
+                {
+                  description: "JSON preset",
+                  accept: {
+                    "application/json": [".json"]
+                  }
+                }
+              ]
+            });
+            await write_json_file(file_handle, payload);
+            set_preset_meta(`Exported "${preset_name}" as ${file_name}.`, false);
+            return;
+          }
+
+          const blob = new Blob([JSON.stringify(payload, null, 2)], {
+            type: "application/json"
+          });
+          const object_url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = object_url;
+          link.download = file_name;
+          link.click();
+          URL.revokeObjectURL(object_url);
+          set_preset_meta(`Exported "${preset_name}" as ${file_name}.`, false);
+        } catch (error) {
+          if (is_abort_error(error)) {
+            return;
+          }
+
+          console.error(error);
+          set_preset_meta(`Export failed: ${error.message}`, true);
+        }
       }
 
       async function import_presets_from_file(file) {
@@ -1870,7 +2072,7 @@
         });
 
         preset_export_button.addEventListener("click", () => {
-          export_current_preset();
+          void export_current_preset();
         });
 
         preset_import_input.addEventListener("change", (event) => {
@@ -1898,6 +2100,7 @@
 
       async function init() {
         if (is_local_editor) {
+          state.export_directory_handle = await load_export_directory_handle();
           load_presets_from_storage();
           if (state.active_preset_id) {
             const active_preset = state.presets.find((preset) => preset.id === state.active_preset_id);
