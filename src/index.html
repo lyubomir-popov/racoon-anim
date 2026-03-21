@@ -15,16 +15,11 @@
         <div class="p-panel__content viewer-panel__content">
           <section class="stage" data-stage aria-label="Animated mascot point field">
             <canvas aria-hidden="true"></canvas>
-            <div class="overlay" aria-hidden="true">
-              <div class="overlay-inner" data-overlay-inner>
-                <div class="mascot" data-mascot>
-                  <div class="mascot-svg" data-mascot-svg></div>
-                </div>
-              </div>
-            </div>
           </section>
           <div class="viewer-actions">
             <button class="p-button is-dense" type="button" data-replay-button>Replay</button>
+            <button class="p-button--base is-dense" type="button" data-export-sequence-button>Export PNG Seq</button>
+            <button class="p-button--base is-dense" type="button" data-set-defaults-button>Set Current Default</button>
             <button class="p-button--base is-dense" type="button" data-reset-button>Reset Defaults</button>
           </div>
         </div>
@@ -51,8 +46,7 @@
                 </div>
               </form>
               <div class="preset-toolbar">
-                <button class="p-button is-dense" type="button" data-preset-save>Save New</button>
-                <button class="p-button--base is-dense" type="button" data-preset-overwrite>Update</button>
+                <button class="p-button is-dense" type="button" data-preset-save>Save</button>
                 <button class="p-button--base is-dense" type="button" data-preset-export>Export</button>
                 <label class="p-button--base is-dense file-button" for="preset-import">Import
                   <input class="file-button__input" id="preset-import" type="file" accept=".json,application/json" data-preset-import>
@@ -60,8 +54,10 @@
                 <button class="p-button--base is-dense" type="button" data-preset-delete>Delete</button>
               </div>
 
-              <div class="preset-tabs" data-preset-tabs></div>
-              <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save New adds another preset.</p>
+              <div class="preset-selection">
+                <div class="preset-options" data-preset-tabs></div>
+              </div>
+              <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save adds a preset when the name is new, otherwise it updates that preset.</p>
             </div>
             <div class="config-sections" data-config-editor></div>
           </div>
@@ -76,8 +72,15 @@
       const STAGE_SIZE_PX = 600;
       const STAGE_DISPLAY_SIZE_PX = 600;
       const STAGE_BACKGROUND_COLOR = "#262626";
-      const mascot_viewbox_width = 227.9;
-      const mascot_viewbox_height = 182.85;
+      const MASCOT_VIEWBOX_SIZE = 600;
+      const MASCOT_EYE_SPECS = [
+        { cx: 260, cy: 290.25, radius: 8 },
+        { cx: 340, cy: 290.25, radius: 8 }
+      ];
+      const MASCOT_NOSE_PATH_DATA = "M314.719,325.951c1.206.283,1.861,1.609,1.362,2.749-3.479,7.962-8.503,15.086-14.69,20.992-.78.744-2.004.744-2.784,0-6.186-5.905-11.211-13.029-14.69-20.992-.498-1.14.156-2.466,1.362-2.749,4.728-1.111,9.655-1.701,14.719-1.701s9.991.59,14.719,1.701Z";
+      const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
+      const HALO_REFERENCE_COLOR = "#30d158";
+      const HALO_REFERENCE_OPACITY = 0.5;
 
       const config = {
         mascot_fade: {
@@ -98,19 +101,19 @@
         composition: {
           center_x_px: 300,
           center_y_px: 300,
-          radial_scale: 0.92,
+          radial_scale: 1,
           global_rotation_deg: 0
         },
         generator_wrangle: {
-          inner_radius: 0.253,
-          outer_radius: 0.493,
+          inner_radius: 0.26,
+          outer_radius: 0.513,
           num_orbits: 12,
           spoke_count: 60,
           phase_count: 2,
           min_active_orbits: 3,
-          base_angle_deg: 6,
-          pattern_offset_spokes: 0,
-          anim_start_angle_deg: 270
+          base_angle_deg: 0,
+          pattern_offset_spokes: 1,
+          anim_start_angle_deg: 0
         },
         transition_wrangle: {
           duration_sec: 1,
@@ -127,7 +130,7 @@
           spawn_angle_offset_deg: 0,
           occlusion_arc_deg: 0,
           hide_invisible_by_pscale: true,
-          base_pscale: 0.628,
+          base_pscale: 0.74,
           orbital_frontier_amount: -1,
           orbital_frontier_width_u: 1,
           orbital_frontier_bias: 0.676,
@@ -140,24 +143,36 @@
           alpha: 1,
           base_pscale_px_per_unit: 4.0,
           min_scale: 0.3,
-          min_diameter_px: 0.9
+          min_diameter_px: 1.1
         },
         spoke_lines: {
           enabled: true,
-          color: "#333333",
-          width_px: 1,
-          start_radius_px: 100,
-          end_radius_extra_px: 10
+          color: "#ffffff",
+          width_px: 1.6,
+          inner_width_px: 3.2,
+          start_radius_px: 150,
+          end_radius_extra_px: 0
         },
         mascot: {
           enabled: true,
-          asset_path: "./assets/racoon-mascot-01.svg",
-          base_width_px: 176,
+          face_asset_path: "./assets/racoon-mascot-face.svg",
+          halo_asset_path: "./assets/racoon-mascot-halo.svg",
+          base_width_px: 600,
           scale: 1,
           offset_x_px: 0,
           offset_y_px: 0,
           color: "#ffffff",
           opacity: 1
+        },
+        finale: {
+          enabled: true,
+          delay_after_dots_sec: 0.1,
+          duration_sec: 2.4,
+          halo_inner_radius_u: 0.255,
+          start_angle_deg: 0,
+          mask_angle_offset_deg: 1.5,
+          dot_fade_start_frac: 0.12,
+          dot_fade_amount: 1
         },
         sneeze: {
           enabled: true,
@@ -178,24 +193,25 @@
         performance: {
           max_device_pixel_ratio: 2,
           desynchronized: true
+        },
+        export_settings: {
+          frame_rate: 24
         }
       };
 
       const stage = document.querySelector("[data-stage]");
       const canvas = stage.querySelector("canvas");
-      const overlay_inner = stage.querySelector("[data-overlay-inner]");
-      const mascot = stage.querySelector("[data-mascot]");
-      const mascot_svg = stage.querySelector("[data-mascot-svg]");
       const app_root = document.querySelector(".mascot-app");
       const control_panel = document.querySelector("[data-control-panel]") || document.querySelector("#control-drawer");
       const drawer_toggle_button = document.querySelector("[data-drawer-toggle]");
       const drawer_backdrop = document.querySelector("[data-drawer-backdrop]");
       const drawer_close_button = document.querySelector("[data-drawer-close]");
       const replay_button = document.querySelector("[data-replay-button]");
+      const export_sequence_button = document.querySelector("[data-export-sequence-button]");
+      const set_defaults_button = document.querySelector("[data-set-defaults-button]");
       const reset_button = document.querySelector("[data-reset-button]");
       const preset_name_input = document.querySelector("[data-preset-name]");
       const preset_save_button = document.querySelector("[data-preset-save]");
-      const preset_overwrite_button = document.querySelector("[data-preset-overwrite]");
       const preset_export_button = document.querySelector("[data-preset-export]");
       const preset_import_input = document.querySelector("[data-preset-import]");
       const preset_delete_button = document.querySelector("[data-preset-delete]");
@@ -211,23 +227,30 @@
       const state = {
         dpr: 1,
         dot_end_sec: 1,
+        finale_start_sec: 1,
+        finale_end_sec: 1,
         playback_end_sec: 1,
+        playback_time_sec: 0,
         blink_start_sec: 1,
         blink_end_sec: 1,
         spawn_angle_rad: 0,
         points: [],
         spokes: [],
-        eye_nodes: [],
-        nose_node: null,
-        manual_sneeze_start_ms: 0,
+        mascot_face_image: null,
+        mascot_halo_image: null,
+        mascot_box: null,
         animation_frame_id: 0,
         animation_start_ms: performance.now(),
         refresh_serial: 0,
         presets: [],
         active_preset_id: null,
+        selected_preset_id: null,
         active_editor_tab_key: null,
         export_directory_handle: null,
-        editor_controls: new Map()
+        browser_default_config: null,
+        is_exporting: false,
+        editor_controls: new Map(),
+        drawer_is_open: false
       };
 
       const is_webkit_slider_engine = /\b(?:Chrome|CriOS|Safari|Edg|HeadlessChrome)\b/i.test(navigator.userAgent) &&
@@ -235,11 +258,12 @@
 
       const PRESET_STORAGE_KEY = "radial-mascot-presets-v1";
       const ACTIVE_PRESET_STORAGE_KEY = "radial-mascot-active-preset-v1";
+      const BROWSER_DEFAULT_CONFIG_KEY = "radial-mascot-browser-default-config-v1";
       const EXPORT_DIRECTORY_DB_NAME = "radial-mascot-local-editor";
       const EXPORT_DIRECTORY_STORE_NAME = "handles";
       const EXPORT_DIRECTORY_KEY = "preset-export-directory";
-      const is_local_editor = location.protocol === "file:" ||
-        ["localhost", "127.0.0.1", "::1", "[::1]"].includes(location.hostname);
+      const url_search_params = new URLSearchParams(location.search);
+      const is_local_editor = url_search_params.has("tune");
       const EDITOR_TAB_GROUPS = [
         {
           key: "presets",
@@ -249,7 +273,7 @@
         {
           key: "timing",
           label: "Timing",
-          sections: ["mascot_fade", "head_turn", "sneeze", "blink"]
+          sections: ["head_turn", "blink", "finale"]
         },
         {
           key: "mascot",
@@ -259,14 +283,83 @@
         {
           key: "orbits",
           label: "Orbits",
-          sections: ["generator_wrangle", "transition_wrangle", "point_style", "spoke_lines"]
+          sections: ["composition", "generator_wrangle", "transition_wrangle", "point_style", "spoke_lines"]
         },
         {
           key: "behavior",
           label: "Behavior",
-          sections: ["interactivity", "performance"]
+          sections: ["performance"]
         }
       ];
+      const DOCKED_EDITOR_MIN_WIDTH_PX = 1180;
+      const HIDDEN_CONTROL_PATHS = new Set([
+        "head_turn.enabled",
+        "blink.enabled",
+        "finale.enabled",
+        "composition.center_x_px",
+        "composition.center_y_px",
+        "point_style.color",
+        "point_style.alpha",
+        "spoke_lines.enabled",
+        "spoke_lines.color",
+        "spoke_lines.start_radius_px",
+        "spoke_lines.end_radius_extra_px",
+        "mascot.offset_x_px",
+        "mascot.offset_y_px",
+        "interactivity.replay_on_stage_click",
+        "interactivity.sneeze_on_mascot_click",
+        "performance.desynchronized",
+        "export_settings.frame_rate"
+      ]);
+      const CONTROL_LABELS = {
+        "head_turn.peak_frac": "Peak Timing",
+        "head_turn.reverse_frac": "Reverse Timing",
+        "head_turn.dot_overlap_sec": "Dot Overlap (sec)",
+        "head_turn.overshoot_frac": "Overshoot Timing",
+        "blink.start_delay_sec": "Closing Blink Delay (sec)",
+        "spoke_lines.width_px": "Outer Spoke Thickness (px)",
+        "spoke_lines.inner_width_px": "Inner Spoke Thickness (px)",
+        "point_style.base_pscale_px_per_unit": "Base Dot Size Multiplier",
+        "performance.max_device_pixel_ratio": "Render Pixel Ratio Cap",
+        "mascot.base_width_px": "Base Draw Width (px)",
+        "mascot.scale": "Scale Multiplier"
+      };
+      const CONTROL_HELP_TEXT = {
+        "head_turn.peak_frac": "How far through the head-turn duration the mascot reaches the first peak angle.",
+        "head_turn.reverse_frac": "How far through the head-turn duration the motion finishes swinging back through the reverse angle.",
+        "head_turn.dot_overlap_sec": "How much the orbit animation overlaps the head turn instead of waiting for it to finish first.",
+        "head_turn.overshoot_frac": "How far through the head-turn duration the motion reaches the final overshoot before settling back to neutral.",
+        "blink.start_delay_sec": "How long after the finale completes the closing blink begins.",
+        "spoke_lines.width_px": "Controls the thinner white spoke pass that follows the reference halo.",
+        "spoke_lines.inner_width_px": "Controls the heavier clipped spoke pass that sits inside the left and right phase circles.",
+        "mascot.base_width_px": "This is the mascot's draw box before any scaling. With the current 600x600 art, 600 keeps the artwork at its native size.",
+        "mascot.scale": "Scale is a simple multiplier on top of the base draw width, so you can resize the mascot quickly without redefining its native art size.",
+        "point_style.base_pscale_px_per_unit": "This multiplies transition_wrangle.base_pscale into the actual on-canvas dot diameter before the min-size and frontier effects are applied.",
+        "performance.max_device_pixel_ratio": "This caps how many physical pixels the canvas renders on high-DPI screens. Higher values look sharper but cost more GPU and CPU time."
+      };
+      const LOCKED_CONFIG_VALUES = new Map([
+        ["mascot.enabled", true],
+        ["mascot_fade.enabled", false],
+        ["head_turn.enabled", true],
+        ["blink.enabled", true],
+        ["finale.enabled", true],
+        ["finale.dot_fade_amount", 1],
+        ["sneeze.enabled", true],
+        ["composition.center_x_px", 300],
+        ["composition.center_y_px", 300],
+        ["point_style.color", "#ffffff"],
+        ["point_style.alpha", 1],
+        ["spoke_lines.enabled", true],
+        ["spoke_lines.color", "#ffffff"],
+        ["spoke_lines.start_radius_px", 150],
+        ["spoke_lines.end_radius_extra_px", 0],
+        ["mascot.offset_x_px", 0],
+        ["mascot.offset_y_px", 0],
+        ["interactivity.replay_on_stage_click", true],
+        ["interactivity.sneeze_on_mascot_click", true],
+        ["performance.desynchronized", true],
+        ["export_settings.frame_rate", 24]
+      ]);
 
       function clamp(value, min_value, max_value) {
         return Math.min(max_value, Math.max(min_value, value));
@@ -314,6 +407,33 @@
           .replace(/_/g, " ")
           .replace(/([a-z])([A-Z])/g, "$1 $2")
           .replace(/\b\w/g, (letter) => letter.toUpperCase());
+      }
+
+      function get_control_label(path_key) {
+        return CONTROL_LABELS[path_key] || humanize_key(path_key.split(".").pop());
+      }
+
+      function get_control_help_text(path_key) {
+        return CONTROL_HELP_TEXT[path_key] || "";
+      }
+
+      function is_control_hidden(path_key) {
+        return HIDDEN_CONTROL_PATHS.has(path_key);
+      }
+
+      function set_object_path_value(target, path_key, next_value) {
+        const path_parts = path_key.split(".");
+        let cursor = target;
+        for (let index = 0; index < path_parts.length - 1; index += 1) {
+          cursor = cursor[path_parts[index]];
+        }
+        cursor[path_parts[path_parts.length - 1]] = next_value;
+      }
+
+      function enforce_locked_config_values(target) {
+        for (const [path_key, next_value] of LOCKED_CONFIG_VALUES.entries()) {
+          set_object_path_value(target, path_key, next_value);
+        }
       }
 
       function set_active_editor_tab(next_tab_key) {
@@ -410,14 +530,9 @@
       function normalize_config_snapshot(source) {
         const snapshot = deep_clone(default_config);
         merge_known_config_values(snapshot, source);
-        snapshot.composition = deep_clone(default_config.composition);
-        snapshot.mascot.enabled = default_config.mascot.enabled;
-        snapshot.mascot.asset_path = default_config.mascot.asset_path;
-        snapshot.mascot.base_width_px = default_config.mascot.base_width_px;
-        snapshot.mascot.offset_x_px = default_config.mascot.offset_x_px;
-        snapshot.mascot.offset_y_px = default_config.mascot.offset_y_px;
-        snapshot.mascot.color = default_config.mascot.color;
-        snapshot.mascot.opacity = default_config.mascot.opacity;
+        snapshot.mascot.face_asset_path = default_config.mascot.face_asset_path;
+        snapshot.mascot.halo_asset_path = default_config.mascot.halo_asset_path;
+        enforce_locked_config_values(snapshot);
         return snapshot;
       }
 
@@ -426,6 +541,34 @@
         for (const key of Object.keys(config)) {
           config[key] = snapshot[key];
         }
+      }
+
+      function get_active_default_config() {
+        return state.browser_default_config || default_config;
+      }
+
+      function load_browser_default_config() {
+        try {
+          const raw_snapshot = window.localStorage.getItem(BROWSER_DEFAULT_CONFIG_KEY);
+          if (!raw_snapshot) {
+            return null;
+          }
+
+          return normalize_config_snapshot(JSON.parse(raw_snapshot));
+        } catch (error) {
+          console.error(error);
+          window.localStorage.removeItem(BROWSER_DEFAULT_CONFIG_KEY);
+          return null;
+        }
+      }
+
+      function save_browser_default_config(snapshot) {
+        const normalized_snapshot = normalize_config_snapshot(snapshot);
+        window.localStorage.setItem(
+          BROWSER_DEFAULT_CONFIG_KEY,
+          JSON.stringify(normalized_snapshot)
+        );
+        state.browser_default_config = normalized_snapshot;
       }
 
       function compute_frontier_scale(distance_u, amount, width_u, bias) {
@@ -454,7 +597,7 @@
 
       function apply_stage_styles() {
         document.body.style.background = STAGE_BACKGROUND_COLOR;
-        stage.style.width = `min(${STAGE_DISPLAY_SIZE_PX}px, calc(100vw - 3rem), calc(100svh - 5.5rem))`;
+        stage.style.width = `min(${STAGE_DISPLAY_SIZE_PX}px, calc(100vw - var(--editor-panel-space, 0px) - 3rem), calc(100svh - 5.5rem))`;
         stage.style.borderRadius = "0";
         stage.style.background = STAGE_BACKGROUND_COLOR;
         stage.style.borderColor = "transparent";
@@ -534,13 +677,22 @@
           "point_style.min_scale": { min: 0, max: 1, step: 0.01 },
           "point_style.min_diameter_px": { min: 0, max: 12, step: 0.1 },
           "spoke_lines.width_px": { min: 0, max: 12, step: 0.1 },
+          "spoke_lines.inner_width_px": { min: 0, max: 20, step: 0.1 },
           "spoke_lines.start_radius_px": { min: 0, max: 300, step: 1 },
           "spoke_lines.end_radius_extra_px": { min: -120, max: 120, step: 1 },
-          "mascot.base_width_px": { min: 0, max: 400, step: 1 },
+          "mascot.base_width_px": { min: 0, max: 800, step: 1 },
           "mascot.scale": { min: 0, max: 4, step: 0.01 },
           "mascot.offset_x_px": { min: -240, max: 240, step: 1 },
           "mascot.offset_y_px": { min: -240, max: 240, step: 1 },
           "mascot.opacity": { min: 0, max: 1, step: 0.01 },
+          "finale.delay_after_dots_sec": { min: 0, max: 4, step: 0.01 },
+          "finale.duration_sec": { min: 0, max: 6, step: 0.01 },
+          "finale.halo_inner_radius_u": { min: 0, max: 0.5, step: 0.005 },
+          "finale.start_angle_deg": { min: -180, max: 180, step: 0.1 },
+          "finale.mask_angle_offset_deg": { min: -12, max: 12, step: 0.1 },
+          "finale.dot_fade_start_frac": { min: 0, max: 1, step: 0.01 },
+          "finale.dot_fade_amount": { min: 0, max: 1, step: 0.01 },
+          "export_settings.frame_rate": { min: 1, max: 60, step: 1 },
           "sneeze.nose_bob_up_px": { min: 0, max: 20, step: 0.1 },
           "blink.start_delay_sec": { min: 0, max: 1, step: 0.01 },
           "blink.duration_sec": { min: 0, max: 1, step: 0.01 },
@@ -625,23 +777,40 @@
       }
 
       function update_preset_controls() {
-        preset_overwrite_button.disabled = !state.active_preset_id;
         preset_delete_button.disabled = !state.active_preset_id;
       }
 
       function set_drawer_open(next_state) {
-        document.body.classList.toggle("drawer-open", next_state);
-        control_panel.classList.toggle("is-collapsed", !next_state);
-        drawer_toggle_button.setAttribute("aria-expanded", String(next_state));
-        drawer_toggle_button.textContent = next_state ? "Close" : "Controls";
+        const is_docked = is_local_editor && window.innerWidth >= DOCKED_EDITOR_MIN_WIDTH_PX;
+        const is_open = is_docked ? true : next_state;
+
+        state.drawer_is_open = is_open;
+        document.body.classList.toggle("editor-docked", is_docked);
+        document.body.classList.toggle("drawer-open", is_open);
+        control_panel.classList.toggle("is-collapsed", !is_open);
+        drawer_toggle_button.hidden = is_docked;
+        drawer_backdrop.hidden = is_docked;
+        drawer_close_button.hidden = is_docked;
+        drawer_toggle_button.setAttribute("aria-expanded", String(is_open));
+        drawer_toggle_button.textContent = is_open && !is_docked ? "Close" : "Controls";
       }
 
       function toggle_drawer() {
-        set_drawer_open(!document.body.classList.contains("drawer-open"));
+        set_drawer_open(!state.drawer_is_open);
+      }
+
+      function update_editor_panel_mode() {
+        if (!is_local_editor) {
+          return;
+        }
+
+        const is_docked = window.innerWidth >= DOCKED_EDITOR_MIN_WIDTH_PX;
+        set_drawer_open(is_docked ? true : false);
       }
 
       function save_presets_to_storage() {
         try {
+          collapse_state_presets();
           window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(state.presets));
           if (state.active_preset_id) {
             window.localStorage.setItem(ACTIVE_PRESET_STORAGE_KEY, state.active_preset_id);
@@ -812,6 +981,50 @@
         await writable.close();
       }
 
+      async function write_blob_file(file_handle, blob) {
+        const writable = await file_handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      }
+
+      function canvas_to_blob(type = "image/png") {
+        return new Promise((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+              return;
+            }
+
+            reject(new Error("Canvas export failed."));
+          }, type);
+        });
+      }
+
+      async function get_sequence_output_directory_handle() {
+        let directory_handle = await get_export_directory_handle();
+        if (!directory_handle) {
+          set_preset_meta("Choose the project folder or its output folder for PNG export.", false);
+          directory_handle = await request_export_directory_handle();
+        }
+
+        if (!directory_handle) {
+          return null;
+        }
+
+        if (directory_handle.name.toLowerCase() === "output") {
+          return {
+            directory_handle,
+            output_path_label: directory_handle.name
+          };
+        }
+
+        const output_directory_handle = await directory_handle.getDirectoryHandle("output", { create: true });
+        return {
+          directory_handle: output_directory_handle,
+          output_path_label: `${directory_handle.name}/${output_directory_handle.name}`
+        };
+      }
+
       function normalize_preset_entry(entry, fallback_name) {
         if (!is_plain_object(entry)) {
           return null;
@@ -825,27 +1038,104 @@
         };
       }
 
+      function get_preset_name_key(name) {
+        return String(name || "").trim().toLowerCase();
+      }
+
+      function collapse_presets_by_name(presets) {
+        const seen_name_keys = new Set();
+        const collapsed_reversed = [];
+
+        for (let index = presets.length - 1; index >= 0; index -= 1) {
+          const preset = presets[index];
+          const name_key = get_preset_name_key(preset.name);
+          if (seen_name_keys.has(name_key)) {
+            continue;
+          }
+
+          seen_name_keys.add(name_key);
+          collapsed_reversed.push(preset);
+        }
+
+        return collapsed_reversed.reverse();
+      }
+
+      function find_preset_by_name(name, presets = state.presets) {
+        const name_key = get_preset_name_key(name);
+
+        for (let index = presets.length - 1; index >= 0; index -= 1) {
+          const preset = presets[index];
+          if (get_preset_name_key(preset.name) === name_key) {
+            return preset;
+          }
+        }
+
+        return null;
+      }
+
+      function sync_preset_ids_after_collapse(previous_presets) {
+        const previous_active_name = previous_presets.find((preset) => preset.id === state.active_preset_id)?.name || null;
+        const previous_selected_name = previous_presets.find((preset) => preset.id === state.selected_preset_id)?.name || null;
+
+        if (!state.presets.some((preset) => preset.id === state.active_preset_id)) {
+          state.active_preset_id = previous_active_name
+            ? find_preset_by_name(previous_active_name, state.presets)?.id || null
+            : null;
+        }
+
+        if (!state.presets.some((preset) => preset.id === state.selected_preset_id)) {
+          state.selected_preset_id = previous_selected_name
+            ? find_preset_by_name(previous_selected_name, state.presets)?.id || null
+            : null;
+        }
+
+        if (!state.selected_preset_id) {
+          state.selected_preset_id = state.active_preset_id || state.presets[0]?.id || null;
+        }
+      }
+
+      function collapse_state_presets() {
+        const previous_presets = state.presets.slice();
+        state.presets = collapse_presets_by_name(previous_presets);
+        sync_preset_ids_after_collapse(previous_presets);
+      }
+
       function load_presets_from_storage() {
         state.presets = [];
         state.active_preset_id = null;
+        state.selected_preset_id = null;
 
         try {
           const raw_presets = window.localStorage.getItem(PRESET_STORAGE_KEY);
           const parsed_presets = raw_presets ? JSON.parse(raw_presets) : [];
+          let normalized_presets = [];
           if (Array.isArray(parsed_presets)) {
-            state.presets = parsed_presets
+            normalized_presets = parsed_presets
               .map((entry, index) => normalize_preset_entry(entry, `Preset ${index + 1}`))
               .filter(Boolean);
           }
 
+          state.presets = collapse_presets_by_name(normalized_presets);
+
           const saved_active_id = window.localStorage.getItem(ACTIVE_PRESET_STORAGE_KEY);
           if (saved_active_id && state.presets.some((preset) => preset.id === saved_active_id)) {
             state.active_preset_id = saved_active_id;
+          } else if (saved_active_id) {
+            const saved_active_preset = normalized_presets.find((preset) => preset.id === saved_active_id);
+            state.active_preset_id = saved_active_preset
+              ? find_preset_by_name(saved_active_preset.name, state.presets)?.id || null
+              : null;
+          }
+          state.selected_preset_id = state.active_preset_id || state.presets[0]?.id || null;
+
+          if (state.presets.length !== normalized_presets.length) {
+            save_presets_to_storage();
           }
         } catch (error) {
           console.error(error);
           state.presets = [];
           state.active_preset_id = null;
+          state.selected_preset_id = null;
           set_preset_meta("Saved presets could not be read. Storage was reset.", true);
         }
       }
@@ -862,35 +1152,44 @@
           return;
         }
 
-        const tabs = document.createElement("div");
-        tabs.className = "p-tabs";
-
         const list = document.createElement("div");
-        list.className = "p-tabs__list";
-        list.setAttribute("role", "tablist");
+        list.className = "preset-radio-list";
+        list.setAttribute("role", "radiogroup");
         list.setAttribute("aria-label", "Saved presets");
 
         for (let index = 0; index < state.presets.length; index += 1) {
           const preset = state.presets[index];
-          const item = document.createElement("div");
-          item.className = "p-tabs__item";
+          const row = document.createElement("label");
+          row.className = "preset-radio-row";
 
-          const tab = document.createElement("button");
-          tab.type = "button";
-          tab.className = "p-tabs__link";
-          tab.setAttribute("role", "tab");
-          tab.setAttribute("aria-selected", String(preset.id === state.active_preset_id));
-          tab.setAttribute("tabindex", preset.id === state.active_preset_id ? "0" : "-1");
-          tab.textContent = preset.name;
-          tab.addEventListener("click", () => {
-            void apply_preset_by_id(preset.id);
+          const radio = document.createElement("input");
+          radio.type = "radio";
+          radio.name = "saved-preset";
+          radio.value = preset.id;
+          radio.checked = preset.id === state.selected_preset_id;
+          radio.addEventListener("change", () => {
+            state.selected_preset_id = preset.id;
+            activate_selected_preset();
           });
-          item.appendChild(tab);
-          list.appendChild(item);
+
+          const name = document.createElement("span");
+          name.className = "preset-radio-name";
+          name.textContent = preset.name;
+
+          row.appendChild(radio);
+          row.appendChild(name);
+
+          if (preset.id === state.active_preset_id) {
+            const status = document.createElement("span");
+            status.className = "preset-radio-status";
+            status.textContent = "Active";
+            row.appendChild(status);
+          }
+
+          list.appendChild(row);
         }
 
-        tabs.appendChild(list);
-        preset_tabs.appendChild(tabs);
+        preset_tabs.appendChild(list);
         update_preset_controls();
       }
 
@@ -989,6 +1288,11 @@
 
       function create_control_row(path_parts, value) {
         const path_key = path_parts.join(".");
+        if (is_control_hidden(path_key)) {
+          return null;
+        }
+
+        const help_text = get_control_help_text(path_key);
         const row = document.createElement("div");
         row.className = "p-form__group";
 
@@ -999,13 +1303,19 @@
           control.className = "p-form__control";
           control.appendChild(input_bundle.element);
           row.appendChild(control);
+          if (help_text) {
+            const help = document.createElement("p");
+            help.className = "p-form-help-text control-help";
+            help.textContent = help_text;
+            row.appendChild(help);
+          }
           return row;
         }
 
         const label = document.createElement("label");
         label.className = "p-form__label";
         label.htmlFor = `control-${path_key.replace(/\./g, "-")}`;
-        label.textContent = humanize_key(path_parts[path_parts.length - 1]);
+        label.textContent = get_control_label(path_key);
 
         const input_bundle = create_control_input(path_key, value);
         state.editor_controls.set(path_key, input_bundle.control);
@@ -1022,28 +1332,47 @@
 
         row.appendChild(label);
         row.appendChild(control);
+        if (help_text) {
+          const help = document.createElement("p");
+          help.className = "p-form-help-text control-help";
+          help.textContent = help_text;
+          row.appendChild(help);
+        }
         return row;
       }
 
       function append_editor_fields(parent, object_value, path_parts) {
+        let appended_count = 0;
         for (const [key, value] of Object.entries(object_value)) {
           const next_path = path_parts.concat(key);
           if (is_plain_object(value)) {
             const group = document.createElement("div");
             group.className = "config-group";
 
+            const group_count = append_editor_fields(group, value, next_path);
+            if (group_count === 0) {
+              continue;
+            }
+
             const title = document.createElement("h3");
             title.className = "p-text--small-caps u-no-margin--bottom";
             title.textContent = humanize_key(key);
-            group.appendChild(title);
-
-            append_editor_fields(group, value, next_path);
+            group.prepend(title);
             parent.appendChild(group);
+            appended_count += group_count;
             continue;
           }
 
-          parent.appendChild(create_control_row(next_path, value));
+          const row = create_control_row(next_path, value);
+          if (!row) {
+            continue;
+          }
+
+          parent.appendChild(row);
+          appended_count += 1;
         }
+
+        return appended_count;
       }
 
       function build_config_editor() {
@@ -1116,12 +1445,29 @@
             const section = document.createElement("div");
             section.className = "config-section";
 
+            let mascot_field_count = 0;
+            for (const path_parts of [
+              ["mascot", "base_width_px"],
+              ["mascot", "scale"],
+              ["mascot", "opacity"]
+            ]) {
+              const row = create_control_row(path_parts, get_config_value(path_parts));
+              if (!row) {
+                continue;
+              }
+              section.appendChild(row);
+              mascot_field_count += 1;
+            }
+
+            if (mascot_field_count === 0) {
+              panels.appendChild(panel);
+              continue;
+            }
+
             const title = document.createElement("h2");
             title.className = "p-heading--5 u-no-margin--bottom";
             title.textContent = "Mascot";
-            section.appendChild(title);
-
-            section.appendChild(create_control_row(["mascot", "scale"], config.mascot.scale));
+            section.prepend(title);
             form.appendChild(section);
             panel.appendChild(form);
             panels.appendChild(panel);
@@ -1137,12 +1483,15 @@
             const section = document.createElement("div");
             section.className = "config-section";
 
+            const field_count = append_editor_fields(section, section_value, [section_key]);
+            if (field_count === 0) {
+              continue;
+            }
+
             const title = document.createElement("h2");
             title.className = "p-heading--5 u-no-margin--bottom";
             title.textContent = humanize_key(section_key);
-            section.appendChild(title);
-
-            append_editor_fields(section, section_value, [section_key]);
+            section.prepend(title);
             form.appendChild(section);
           }
 
@@ -1182,27 +1531,37 @@
         return input.value;
       }
 
+      function get_current_playback_time_sec(now_ms = performance.now()) {
+        if (state.animation_frame_id) {
+          return clamp((now_ms - state.animation_start_ms) / 1000, 0, state.playback_end_sec);
+        }
+
+        return clamp(state.playback_time_sec, 0, state.playback_end_sec);
+      }
+
       async function refresh_scene(options = {}) {
         const refresh_id = ++state.refresh_serial;
+        const preserved_playback_time_sec = options.playback_time_sec ?? get_current_playback_time_sec();
+        const restart_animation = options.restart_animation !== false;
         stop_animation();
         apply_stage_styles();
 
         if (!config.mascot.enabled) {
-          mascot_svg.innerHTML = "";
-          state.eye_nodes = [];
-          state.nose_node = null;
-        } else if (options.reload_mascot || !mascot_svg.innerHTML.trim()) {
-          await load_mascot_svg();
+          state.mascot_face_image = null;
+          state.mascot_halo_image = null;
+          state.mascot_box = null;
+        } else if (options.reload_mascot || !state.mascot_face_image || !state.mascot_halo_image) {
+          await load_mascot_images();
           if (refresh_id !== state.refresh_serial) {
             return;
           }
-        } else {
-          cache_eye_nodes();
-          cache_mascot_nodes();
         }
 
-        resize_canvas();
-        start_animation();
+        resize_canvas(restart_animation ? 0 : preserved_playback_time_sec);
+
+        if (restart_animation) {
+          start_animation();
+        }
       }
 
       async function handle_control_commit(event) {
@@ -1236,13 +1595,18 @@
           await refresh_scene({
             reload_mascot:
               path_parts[0] === "mascot" &&
-              (path_parts[1] === "asset_path" || path_parts[1] === "enabled")
+              (
+                path_parts[1] === "enabled" ||
+                path_parts[1] === "face_asset_path" ||
+                path_parts[1] === "halo_asset_path"
+              ),
+            restart_animation: false
           });
 
           if (path_parts[0] === "performance" && path_parts[1] === "desynchronized") {
             set_preset_meta("The canvas desynchronized flag changes on next page reload.", false);
           } else {
-            set_preset_meta("Live config updated. Save New adds another preset tab.", false);
+            set_preset_meta("Live config updated. Save adds a new preset or updates the matching name.", false);
           }
         } catch (error) {
           console.error(error);
@@ -1257,6 +1621,7 @@
         }
 
         state.active_preset_id = preset.id;
+        state.selected_preset_id = preset.id;
         replace_config(preset.config);
         preset_name_input.value = preset.name;
         sync_editor_values();
@@ -1280,34 +1645,31 @@
         };
       }
 
-      function save_new_preset() {
-        const preset = build_preset_payload(get_requested_preset_name(), config);
+      function save_preset() {
+        collapse_state_presets();
+        const preset_name = get_requested_preset_name();
+        const existing_preset = find_preset_by_name(preset_name);
+
+        if (existing_preset) {
+          existing_preset.name = preset_name;
+          existing_preset.config = normalize_config_snapshot(config);
+          state.active_preset_id = existing_preset.id;
+          state.selected_preset_id = existing_preset.id;
+          preset_name_input.value = existing_preset.name;
+          render_preset_tabs();
+          save_presets_to_storage();
+          set_preset_meta(`Updated "${existing_preset.name}".`, false);
+          return;
+        }
+
+        const preset = build_preset_payload(preset_name, config);
         state.presets.push(preset);
         state.active_preset_id = preset.id;
+        state.selected_preset_id = preset.id;
         preset_name_input.value = preset.name;
         render_preset_tabs();
         save_presets_to_storage();
-        set_preset_meta(`Saved "${preset.name}" as a new preset tab.`, false);
-      }
-
-      function overwrite_active_preset() {
-        if (!state.active_preset_id) {
-          save_new_preset();
-          return;
-        }
-
-        const preset = state.presets.find((entry) => entry.id === state.active_preset_id);
-        if (!preset) {
-          save_new_preset();
-          return;
-        }
-
-        preset.name = get_requested_preset_name();
-        preset.config = normalize_config_snapshot(config);
-        preset_name_input.value = preset.name;
-        render_preset_tabs();
-        save_presets_to_storage();
-        set_preset_meta(`Overwrote "${preset.name}".`, false);
+        set_preset_meta(`Saved "${preset.name}" as a new preset.`, false);
       }
 
       function delete_active_preset() {
@@ -1323,6 +1685,7 @@
 
         state.presets = state.presets.filter((entry) => entry.id !== state.active_preset_id);
         state.active_preset_id = null;
+        state.selected_preset_id = state.presets[0]?.id || null;
         preset_name_input.value = get_next_preset_name();
         render_preset_tabs();
         save_presets_to_storage();
@@ -1407,22 +1770,32 @@
           throw new Error("No presets were found in that file.");
         }
 
+        collapse_state_presets();
         render_preset_tabs();
         save_presets_to_storage();
-        await apply_preset_by_id(imported_presets[imported_presets.length - 1].id);
+        const newest_imported_preset = find_preset_by_name(imported_presets[imported_presets.length - 1].name);
+        if (newest_imported_preset) {
+          await apply_preset_by_id(newest_imported_preset.id);
+        }
         set_preset_meta(`Imported ${imported_presets.length} preset${imported_presets.length === 1 ? "" : "s"}.`, false);
       }
 
       function reset_to_defaults() {
-        replace_config(default_config);
+        replace_config(get_active_default_config());
         state.active_preset_id = null;
+        state.selected_preset_id = state.presets[0]?.id || null;
         preset_name_input.value = get_next_preset_name();
         sync_editor_values();
         render_preset_tabs();
         save_presets_to_storage();
         return refresh_scene({ reload_mascot: true })
           .then(() => {
-            set_preset_meta("Reset to the default config.", false);
+            set_preset_meta(
+              state.browser_default_config
+                ? "Reset to your saved browser default config."
+                : "Reset to the factory default config.",
+              false
+            );
           })
           .catch((error) => {
             console.error(error);
@@ -1430,84 +1803,63 @@
           });
       }
 
-      function is_mascot_hit(client_x, client_y) {
-        if (!config.mascot.enabled || mascot.style.display === "none") {
-          return false;
-        }
-
-        const bounds = mascot.getBoundingClientRect();
-        return (
-          client_x >= bounds.left &&
-          client_x <= bounds.right &&
-          client_y >= bounds.top &&
-          client_y <= bounds.bottom
-        );
+      function set_current_as_browser_default() {
+        save_browser_default_config(config);
+        set_preset_meta("Saved the current config as your browser default. Reset Defaults will return to it.", false);
       }
 
-      function cache_eye_nodes() {
-        const circles = mascot_svg.querySelectorAll("circle");
-        state.eye_nodes = Array.from(circles, (circle) => ({
-          node: circle,
-          cx: Number(circle.getAttribute("cx") || 0),
-          cy: Number(circle.getAttribute("cy") || 0)
-        }));
-      }
-
-      function cache_mascot_nodes() {
-        const all_paths = mascot_svg.querySelectorAll("path");
-        const nose_node = mascot_svg.querySelector("path.st0") || all_paths[all_paths.length - 1] || null;
-        const head_nodes = mascot_svg.querySelectorAll("path.st1, circle.st1");
-
-        for (const head_node of head_nodes) {
-          head_node.setAttribute("fill", config.mascot.color);
-        }
-
-        if (nose_node) {
-          nose_node.setAttribute("fill", STAGE_BACKGROUND_COLOR);
-        }
-
-        state.nose_node = nose_node;
-      }
-
-      async function load_mascot_svg() {
-        if (!config.mascot.enabled) {
-          mascot_svg.innerHTML = "";
-          state.eye_nodes = [];
-          state.nose_node = null;
+      function activate_selected_preset() {
+        if (!state.selected_preset_id || state.selected_preset_id === state.active_preset_id) {
           return;
         }
 
-        const response = await fetch(config.mascot.asset_path, { cache: "no-store" });
-        const svg_markup = await response.text();
-        mascot_svg.innerHTML = svg_markup.replace(/<\?xml[\s\S]*?\?>\s*/i, "");
-        cache_eye_nodes();
-        cache_mascot_nodes();
-        update_mascot_animation(0, false, performance.now());
+        void apply_preset_by_id(state.selected_preset_id);
       }
 
-      function apply_overlay_styles() {
-        const stage_size_px = STAGE_SIZE_PX;
-        const display_scale = stage.getBoundingClientRect().width / stage_size_px;
-        const center_x_px = config.composition.center_x_px;
-        const center_y_px = config.composition.center_y_px;
+      function get_mascot_draw_box() {
+        const draw_size_px = config.mascot.base_width_px * config.mascot.scale;
+        const center_x_px = config.composition.center_x_px + config.mascot.offset_x_px;
+        const center_y_px = config.composition.center_y_px + config.mascot.offset_y_px;
 
-        overlay_inner.style.width = stage_size_px + "px";
-        overlay_inner.style.height = stage_size_px + "px";
-        overlay_inner.style.transform = `scale(${display_scale})`;
+        return {
+          center_x_px,
+          center_y_px,
+          draw_size_px,
+          left_px: center_x_px - draw_size_px * 0.5,
+          top_px: center_y_px - draw_size_px * 0.5
+        };
+      }
 
-        mascot.style.display = config.mascot.enabled ? "block" : "none";
-        if (config.mascot.enabled) {
-          const mascot_width_px = config.mascot.base_width_px * config.mascot.scale;
-          const mascot_height_px = mascot_width_px * mascot_viewbox_height / mascot_viewbox_width;
-          const mascot_center_x = center_x_px + config.mascot.offset_x_px;
-          const mascot_center_y = center_y_px + config.mascot.offset_y_px;
+      function get_mascot_asset_url(asset_path) {
+        return encodeURI(asset_path).replace(/#/g, "%23");
+      }
 
-          mascot.style.left = mascot_center_x - mascot_width_px * 0.5 + "px";
-          mascot.style.top = mascot_center_y - mascot_height_px * 0.5 + "px";
-          mascot.style.width = mascot_width_px + "px";
-          mascot.style.height = mascot_height_px + "px";
-          mascot.style.opacity = String(config.mascot.opacity);
+      async function load_image_asset(asset_path, label) {
+        return new Promise((resolve, reject) => {
+          const image = new Image();
+          image.decoding = "async";
+          image.addEventListener("load", () => resolve(image), { once: true });
+          image.addEventListener("error", () => {
+            reject(new Error(`Could not load mascot ${label} asset: ${asset_path}`));
+          }, { once: true });
+          image.src = get_mascot_asset_url(asset_path);
+        });
+      }
+
+      async function load_mascot_images() {
+        if (!config.mascot.enabled) {
+          state.mascot_face_image = null;
+          state.mascot_halo_image = null;
+          return;
         }
+
+        const [face_image, halo_image] = await Promise.all([
+          load_image_asset(config.mascot.face_asset_path, "face"),
+          load_image_asset(config.mascot.halo_asset_path, "halo")
+        ]);
+
+        state.mascot_face_image = face_image;
+        state.mascot_halo_image = halo_image;
       }
 
       function build_scene_data() {
@@ -1518,10 +1870,12 @@
         const center_y_px = config.composition.center_y_px;
         const radial_scale = config.composition.radial_scale;
         const rotation_rad = radians(config.composition.global_rotation_deg);
-        const inner_radius = stage_size_px * radial_scale * generator.inner_radius;
-        const outer_radius = stage_size_px * radial_scale * generator.outer_radius;
+        const mascot_box = config.mascot.enabled ? get_mascot_draw_box() : null;
+        const geometry_scale = mascot_box ? mascot_box.draw_size_px / stage_size_px : 1;
+        const inner_radius = stage_size_px * radial_scale * generator.inner_radius * geometry_scale;
+        const outer_radius = stage_size_px * radial_scale * generator.outer_radius * geometry_scale;
         const radius_span = outer_radius - inner_radius;
-        const base_pscale_px = transition.base_pscale * config.point_style.base_pscale_px_per_unit;
+        const base_pscale_px = transition.base_pscale * config.point_style.base_pscale_px_per_unit * geometry_scale;
         const fade_delay_sec = config.mascot_fade.enabled ? config.mascot_fade.duration_sec : 0;
         const head_turn_delay_sec = config.head_turn.enabled ? config.head_turn.duration_sec : 0;
         const head_turn_overlap_sec = config.head_turn.enabled
@@ -1541,22 +1895,34 @@
         );
         const orbit_count_start_sec = start_delay_sec + orbit_count_start_frac * duration_sec;
         const orbit_count_end_sec = start_delay_sec + orbit_count_end_frac * duration_sec;
-        const blink_start_sec = start_delay_sec + duration_sec + config.blink.start_delay_sec;
+        const dot_end_sec = start_delay_sec + duration_sec;
+        const finale_start_sec = dot_end_sec + Math.max(0, config.finale.delay_after_dots_sec || 0);
+        const finale_end_sec = config.finale.enabled
+          ? finale_start_sec + Math.max(0.001, config.finale.duration_sec)
+          : finale_start_sec;
+        const blink_anchor_sec = config.finale.enabled ? finale_end_sec : dot_end_sec;
+        const blink_start_sec = blink_anchor_sec + Math.max(0, config.blink.start_delay_sec || 0);
         const blink_end_sec = config.blink.enabled
-          ? blink_start_sec + config.blink.duration_sec
-          : start_delay_sec + duration_sec;
+          ? blink_start_sec + Math.max(0.0001, config.blink.duration_sec || 0)
+          : blink_anchor_sec;
+        const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
+        const spawn_angle_rad = radians(generator.anim_start_angle_deg + transition.spawn_angle_offset_deg) + rotation_rad;
+        const phase_mask_radius_px = 250 * geometry_scale;
+        const phase_mask_center_offset_x_px = 50 * geometry_scale;
+        const use_reference_phase_masks = generator.phase_count === 2;
 
-        const active_by_spoke = new Array(generator.spoke_count);
-        const pattern_index_by_spoke = new Array(generator.spoke_count);
-        let total_points = 0;
+        const spoke_specs = new Array(generator.spoke_count);
+        const min_diameter_px =
+          (config.point_style.min_diameter_px ?? config.point_style.min_rect_px ?? 0.9) * geometry_scale;
 
         // Match the generator wrangle: spoke lengths ramp within repeating phase segments.
+        // We keep the ramp continuous, then fit dots by radius so a spoke only drops a dot
+        // when that dot would actually stick out past the available filled length.
         for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
           const spoke_pattern_id = wrap_positive(
             spoke_id - generator.pattern_offset_spokes,
             generator.spoke_count
           );
-          pattern_index_by_spoke[spoke_id] = spoke_pattern_id;
 
           const segment_id = Math.min(
             generator.phase_count - 1,
@@ -1567,25 +1933,80 @@
           const segment_length = Math.max(1, segment_end - segment_start + 1);
           const segment_index = spoke_pattern_id - segment_start;
           const fill_u = segment_length <= 1 ? 1 : segment_index / (segment_length - 1);
-
-          const active_orbits = clamp(
-            Math.round(
-              generator.min_active_orbits +
-              fill_u * (generator.num_orbits - generator.min_active_orbits)
-            ),
+          const continuous_active_orbits = clamp(
+            generator.min_active_orbits +
+            fill_u * (generator.num_orbits - generator.min_active_orbits),
             generator.min_active_orbits,
             generator.num_orbits
           );
+          const reach_u = generator.num_orbits <= 1
+            ? 1
+            : (continuous_active_orbits - 1) / (generator.num_orbits - 1);
+          const phase_frontier_dist_u = compute_phase_frontier_dist_u(
+            spoke_pattern_id,
+            generator.spoke_count,
+            generator.phase_count
+          );
+          const phase_frontier_scale = compute_frontier_scale(
+            phase_frontier_dist_u,
+            transition.phase_frontier_amount,
+            transition.phase_frontier_width_u,
+            transition.phase_frontier_bias
+          );
+          const target_angle = base_angle_rad - TAU * spoke_id / generator.spoke_count;
+          const phase_mask_center_x_px = segment_id === 0
+            ? center_x_px - phase_mask_center_offset_x_px
+            : center_x_px + phase_mask_center_offset_x_px;
 
-          active_by_spoke[spoke_id] = active_orbits;
-          total_points += active_orbits;
+          spoke_specs[spoke_id] = {
+            spoke_pattern_id,
+            target_angle,
+            segment_id,
+            reach_u,
+            fill_end_radius: inner_radius + radius_span * reach_u,
+            phase_frontier_scale,
+            phase_mask_center_x_px,
+            phase_mask_center_y_px: center_y_px,
+            phase_mask_radius_px
+          };
+        }
+
+        function get_spoke_point_metrics(spoke_spec, orbit_id) {
+          const orbit_u = generator.num_orbits <= 1 ? 0 : orbit_id / (generator.num_orbits - 1);
+          const radius = inner_radius + radius_span * orbit_u;
+          const point_x = center_x_px + Math.cos(spoke_spec.target_angle) * radius;
+          const point_y = center_y_px + Math.sin(spoke_spec.target_angle) * radius;
+          const orbital_frontier_dist_u = Math.max(0, spoke_spec.reach_u - orbit_u);
+          const orbital_frontier_scale = compute_frontier_scale(
+            orbital_frontier_dist_u,
+            transition.orbital_frontier_amount,
+            transition.orbital_frontier_width_u,
+            transition.orbital_frontier_bias
+          );
+          const final_scale = base_pscale_px * orbital_frontier_scale * spoke_spec.phase_frontier_scale;
+          const diameter_px = Math.max(min_diameter_px, final_scale);
+          const radius_px = diameter_px * 0.5;
+          const phase_mask_distance_px = Math.hypot(
+            point_x - spoke_spec.phase_mask_center_x_px,
+            point_y - spoke_spec.phase_mask_center_y_px
+          );
+
+          return {
+            orbit_u,
+            radius,
+            diameter_px,
+            radius_px,
+            fits_within_spoke: use_reference_phase_masks
+              ? phase_mask_distance_px + radius_px <= spoke_spec.phase_mask_radius_px + 0.01
+              : radius + radius_px <= spoke_spec.fill_end_radius + 0.01
+          };
         }
 
         const orbit_counts = new Array(generator.num_orbits).fill(0);
         for (let orbit_id = 0; orbit_id < generator.num_orbits; orbit_id += 1) {
           let count = 0;
           for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
-            if (active_by_spoke[spoke_id] > orbit_id) {
+            if (get_spoke_point_metrics(spoke_specs[spoke_id], orbit_id).fits_within_spoke) {
               count += 1;
             }
           }
@@ -1598,50 +2019,44 @@
           : emit_duration_sec;
         const base_speed_deg_per_sec = 360 * transition.spins / duration_sec;
         const capture_start_sec = start_delay_sec + transition.capture_start_frac * duration_sec;
-        const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
-        const spawn_angle_rad = radians(generator.anim_start_angle_deg + transition.spawn_angle_offset_deg) + rotation_rad;
         const orbit_count_from = clamp(generator.min_active_orbits, 1, generator.num_orbits);
         const orbit_count_to = clamp(generator.num_orbits, orbit_count_from, generator.num_orbits);
 
-        state.dot_end_sec = start_delay_sec + duration_sec;
-        state.playback_end_sec = blink_end_sec;
+        state.dot_end_sec = dot_end_sec;
+        state.finale_start_sec = finale_start_sec;
+        state.finale_end_sec = finale_end_sec;
+        state.playback_end_sec = Math.max(finale_end_sec, blink_end_sec);
         state.blink_start_sec = blink_start_sec;
         state.blink_end_sec = blink_end_sec;
         state.spawn_angle_rad = spawn_angle_rad;
+        state.mascot_box = mascot_box;
 
-        const points = new Array(total_points);
+        const points = [];
         const spokes = new Array(generator.spoke_count);
         const orbit_rank_counts = new Array(generator.num_orbits).fill(0);
-        let point_index = 0;
 
         // Static geometry is precomputed so the frame loop only solves angular position.
         for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
-          const target_angle = base_angle_rad + TAU * spoke_id / generator.spoke_count;
-          const spoke_pattern_id = pattern_index_by_spoke[spoke_id];
-          const active_orbits = active_by_spoke[spoke_id];
-          const reach_u = generator.num_orbits <= 1 ? 1 : (active_orbits - 1) / (generator.num_orbits - 1);
+          const spoke_spec = spoke_specs[spoke_id];
+          const is_upper_half = Math.sin(spoke_spec.target_angle) < 0;
 
           spokes[spoke_id] = {
-            angle: target_angle,
-            start_radius: config.spoke_lines.start_radius_px,
-            end_radius: outer_radius + config.spoke_lines.end_radius_extra_px
+            angle: spoke_spec.target_angle,
+            start_radius: config.spoke_lines.start_radius_px * geometry_scale,
+            end_radius: outer_radius + config.spoke_lines.end_radius_extra_px * geometry_scale,
+            inner_clip_center_x_px: is_upper_half
+              ? center_x_px - phase_mask_center_offset_x_px
+              : center_x_px + phase_mask_center_offset_x_px,
+            inner_clip_center_y_px: center_y_px,
+            inner_clip_radius_px: phase_mask_radius_px
           };
 
-          const phase_frontier_dist_u = compute_phase_frontier_dist_u(
-            spoke_pattern_id,
-            generator.spoke_count,
-            generator.phase_count
-          );
-          const phase_frontier_scale = compute_frontier_scale(
-            phase_frontier_dist_u,
-            transition.phase_frontier_amount,
-            transition.phase_frontier_width_u,
-            transition.phase_frontier_bias
-          );
+          for (let orbit_id = 0; orbit_id < generator.num_orbits; orbit_id += 1) {
+            const point_metrics = get_spoke_point_metrics(spoke_spec, orbit_id);
+            if (!point_metrics.fits_within_spoke) {
+              continue;
+            }
 
-          for (let orbit_id = 0; orbit_id < active_orbits; orbit_id += 1) {
-            const orbit_u = generator.num_orbits <= 1 ? 0 : orbit_id / (generator.num_orbits - 1);
-            const radius = inner_radius + radius_span * orbit_u;
             const orbit_rank = orbit_rank_counts[orbit_id];
             const speed_index = transition.inner_faster
               ? orbit_id
@@ -1667,35 +2082,21 @@
             const visible_sec = birth_sec + visible_delay_sec;
             const point_capture_start_sec = Math.max(capture_start_sec, visible_sec);
 
-            const orbital_frontier_dist_u = Math.max(0, reach_u - orbit_u);
-            const orbital_frontier_scale = compute_frontier_scale(
-              orbital_frontier_dist_u,
-              transition.orbital_frontier_amount,
-              transition.orbital_frontier_width_u,
-              transition.orbital_frontier_bias
-            );
-
-            const final_scale = base_pscale_px * orbital_frontier_scale * phase_frontier_scale;
-            const min_diameter_px =
-              config.point_style.min_diameter_px ?? config.point_style.min_rect_px ?? 0.9;
-            const diameter_px = Math.max(min_diameter_px, final_scale);
-
-            points[point_index] = {
+            points.push({
               center_x_px,
               center_y_px,
-              radius,
-              target_angle,
+              radius: point_metrics.radius,
+              target_angle: spoke_spec.target_angle,
               orbit_id,
               speed_rad_per_sec: radians(speed_deg_per_sec),
               birth_sec,
               visible_sec,
               capture_start_sec: point_capture_start_sec,
-              diameter_px,
-              radius_px: diameter_px * 0.5
-            };
+              diameter_px: point_metrics.diameter_px,
+              radius_px: point_metrics.radius_px
+            });
 
             orbit_rank_counts[orbit_id] += 1;
-            point_index += 1;
           }
         }
 
@@ -1715,71 +2116,12 @@
         );
       }
 
-      function compute_blink_curve(blink_u) {
-        const close_frac = clamp(config.blink.close_frac, 0.05, 0.9);
-        const hold_end_frac = clamp(close_frac + config.blink.hold_closed_frac, close_frac, 0.98);
-
-        if (blink_u < close_frac) {
-          return smoothstep(0, close_frac, blink_u);
-        }
-
-        if (blink_u < hold_end_frac) {
-          return 1;
-        }
-
-        return 1 - smoothstep(hold_end_frac, 1, blink_u);
-      }
-
-      function compute_manual_sneeze_amount(now_ms) {
-        if (!state.manual_sneeze_start_ms || !config.sneeze.enabled || !config.blink.enabled) {
-          return 0;
-        }
-
-        const elapsed_sec = Math.max(0, (now_ms - state.manual_sneeze_start_ms) / 1000);
-        const duration_sec = Math.max(0.0001, config.blink.duration_sec);
-
-        if (elapsed_sec >= duration_sec) {
-          state.manual_sneeze_start_ms = 0;
-          return 0;
-        }
-
-        return compute_blink_curve(clamp(elapsed_sec / duration_sec, 0, 1));
-      }
-
-      function is_manual_sneeze_active(now_ms) {
-        if (!state.manual_sneeze_start_ms || !config.sneeze.enabled || !config.blink.enabled) {
-          return false;
-        }
-
-        return (now_ms - state.manual_sneeze_start_ms) < Math.max(0.0001, config.blink.duration_sec) * 1000;
-      }
-
-      function compute_blink_amount(playback_time_sec, now_ms) {
-        let timeline_blink = 0;
-
-        if (
-          config.blink.enabled &&
-          playback_time_sec >= state.blink_start_sec &&
-          playback_time_sec <= state.blink_end_sec
-        ) {
-          const blink_u = clamp(
-            (playback_time_sec - state.blink_start_sec) / Math.max(0.0001, config.blink.duration_sec),
-            0,
-            1
-          );
-          timeline_blink = compute_blink_curve(blink_u);
-        }
-
-        return Math.max(timeline_blink, compute_manual_sneeze_amount(now_ms));
-      }
-
-      function compute_head_turn_deg(playback_time_sec) {
+      function compute_head_turn_deg(local_time_sec) {
         if (!config.head_turn.enabled) {
           return 0;
         }
 
         const duration_sec = Math.max(0.0001, config.head_turn.duration_sec);
-        const local_time_sec = playback_time_sec;
 
         if (local_time_sec <= 0 || local_time_sec >= duration_sec) {
           return 0;
@@ -1817,56 +2159,363 @@
         );
       }
 
+      function compute_blink_curve(blink_u) {
+        const close_frac = clamp(config.blink.close_frac, 0.05, 0.9);
+        const hold_end_frac = clamp(close_frac + config.blink.hold_closed_frac, close_frac, 0.98);
+
+        if (blink_u < close_frac) {
+          return smoothstep(0, close_frac, blink_u);
+        }
+
+        if (blink_u < hold_end_frac) {
+          return 1;
+        }
+
+        return 1 - smoothstep(hold_end_frac, 1, blink_u);
+      }
+
+      function compute_blink_amount(playback_time_sec) {
+        if (
+          !config.blink.enabled ||
+          playback_time_sec < state.blink_start_sec ||
+          playback_time_sec > state.blink_end_sec
+        ) {
+          return 0;
+        }
+
+        const blink_u = clamp(
+          (playback_time_sec - state.blink_start_sec) / Math.max(0.0001, config.blink.duration_sec),
+          0,
+          1
+        );
+        return compute_blink_curve(blink_u);
+      }
+
       function compute_head_turn_eye_squint_amount(playback_time_sec) {
         if (!config.head_turn.enabled) {
           return 0;
         }
 
         const duration_sec = Math.max(0.0001, config.head_turn.duration_sec);
-        const local_time_sec = playback_time_sec;
 
-        if (local_time_sec <= 0 || local_time_sec >= duration_sec) {
+        if (playback_time_sec <= 0 || playback_time_sec >= duration_sec) {
           return 0;
         }
 
         const ease_sec = Math.min(0.03, duration_sec * 0.18);
-        const close_amount = smoothstep(0, ease_sec, local_time_sec);
-        const open_amount = 1 - smoothstep(duration_sec - ease_sec, duration_sec, local_time_sec);
+        const close_amount = smoothstep(0, ease_sec, playback_time_sec);
+        const open_amount = 1 - smoothstep(duration_sec - ease_sec, duration_sec, playback_time_sec);
         return clamp(close_amount * open_amount, 0, 1);
       }
 
-      function update_mascot_animation(playback_time_sec, force_final, now_ms) {
-        if (!state.eye_nodes.length) {
-          return;
+      function compute_finale_progress(playback_time_sec, force_final) {
+        if (!config.finale.enabled) {
+          return {
+            halo_u: 0
+          };
         }
 
-        const fade_amount = force_final ? 1 : compute_mascot_fade_amount(playback_time_sec);
-        const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec, now_ms);
-        const head_turn_eye_amount = force_final ? 0 : compute_head_turn_eye_squint_amount(playback_time_sec);
-        const head_turn_deg = force_final ? 0 : compute_head_turn_deg(playback_time_sec);
-        const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
-        const eye_scale_y = force_final
-          ? 1
-          : lerp(1, clamp(config.blink.eye_scale_y_closed, 0.02, 1), combined_eye_amount);
+        return {
+          halo_u: force_final
+            ? 1
+            : smoothstep(state.finale_start_sec, state.finale_end_sec, playback_time_sec)
+        };
+      }
 
-        for (let eye_index = 0; eye_index < state.eye_nodes.length; eye_index += 1) {
-          const eye = state.eye_nodes[eye_index];
-          eye.node.setAttribute(
-            "transform",
-            `translate(${eye.cx} ${eye.cy}) scale(1 ${eye_scale_y}) translate(${-eye.cx} ${-eye.cy})`
+      function draw_annulus_sector(center_x_px, center_y_px, inner_radius_px, outer_radius_px, start_angle_rad, end_angle_rad, anticlockwise = false) {
+        context.beginPath();
+        context.arc(center_x_px, center_y_px, outer_radius_px, start_angle_rad, end_angle_rad, anticlockwise);
+        context.arc(center_x_px, center_y_px, inner_radius_px, end_angle_rad, start_angle_rad, !anticlockwise);
+        context.closePath();
+      }
+
+      function draw_full_annulus(center_x_px, center_y_px, inner_radius_px, outer_radius_px) {
+        context.beginPath();
+        context.arc(center_x_px, center_y_px, outer_radius_px, 0, TAU);
+        context.arc(center_x_px, center_y_px, inner_radius_px, TAU, 0, true);
+        context.closePath();
+      }
+
+      function clip_finale_halo_region(
+        box,
+        halo_u,
+        mask_start_angle_rad,
+        sweep_end_angle_rad,
+        halo_inner_radius_px,
+        halo_outer_radius_px,
+        force_final
+      ) {
+        if (halo_u <= 0) {
+          return false;
+        }
+
+        if (force_final || halo_u >= 0.999) {
+          draw_full_annulus(
+            box.center_x_px,
+            box.center_y_px,
+            halo_inner_radius_px,
+            halo_outer_radius_px
+          );
+        } else {
+          draw_annulus_sector(
+            box.center_x_px,
+            box.center_y_px,
+            halo_inner_radius_px,
+            halo_outer_radius_px,
+            mask_start_angle_rad,
+            sweep_end_angle_rad,
+            true
           );
         }
 
-        mascot.style.opacity = String(config.mascot.opacity * fade_amount);
-        mascot.style.transform = `rotate(${head_turn_deg}deg)`;
+        context.clip();
+        return true;
+      }
 
-        if (state.nose_node) {
-          const nose_bob_px = config.sneeze.enabled ? config.sneeze.nose_bob_up_px * blink_amount : 0;
-          state.nose_node.setAttribute("transform", `translate(0 ${-nose_bob_px})`);
+      function trace_spoke_path(spoke) {
+        const x0 = config.composition.center_x_px + Math.cos(spoke.angle) * spoke.start_radius;
+        const y0 = config.composition.center_y_px + Math.sin(spoke.angle) * spoke.start_radius;
+        const x1 = config.composition.center_x_px + Math.cos(spoke.angle) * spoke.end_radius;
+        const y1 = config.composition.center_y_px + Math.sin(spoke.angle) * spoke.end_radius;
+        context.moveTo(x0, y0);
+        context.lineTo(x1, y1);
+      }
+
+      function draw_reference_halo_layer(
+        box,
+        base_alpha,
+        halo_u,
+        mask_start_angle_rad,
+        sweep_end_angle_rad,
+        halo_inner_radius_px,
+        halo_outer_radius_px,
+        force_final
+      ) {
+        if (!state.mascot_halo_image || halo_u <= 0) {
+          return;
+        }
+
+        context.save();
+        if (!clip_finale_halo_region(
+          box,
+          halo_u,
+          mask_start_angle_rad,
+          sweep_end_angle_rad,
+          halo_inner_radius_px,
+          halo_outer_radius_px,
+          force_final
+        )) {
+          context.restore();
+          return;
+        }
+
+        context.globalAlpha = base_alpha * HALO_REFERENCE_OPACITY;
+        context.drawImage(
+          state.mascot_halo_image,
+          box.left_px,
+          box.top_px,
+          box.draw_size_px,
+          box.draw_size_px
+        );
+        context.globalCompositeOperation = "source-atop";
+        context.fillStyle = HALO_REFERENCE_COLOR;
+        context.fillRect(box.left_px, box.top_px, box.draw_size_px, box.draw_size_px);
+        context.restore();
+      }
+
+      function draw_procedural_halo_spokes(
+        box,
+        base_alpha,
+        halo_u,
+        mask_start_angle_rad,
+        sweep_end_angle_rad,
+        halo_inner_radius_px,
+        halo_outer_radius_px,
+        force_final
+      ) {
+        if (state.spokes.length === 0 || halo_u <= 0) {
+          return;
+        }
+
+        const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0);
+        const inner_width_px = Math.max(0, config.spoke_lines.inner_width_px || 0);
+
+        if (outer_width_px > 0) {
+          context.save();
+          if (clip_finale_halo_region(
+            box,
+            halo_u,
+            mask_start_angle_rad,
+            sweep_end_angle_rad,
+            halo_inner_radius_px,
+            halo_outer_radius_px,
+            force_final
+          )) {
+            context.globalAlpha = base_alpha;
+            context.strokeStyle = config.spoke_lines.color;
+            context.lineWidth = outer_width_px;
+            context.beginPath();
+            for (let spoke_index = 0; spoke_index < state.spokes.length; spoke_index += 1) {
+              trace_spoke_path(state.spokes[spoke_index]);
+            }
+            context.stroke();
+          }
+          context.restore();
+        }
+
+        if (inner_width_px <= 0) {
+          return;
+        }
+
+        for (let spoke_index = 0; spoke_index < state.spokes.length; spoke_index += 1) {
+          const spoke = state.spokes[spoke_index];
+
+          context.save();
+          if (!clip_finale_halo_region(
+            box,
+            halo_u,
+            mask_start_angle_rad,
+            sweep_end_angle_rad,
+            halo_inner_radius_px,
+            halo_outer_radius_px,
+            force_final
+          )) {
+            context.restore();
+            continue;
+          }
+
+          context.beginPath();
+          context.arc(
+            spoke.inner_clip_center_x_px,
+            spoke.inner_clip_center_y_px,
+            spoke.inner_clip_radius_px,
+            0,
+            TAU
+          );
+          context.clip();
+          context.globalAlpha = base_alpha;
+          context.strokeStyle = config.spoke_lines.color;
+          context.lineWidth = inner_width_px;
+          context.beginPath();
+          trace_spoke_path(spoke);
+          context.stroke();
+          context.restore();
         }
       }
 
-      function resize_canvas() {
+      function draw_mascot_nose(box, nose_offset_px, base_alpha) {
+        if (base_alpha <= 0) {
+          return;
+        }
+
+        const scale = box.draw_size_px / MASCOT_VIEWBOX_SIZE;
+        if (scale <= 0) {
+          return;
+        }
+
+        context.save();
+        context.translate(box.left_px, box.top_px);
+        context.scale(scale, scale);
+        context.globalAlpha = base_alpha;
+        context.fillStyle = config.mascot.color;
+        context.fill(MASCOT_NOSE_PATH);
+        context.translate(0, -nose_offset_px / scale);
+        context.fillStyle = STAGE_BACKGROUND_COLOR;
+        context.fill(MASCOT_NOSE_PATH);
+        context.restore();
+      }
+
+      function draw_mascot_eyes(box, eye_amount, base_alpha) {
+        const closed_eye_scale_y = clamp(config.blink.eye_scale_y_closed, 0.02, 1);
+        const eye_scale_y = lerp(1, closed_eye_scale_y, eye_amount);
+
+        context.save();
+        context.fillStyle = "#ffffff";
+        context.globalAlpha = base_alpha;
+
+        for (let eye_index = 0; eye_index < MASCOT_EYE_SPECS.length; eye_index += 1) {
+          const eye = MASCOT_EYE_SPECS[eye_index];
+          const center_x_px = box.left_px + box.draw_size_px * (eye.cx / MASCOT_VIEWBOX_SIZE);
+          const center_y_px = box.top_px + box.draw_size_px * (eye.cy / MASCOT_VIEWBOX_SIZE);
+          const radius_x_px = box.draw_size_px * (eye.radius / MASCOT_VIEWBOX_SIZE);
+          const radius_y_px = Math.max(0.75, radius_x_px * eye_scale_y);
+
+          context.beginPath();
+          context.ellipse(center_x_px, center_y_px, radius_x_px, radius_y_px, 0, 0, TAU);
+          context.fill();
+        }
+
+        context.restore();
+      }
+
+      function draw_mascot(playback_time_sec, force_final) {
+        if (!config.mascot.enabled || !state.mascot_face_image || !state.mascot_box) {
+          return;
+        }
+
+        const box = state.mascot_box;
+        const fade_amount = force_final ? 1 : compute_mascot_fade_amount(playback_time_sec);
+        const base_alpha = clamp(config.mascot.opacity * fade_amount, 0, 1);
+        if (base_alpha <= 0) {
+          return;
+        }
+        const head_turn_deg = force_final ? 0 : compute_head_turn_deg(playback_time_sec);
+        const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec);
+        const head_turn_eye_amount = force_final ? 0 : compute_head_turn_eye_squint_amount(playback_time_sec);
+        const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
+        const nose_bob_px = config.sneeze.enabled ? config.sneeze.nose_bob_up_px * combined_eye_amount : 0;
+        const { halo_u } = compute_finale_progress(playback_time_sec, force_final);
+        const pattern_angle_offset_rad =
+          -TAU * (config.generator_wrangle.pattern_offset_spokes || 0) /
+          Math.max(1, config.generator_wrangle.spoke_count || 1);
+        const mask_start_angle_rad =
+          radians((config.finale.start_angle_deg || 0) + (config.finale.mask_angle_offset_deg || 0)) +
+          pattern_angle_offset_rad +
+          radians(config.composition.global_rotation_deg || 0);
+        const sweep_end_angle_rad = mask_start_angle_rad - TAU * halo_u;
+        const halo_inner_radius_px = box.draw_size_px * clamp(config.finale.halo_inner_radius_u, 0.01, 0.5);
+        const halo_outer_radius_px = box.draw_size_px * 0.5;
+
+        context.save();
+        context.imageSmoothingEnabled = true;
+        context.translate(box.center_x_px, box.center_y_px);
+        context.rotate(radians(head_turn_deg));
+        context.translate(-box.center_x_px, -box.center_y_px);
+        draw_reference_halo_layer(
+          box,
+          base_alpha,
+          halo_u,
+          mask_start_angle_rad,
+          sweep_end_angle_rad,
+          halo_inner_radius_px,
+          halo_outer_radius_px,
+          force_final
+        );
+        draw_procedural_halo_spokes(
+          box,
+          base_alpha,
+          halo_u,
+          mask_start_angle_rad,
+          sweep_end_angle_rad,
+          halo_inner_radius_px,
+          halo_outer_radius_px,
+          force_final
+        );
+        context.globalAlpha = base_alpha;
+        context.drawImage(
+          state.mascot_face_image,
+          box.left_px,
+          box.top_px,
+          box.draw_size_px,
+          box.draw_size_px
+        );
+        draw_mascot_nose(box, nose_bob_px, base_alpha);
+        draw_mascot_eyes(box, combined_eye_amount, base_alpha);
+
+        context.restore();
+      }
+
+      function resize_canvas(playback_time_sec = state.playback_time_sec) {
         const stage_size_px = STAGE_SIZE_PX;
         const dpr = Math.min(window.devicePixelRatio || 1, config.performance.max_device_pixel_ratio);
 
@@ -1877,37 +2526,11 @@
         context.setTransform(dpr, 0, 0, dpr, 0, 0);
         context.imageSmoothingEnabled = false;
 
-        apply_overlay_styles();
         build_scene_data();
-        render_current_frame(performance.now(), true);
+        render_playback_frame(playback_time_sec);
       }
 
-      function draw_spoke_lines() {
-        if (!config.spoke_lines.enabled || state.spokes.length === 0) {
-          return;
-        }
-
-        context.save();
-        context.globalAlpha = 1;
-        context.strokeStyle = config.spoke_lines.color;
-        context.lineWidth = config.spoke_lines.width_px;
-        context.beginPath();
-
-        for (let spoke_index = 0; spoke_index < state.spokes.length; spoke_index += 1) {
-          const spoke = state.spokes[spoke_index];
-          const x0 = config.composition.center_x_px + Math.cos(spoke.angle) * spoke.start_radius;
-          const y0 = config.composition.center_y_px + Math.sin(spoke.angle) * spoke.start_radius;
-          const x1 = config.composition.center_x_px + Math.cos(spoke.angle) * spoke.end_radius;
-          const y1 = config.composition.center_y_px + Math.sin(spoke.angle) * spoke.end_radius;
-          context.moveTo(x0, y0);
-          context.lineTo(x1, y1);
-        }
-
-        context.stroke();
-        context.restore();
-      }
-
-      function draw_points(time_sec, force_final) {
+      function draw_points(time_sec, force_final, playback_time_sec) {
         if (state.points.length === 0) {
           return;
         }
@@ -1915,6 +2538,12 @@
         context.save();
         context.fillStyle = config.point_style.color;
         const alpha_ramp_duration_sec = Math.max(0, config.transition_wrangle.alpha_ramp_duration_sec || 0);
+        const finale_duration_sec = Math.max(0.0001, state.finale_end_sec - state.finale_start_sec);
+        const dot_fade_start_sec = state.finale_start_sec + clamp(config.finale.dot_fade_start_frac, 0, 1) * finale_duration_sec;
+        const dot_fade_u = config.finale.enabled
+          ? smoothstep(dot_fade_start_sec, state.finale_end_sec, playback_time_sec)
+          : 0;
+        const dot_alpha_mult = 1 - clamp(config.finale.dot_fade_amount, 0, 1) * dot_fade_u;
 
         for (let point_index = 0; point_index < state.points.length; point_index += 1) {
           const point = state.points[point_index];
@@ -1967,6 +2596,8 @@
             point_alpha *= alpha_u;
           }
 
+          point_alpha *= dot_alpha_mult;
+
           if (point_alpha <= 0) {
             continue;
           }
@@ -1982,29 +2613,43 @@
       }
 
       function render_scene(time_sec, options = {}) {
-        const force_final = Boolean(options.force_final);
+        const force_dot_final = Boolean(options.force_dot_final);
+        const force_mascot_final = Boolean(options.force_mascot_final);
+        const playback_time_sec = options.playback_time_sec ?? time_sec;
 
         context.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
         context.globalAlpha = 1;
         context.fillStyle = STAGE_BACKGROUND_COLOR;
         context.fillRect(0, 0, STAGE_SIZE_PX, STAGE_SIZE_PX);
 
-        draw_spoke_lines();
-        draw_points(time_sec, force_final);
+        draw_points(time_sec, force_dot_final, playback_time_sec);
+        draw_mascot(playback_time_sec, force_mascot_final);
+      }
+
+      function render_playback_frame(playback_time_sec) {
+        const clamped_playback_time_sec = clamp(playback_time_sec, 0, state.playback_end_sec);
+        const dot_time_sec = Math.min(clamped_playback_time_sec, state.dot_end_sec);
+        const is_dot_animation_complete = clamped_playback_time_sec >= state.dot_end_sec;
+        const is_playback_complete = clamped_playback_time_sec >= state.playback_end_sec;
+        state.playback_time_sec = clamped_playback_time_sec;
+
+        render_scene(dot_time_sec, {
+          force_dot_final: is_dot_animation_complete,
+          force_mascot_final: is_playback_complete,
+          playback_time_sec: clamped_playback_time_sec
+        });
+
+        return {
+          playback_time_sec: clamped_playback_time_sec,
+          is_playback_complete
+        };
       }
 
       function render_current_frame(now_ms = performance.now(), skip_schedule) {
-        const manual_sneeze_active = is_manual_sneeze_active(now_ms);
         const elapsed_sec = Math.max(0, (now_ms - state.animation_start_ms) / 1000);
-        const playback_time_sec = clamp(elapsed_sec, 0, state.playback_end_sec);
-        const dot_time_sec = Math.min(playback_time_sec, state.dot_end_sec);
-        const is_dot_animation_complete = playback_time_sec >= state.dot_end_sec;
-        const is_playback_complete = playback_time_sec >= state.playback_end_sec;
+        const { is_playback_complete } = render_playback_frame(elapsed_sec);
 
-        render_scene(dot_time_sec, { force_final: is_dot_animation_complete });
-        update_mascot_animation(playback_time_sec, is_playback_complete && !manual_sneeze_active, now_ms);
-
-        if (!skip_schedule && !(is_playback_complete && !manual_sneeze_active)) {
+        if (!skip_schedule && !is_playback_complete) {
           state.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
             render_current_frame(frame_now_ms, false);
           });
@@ -2022,41 +2667,97 @@
 
       function start_animation() {
         stop_animation();
-        state.manual_sneeze_start_ms = 0;
-
         state.animation_start_ms = performance.now();
         state.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
           render_current_frame(frame_now_ms, false);
         });
       }
 
-      function trigger_manual_sneeze() {
-        if (!config.interactivity.sneeze_on_mascot_click) {
+      async function export_png_sequence() {
+        if (state.is_exporting) {
           return;
         }
 
-        state.manual_sneeze_start_ms = performance.now();
-        if (!state.animation_frame_id) {
-          state.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
-            render_current_frame(frame_now_ms, false);
-          });
+        if (typeof window.showDirectoryPicker !== "function") {
+          set_preset_meta("PNG sequence export needs Chrome or Edge because it relies on folder access.", true);
+          return;
+        }
+
+        const export_button_label = export_sequence_button ? export_sequence_button.textContent : "";
+
+        try {
+          state.is_exporting = true;
+          stop_animation();
+
+          if (export_sequence_button) {
+            export_sequence_button.disabled = true;
+            export_sequence_button.textContent = "Exporting...";
+          }
+
+          const output_selection = await get_sequence_output_directory_handle();
+          if (!output_selection) {
+            return;
+          }
+
+          const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
+          const frame_count = Math.max(1, Math.floor(state.playback_end_sec * frame_rate) + 1);
+
+          for (let frame_index = 0; frame_index < frame_count; frame_index += 1) {
+            const playback_time_sec = Math.min(frame_index / frame_rate, state.playback_end_sec);
+            render_playback_frame(playback_time_sec);
+
+            const blob = await canvas_to_blob("image/png");
+            const file_handle = await output_selection.directory_handle.getFileHandle(
+              `frame-${String(frame_index + 1).padStart(4, "0")}.png`,
+              { create: true }
+            );
+            await write_blob_file(file_handle, blob);
+
+            if (
+              frame_index === 0 ||
+              frame_index === frame_count - 1 ||
+              (frame_index + 1) % Math.max(1, Math.round(frame_rate * 0.5)) === 0
+            ) {
+              set_preset_meta(
+                `Exporting PNG sequence: frame ${frame_index + 1}/${frame_count} at ${frame_rate} fps.`,
+                false
+              );
+              await new Promise((resolve) => {
+                requestAnimationFrame(resolve);
+              });
+            }
+          }
+
+          set_preset_meta(
+            `Exported ${frame_count} PNG frames at ${frame_rate} fps to ${output_selection.output_path_label}.`,
+            false
+          );
+        } catch (error) {
+          if (!is_abort_error(error)) {
+            console.error(error);
+            set_preset_meta(`PNG export failed: ${error.message}`, true);
+          }
+        } finally {
+          state.is_exporting = false;
+          if (export_sequence_button) {
+            export_sequence_button.disabled = false;
+            export_sequence_button.textContent = export_button_label || "Export PNG Seq";
+          }
+          start_animation();
         }
       }
 
-      function handle_stage_click(event) {
-        if (is_mascot_hit(event.clientX, event.clientY)) {
-          trigger_manual_sneeze();
-          return;
-        }
-
-        if (config.interactivity.replay_on_stage_click) {
-          start_animation();
-        }
+      function handle_stage_click() {
+        start_animation();
       }
 
       function attach_ui_events() {
         replay_button.addEventListener("click", () => {
           start_animation();
+        });
+
+        export_sequence_button.addEventListener("click", () => {
+          void export_png_sequence();
         });
 
         stage.addEventListener("click", handle_stage_click);
@@ -2081,12 +2782,12 @@
           void reset_to_defaults();
         });
 
-        preset_save_button.addEventListener("click", () => {
-          save_new_preset();
+        set_defaults_button.addEventListener("click", () => {
+          set_current_as_browser_default();
         });
 
-        preset_overwrite_button.addEventListener("click", () => {
-          overwrite_active_preset();
+        preset_save_button.addEventListener("click", () => {
+          save_preset();
         });
 
         preset_delete_button.addEventListener("click", () => {
@@ -2114,7 +2815,7 @@
         });
 
         document.addEventListener("keydown", (event) => {
-          if (event.key === "Escape") {
+          if (event.key === "Escape" && !document.body.classList.contains("editor-docked")) {
             set_drawer_open(false);
           }
         });
@@ -2123,6 +2824,7 @@
       async function init() {
         if (is_local_editor) {
           state.export_directory_handle = await load_export_directory_handle();
+          state.browser_default_config = load_browser_default_config();
           load_presets_from_storage();
           if (state.active_preset_id) {
             const active_preset = state.presets.find((preset) => preset.id === state.active_preset_id);
@@ -2130,6 +2832,9 @@
               replace_config(active_preset.config);
               preset_name_input.value = active_preset.name;
             }
+          } else if (state.browser_default_config) {
+            replace_config(state.browser_default_config);
+            preset_name_input.value = get_next_preset_name();
           } else {
             preset_name_input.value = get_next_preset_name();
           }
@@ -2137,19 +2842,26 @@
           build_config_editor();
           sync_editor_values();
           render_preset_tabs();
-          set_drawer_open(false);
+          update_editor_panel_mode();
         } else {
           drawer_toggle_button.hidden = true;
           drawer_backdrop.hidden = true;
           control_panel.hidden = true;
+          set_defaults_button.hidden = true;
           reset_button.hidden = true;
         }
 
         attach_ui_events();
         await refresh_scene({ reload_mascot: true });
         if (is_local_editor) {
-          set_preset_meta("Presets are stored in this browser. Save New adds another preset tab.", false);
+          set_preset_meta("Presets are stored in this browser. Save adds a preset when the name is new, otherwise it updates that preset.", false);
         }
+
+        window.addEventListener("resize", () => {
+          update_editor_panel_mode();
+          apply_stage_styles();
+          resize_canvas();
+        });
 
         const resize_observer = new ResizeObserver(() => {
           apply_stage_styles();
