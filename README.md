@@ -28,6 +28,14 @@ npm run build
 
 That writes a deployable static site to `dist/`.
 
+## Houdini
+
+The `houdini/` folder includes the wrangles that mirror the current browser logic:
+
+- `dot-generator.vex`: spoke/orbit topology, including the current flipped spoke direction and mask-based point cull
+- `transition.vex`: orbit motion, capture timing, orbit unlock timing, and frontier-driven `pscale`
+- `mascot-shake-blink.vex`: head shake + eye blink/squint timing, with optional direct point-group transforms for imported mascot geometry
+
 ## GitHub Pages
 
 This project includes a GitHub Pages workflow in `.github/workflows/deploy-pages.yml`.

@@ -1,35 +1,149 @@
-float innerRadius        = chf("innerRadius");
-float outerRadius        = chf("outerRadius");
-int   numOrbits          = max(1, chi("numOrbits"));
-int   spokeCount         = max(1, chi("spokeCount"));
-int   phaseCount         = max(1, chi("phase"));
-float baseAngleDeg       = chf("baseAngleDeg");
-int   patternOffsetSpokes= chi("patternOffsetSpokes");
-float animStartAngleDeg  = chf("animStartAngleDeg");
-int   minActiveOrbits    = clamp(chi("minActiveOrbits"), 1, numOrbits);
+// Dot topology wrangle, updated to match the current browser version.
+//
+// Recommended current values from presets/preset-1.json, mapped into the normalized
+// Houdini scene units used by this wrangle:
+// inner_radius = 0.253
+// outer_radius = 0.493
+// num_orbits = 12
+// spoke_count = 60
+// phase_count = 2
+// base_angle_deg = 6
+// pattern_offset_spokes = 0
+// anim_start_angle_deg = 270
+// min_active_orbits = 3
+// use_reference_phase_masks = 1
+// phase_mask_radius = 0.452899           // 250 / (600 * 0.92)
+// phase_mask_center_offset_x = 0.090580  // 50 / (600 * 0.92)
+// phase_mask_center_offset_y = 0
+// base_pscale_for_fit = 0.004551         // (0.628 * 4.0) / (600 * 0.92)
+// min_scale = 0.3
+// min_pscale = 0.001630                  // 0.9 / (600 * 0.92)
+// orbital_frontier_amount = -1
+// orbital_frontier_width_u = 1
+// orbital_frontier_bias = 0.676
+// phase_frontier_amount = 0.655
+// phase_frontier_width_u = 0.57
+// phase_frontier_bias = 1
+//
+// Create these parameters on the wrangle:
+//
+// core layout
+// inner_radius
+// outer_radius
+// num_orbits
+// spoke_count
+// phase_count
+// base_angle_deg
+// pattern_offset_spokes
+// anim_start_angle_deg
+// min_active_orbits
+//
+// fit / topology match
+// use_reference_phase_masks   // 1 to match the current halo-style left/right phase masks
+// phase_mask_radius           // browser-equivalent default on a 600-unit stage: 250
+// phase_mask_center_offset_x  // browser-equivalent default on a 600-unit stage: 50
+// phase_mask_center_offset_y  // browser default: 0
+//
+// pscale used for fit testing
+// base_pscale_for_fit
+// min_scale                   // browser point_style.min_scale
+// min_pscale                  // browser point_style.min_diameter_px
+// orbital_frontier_amount     // browser transition_wrangle.orbital_frontier_amount
+// orbital_frontier_width_u
+// orbital_frontier_bias
+// phase_frontier_amount       // browser transition_wrangle.phase_frontier_amount
+// phase_frontier_width_u
+// phase_frontier_bias
+//
+// Notes:
+// - This now flips spoke progression to the same clockwise target-angle layout as the web app.
+// - Point generation is no longer based on rounded active-orbit counts.
+//   A point is generated only when its full pscale radius fits inside the same spoke mask logic
+//   the browser currently uses.
+
+float smoothstep_local(float edge0; float edge1; float value)
+{
+    if (abs(edge1 - edge0) < 1e-6)
+        return (value < edge0) ? 0.0 : 1.0;
+
+    float t = clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+float compute_frontier_scale(float distance_u; float amount; float width_u; float bias; float min_scale)
+{
+    float safe_width = max(0.0001, width_u);
+    float safe_bias = max(0.001, bias);
+    float frontier_u = pow(smoothstep_local(0.0, safe_width, distance_u), safe_bias);
+    return max(min_scale, 1.0 - amount * (1.0 - frontier_u));
+}
+
+float compute_phase_frontier_dist_u(int spoke_pattern_id; int spoke_count; int phase_count)
+{
+    int seg = int(floor(float(spoke_pattern_id) * float(phase_count) / float(spoke_count)));
+    seg = clamp(seg, 0, phase_count - 1);
+
+    int seg_start = int(floor(float(seg) * float(spoke_count) / float(phase_count)));
+    int seg_end = int(floor(float(seg + 1) * float(spoke_count) / float(phase_count))) - 1;
+    int seg_len = max(1, seg_end - seg_start + 1);
+    int seg_i = spoke_pattern_id - seg_start;
+
+    if (seg_len <= 1)
+        return 1.0;
+
+    return clamp(float(seg_i) / float(seg_len - 1), 0.0, 1.0);
+}
+
+float innerRadius             = chf("inner_radius");
+float outerRadius             = chf("outer_radius");
+int   numOrbits               = max(1, chi("num_orbits"));
+int   spokeCount              = max(1, chi("spoke_count"));
+int   phaseCount              = max(1, chi("phase_count"));
+float baseAngleDeg            = chf("base_angle_deg");
+int   patternOffsetSpokes     = chi("pattern_offset_spokes");
+float animStartAngleDeg       = chf("anim_start_angle_deg");
+int   minActiveOrbits         = clamp(chi("min_active_orbits"), 1, numOrbits);
+
+int   useReferencePhaseMasks  = chi("use_reference_phase_masks");
+float phaseMaskRadius         = chf("phase_mask_radius");
+float phaseMaskCenterOffsetX  = chf("phase_mask_center_offset_x");
+float phaseMaskCenterOffsetY  = chf("phase_mask_center_offset_y");
+
+float basePscaleForFit        = chf("base_pscale_for_fit");
+float minScale                = chf("min_scale");
+float minPscale               = chf("min_pscale");
+float orbitalFrontierAmount   = clamp(chf("orbital_frontier_amount"), -2.0, 2.0);
+float orbitalFrontierWidthU   = clamp(chf("orbital_frontier_width_u"), 0.0001, 2.0);
+float orbitalFrontierBias     = max(0.001, chf("orbital_frontier_bias"));
+float phaseFrontierAmount     = clamp(chf("phase_frontier_amount"), -2.0, 2.0);
+float phaseFrontierWidthU     = clamp(chf("phase_frontier_width_u"), 0.0001, 2.0);
+float phaseFrontierBias       = max(0.001, chf("phase_frontier_bias"));
 
 float TAU = 6.283185307179586;
 
-// wrap safely
 patternOffsetSpokes = ((patternOffsetSpokes % spokeCount) + spokeCount) % spokeCount;
 
-// point attrs
 addpointattrib(0, "id", 0);
 addpointattrib(0, "id_spoke", 0);
 addpointattrib(0, "id_orbit", 0);
 addpointattrib(0, "spoke_id", 0);
 addpointattrib(0, "spoke_pattern_id", 0);
 addpointattrib(0, "orbit_id", 0);
-addpointattrib(0, "orbit_rank", 0);     // order within same orbit
-addpointattrib(0, "orbit_count", 0);    // total points on that orbit
+addpointattrib(0, "orbit_rank", 0);
+addpointattrib(0, "orbit_count", 0);
 addpointattrib(0, "spoke_u", 0.0);
 addpointattrib(0, "orbit_u", 0.0);
 addpointattrib(0, "radius", 0.0);
 addpointattrib(0, "active_orbits", 0);
+addpointattrib(0, "continuous_active_orbits", 0.0);
 addpointattrib(0, "reach_u", 0.0);
 addpointattrib(0, "reach_radius", 0.0);
+addpointattrib(0, "phase_segment_id", 0);
+addpointattrib(0, "phase_frontier_dist_u", 0.0);
+addpointattrib(0, "phase_mask_center", set(0.0, 0.0, 0.0));
+addpointattrib(0, "phase_mask_radius", 0.0);
+addpointattrib(0, "pscale_fit", 0.0);
 
-// detail attrs
 adddetailattrib(0, "spokeCountGenerated", 0);
 adddetailattrib(0, "numOrbitsGenerated", 0);
 adddetailattrib(0, "phaseGenerated", 0);
@@ -37,6 +151,10 @@ adddetailattrib(0, "minActiveOrbitsGenerated", 0);
 adddetailattrib(0, "baseAngleDegGenerated", 0.0);
 adddetailattrib(0, "patternOffsetSpokesGenerated", 0);
 adddetailattrib(0, "animStartAngleDegGenerated", 0.0);
+adddetailattrib(0, "useReferencePhaseMasksGenerated", 0);
+adddetailattrib(0, "phaseMaskRadiusGenerated", 0.0);
+adddetailattrib(0, "phaseMaskCenterOffsetXGenerated", 0.0);
+adddetailattrib(0, "phaseMaskCenterOffsetYGenerated", 0.0);
 
 setdetailattrib(0, "spokeCountGenerated", spokeCount, "set");
 setdetailattrib(0, "numOrbitsGenerated", numOrbits, "set");
@@ -45,127 +163,234 @@ setdetailattrib(0, "minActiveOrbitsGenerated", minActiveOrbits, "set");
 setdetailattrib(0, "baseAngleDegGenerated", baseAngleDeg, "set");
 setdetailattrib(0, "patternOffsetSpokesGenerated", patternOffsetSpokes, "set");
 setdetailattrib(0, "animStartAngleDegGenerated", animStartAngleDeg, "set");
+setdetailattrib(0, "useReferencePhaseMasksGenerated", useReferencePhaseMasks, "set");
+setdetailattrib(0, "phaseMaskRadiusGenerated", phaseMaskRadius, "set");
+setdetailattrib(0, "phaseMaskCenterOffsetXGenerated", phaseMaskCenterOffsetX, "set");
+setdetailattrib(0, "phaseMaskCenterOffsetYGenerated", phaseMaskCenterOffsetY, "set");
 
-// ------------------------------------------------------------
-// 1) active orbit count per spoke, with pattern offset
-// ------------------------------------------------------------
+int spokePatternIds[];
+resize(spokePatternIds, spokeCount);
 
-int active[];
-resize(active, spokeCount);
+int segmentIds[];
+resize(segmentIds, spokeCount);
 
-int pattern_index[];
-resize(pattern_index, spokeCount);
+float targetAngles[];
+resize(targetAngles, spokeCount);
+
+float reachUs[];
+resize(reachUs, spokeCount);
+
+float reachRadii[];
+resize(reachRadii, spokeCount);
+
+float phaseFrontierDists[];
+resize(phaseFrontierDists, spokeCount);
+
+float phaseFrontierScales[];
+resize(phaseFrontierScales, spokeCount);
+
+float continuousActiveCounts[];
+resize(continuousActiveCounts, spokeCount);
+
+vector phaseMaskCenters[];
+resize(phaseMaskCenters, spokeCount);
+
+int activeCounts[];
+resize(activeCounts, spokeCount);
+
+int orbitCounts[];
+resize(orbitCounts, numOrbits);
+
+float radiusSpan = outerRadius - innerRadius;
+int usePhaseMaskFit = useReferencePhaseMasks && (phaseCount == 2);
 
 for (int s = 0; s < spokeCount; s++)
 {
     int sp = (s - patternOffsetSpokes + spokeCount) % spokeCount;
-    pattern_index[s] = sp;
+    spokePatternIds[s] = sp;
 
     int seg = int(floor(float(sp) * float(phaseCount) / float(spokeCount)));
     seg = clamp(seg, 0, phaseCount - 1);
+    segmentIds[s] = seg;
 
-    int seg_start = int(floor(float(seg)     * float(spokeCount) / float(phaseCount)));
-    int seg_end   = int(floor(float(seg + 1) * float(spokeCount) / float(phaseCount))) - 1;
-
+    int seg_start = int(floor(float(seg) * float(spokeCount) / float(phaseCount)));
+    int seg_end = int(floor(float(seg + 1) * float(spokeCount) / float(phaseCount))) - 1;
     int seg_len = max(1, seg_end - seg_start + 1);
-    int seg_i   = sp - seg_start;
+    int seg_i = sp - seg_start;
 
     float fill_u = (seg_len <= 1) ? 1.0 : float(seg_i) / float(seg_len - 1);
+    float continuous_active = clamp(
+        float(minActiveOrbits) + fill_u * float(numOrbits - minActiveOrbits),
+        float(minActiveOrbits),
+        float(numOrbits)
+    );
+    continuousActiveCounts[s] = continuous_active;
 
-    int nactive = minActiveOrbits + int(rint(fill_u * float(numOrbits - minActiveOrbits)));
-    nactive = clamp(nactive, minActiveOrbits, numOrbits);
+    float reach_u = (numOrbits <= 1) ? 1.0 : (continuous_active - 1.0) / float(numOrbits - 1);
+    reachUs[s] = reach_u;
+    reachRadii[s] = innerRadius + radiusSpan * reach_u;
 
-    active[s] = nactive;
+    float phase_frontier_dist_u = compute_phase_frontier_dist_u(sp, spokeCount, phaseCount);
+    phaseFrontierDists[s] = phase_frontier_dist_u;
+    phaseFrontierScales[s] = compute_frontier_scale(
+        phase_frontier_dist_u,
+        phaseFrontierAmount,
+        phaseFrontierWidthU,
+        phaseFrontierBias,
+        minScale
+    );
+
+    targetAngles[s] = radians(baseAngleDeg) - TAU * float(s) / float(spokeCount);
+
+    float mask_center_x = (seg == 0) ? -phaseMaskCenterOffsetX : phaseMaskCenterOffsetX;
+    phaseMaskCenters[s] = set(mask_center_x, phaseMaskCenterOffsetY, 0.0);
+
+    activeCounts[s] = 0;
 }
 
-// ------------------------------------------------------------
-// 2) prefix sums
-// ------------------------------------------------------------
+for (int o = 0; o < numOrbits; o++)
+{
+    orbitCounts[o] = 0;
 
-int prefix_spoke[];
-resize(prefix_spoke, spokeCount);
+    for (int s = 0; s < spokeCount; s++)
+    {
+        float orbit_u = (numOrbits <= 1) ? 0.0 : float(o) / float(numOrbits - 1);
+        float radius = innerRadius + radiusSpan * orbit_u;
+
+        float orbital_frontier_dist_u = max(0.0, reachUs[s] - orbit_u);
+        float orbital_frontier_scale = compute_frontier_scale(
+            orbital_frontier_dist_u,
+            orbitalFrontierAmount,
+            orbitalFrontierWidthU,
+            orbitalFrontierBias,
+            minScale
+        );
+
+        float pscale_fit = max(
+            minPscale,
+            basePscaleForFit * orbital_frontier_scale * phaseFrontierScales[s]
+        );
+        float point_radius = 0.5 * pscale_fit;
+
+        int fits = 0;
+        if (usePhaseMaskFit)
+        {
+            vector Ptest = set(cos(targetAngles[s]) * radius, sin(targetAngles[s]) * radius, 0.0);
+            float mask_dist = length(Ptest - phaseMaskCenters[s]);
+            fits = (mask_dist + point_radius <= phaseMaskRadius + 0.01);
+        }
+        else
+        {
+            fits = (radius + point_radius <= reachRadii[s] + 0.01);
+        }
+
+        if (!fits)
+            continue;
+
+        orbitCounts[o] += 1;
+        activeCounts[s] += 1;
+    }
+}
+
+int maxOrbitCount = 0;
+for (int o = 0; o < numOrbits; o++)
+{
+    if (orbitCounts[o] > maxOrbitCount)
+        maxOrbitCount = orbitCounts[o];
+}
+setdetailattrib(0, "maxOrbitCountGenerated", maxOrbitCount, "set");
+
+int prefixSpoke[];
+resize(prefixSpoke, spokeCount);
 
 int accum = 0;
 for (int s = 0; s < spokeCount; s++)
 {
-    prefix_spoke[s] = accum;
-    accum += active[s];
+    prefixSpoke[s] = accum;
+    accum += activeCounts[s];
 }
 
-int orbit_counts[];
-resize(orbit_counts, numOrbits);
-
-for (int o = 0; o < numOrbits; o++)
-{
-    int c = 0;
-    for (int s = 0; s < spokeCount; s++)
-    {
-        if (active[s] > o)
-            c++;
-    }
-    orbit_counts[o] = c;
-}
-int maxOrbitCount = 0;
-for (int o = 0; o < numOrbits; o++)
-{
-    if (orbit_counts[o] > maxOrbitCount)
-        maxOrbitCount = orbit_counts[o];
-}
-setdetailattrib(0, "maxOrbitCountGenerated", maxOrbitCount, "set");
-int prefix_orbit[];
-resize(prefix_orbit, numOrbits);
+int prefixOrbit[];
+resize(prefixOrbit, numOrbits);
 
 accum = 0;
 for (int o = 0; o < numOrbits; o++)
 {
-    prefix_orbit[o] = accum;
-    accum += orbit_counts[o];
+    prefixOrbit[o] = accum;
+    accum += orbitCounts[o];
 }
 
-// ------------------------------------------------------------
-// 3) build points
-// ------------------------------------------------------------
+int orbitRankCounts[];
+resize(orbitRankCounts, numOrbits);
 
 for (int s = 0; s < spokeCount; s++)
 {
-    float theta   = radians(baseAngleDeg) + TAU * float(s) / float(spokeCount);
     float spoke_u = float(s) / float(max(1, spokeCount - 1));
+    int id_spoke = 0;
 
-    float reach_u = (numOrbits <= 1) ? 1.0 : float(active[s] - 1) / float(numOrbits - 1);
-    float reach_r = innerRadius + (outerRadius - innerRadius) * reach_u;
-
-    for (int o = 0; o < active[s]; o++)
+    for (int o = 0; o < numOrbits; o++)
     {
         float orbit_u = (numOrbits <= 1) ? 0.0 : float(o) / float(numOrbits - 1);
-        float r = innerRadius + (outerRadius - innerRadius) * orbit_u;
+        float radius = innerRadius + radiusSpan * orbit_u;
 
-        vector P = set(cos(theta) * r, sin(theta) * r, 0.0);
-        int pt = addpoint(0, P);
+        float orbital_frontier_dist_u = max(0.0, reachUs[s] - orbit_u);
+        float orbital_frontier_scale = compute_frontier_scale(
+            orbital_frontier_dist_u,
+            orbitalFrontierAmount,
+            orbitalFrontierWidthU,
+            orbitalFrontierBias,
+            minScale
+        );
 
-        int id_spoke = prefix_spoke[s] + o;
+        float pscale_fit = max(
+            minPscale,
+            basePscaleForFit * orbital_frontier_scale * phaseFrontierScales[s]
+        );
+        float point_radius = 0.5 * pscale_fit;
 
-        int rank_in_orbit = 0;
-        for (int ss = 0; ss < s; ss++)
+        int fits = 0;
+        if (usePhaseMaskFit)
         {
-            if (active[ss] > o)
-                rank_in_orbit++;
+            vector Ptest = set(cos(targetAngles[s]) * radius, sin(targetAngles[s]) * radius, 0.0);
+            float mask_dist = length(Ptest - phaseMaskCenters[s]);
+            fits = (mask_dist + point_radius <= phaseMaskRadius + 0.01);
+        }
+        else
+        {
+            fits = (radius + point_radius <= reachRadii[s] + 0.01);
         }
 
-        int id_orbit = prefix_orbit[o] + rank_in_orbit;
+        if (!fits)
+            continue;
 
-        setpointattrib(0, "id",               pt, id_orbit, "set");
-        setpointattrib(0, "id_spoke",         pt, id_spoke, "set");
-        setpointattrib(0, "id_orbit",         pt, id_orbit, "set");
-        setpointattrib(0, "spoke_id",         pt, s, "set");
-        setpointattrib(0, "spoke_pattern_id", pt, pattern_index[s], "set");
-        setpointattrib(0, "orbit_id",         pt, o, "set");
-        setpointattrib(0, "orbit_rank",       pt, rank_in_orbit, "set");
-        setpointattrib(0, "orbit_count",      pt, orbit_counts[o], "set");
-        setpointattrib(0, "spoke_u",          pt, spoke_u, "set");
-        setpointattrib(0, "orbit_u",          pt, orbit_u, "set");
-        setpointattrib(0, "radius",           pt, r, "set");
-        setpointattrib(0, "active_orbits",    pt, active[s], "set");
-        setpointattrib(0, "reach_u",          pt, reach_u, "set");
-        setpointattrib(0, "reach_radius",     pt, reach_r, "set");
+        vector P = set(cos(targetAngles[s]) * radius, sin(targetAngles[s]) * radius, 0.0);
+        int pt = addpoint(0, P);
+
+        int rank_in_orbit = orbitRankCounts[o];
+        int id_orbit = prefixOrbit[o] + rank_in_orbit;
+
+        setpointattrib(0, "id", pt, id_orbit, "set");
+        setpointattrib(0, "id_spoke", pt, prefixSpoke[s] + id_spoke, "set");
+        setpointattrib(0, "id_orbit", pt, id_orbit, "set");
+        setpointattrib(0, "spoke_id", pt, s, "set");
+        setpointattrib(0, "spoke_pattern_id", pt, spokePatternIds[s], "set");
+        setpointattrib(0, "orbit_id", pt, o, "set");
+        setpointattrib(0, "orbit_rank", pt, rank_in_orbit, "set");
+        setpointattrib(0, "orbit_count", pt, orbitCounts[o], "set");
+        setpointattrib(0, "spoke_u", pt, spoke_u, "set");
+        setpointattrib(0, "orbit_u", pt, orbit_u, "set");
+        setpointattrib(0, "radius", pt, radius, "set");
+        setpointattrib(0, "active_orbits", pt, activeCounts[s], "set");
+        setpointattrib(0, "continuous_active_orbits", pt, continuousActiveCounts[s], "set");
+        setpointattrib(0, "reach_u", pt, reachUs[s], "set");
+        setpointattrib(0, "reach_radius", pt, reachRadii[s], "set");
+        setpointattrib(0, "phase_segment_id", pt, segmentIds[s], "set");
+        setpointattrib(0, "phase_frontier_dist_u", pt, phaseFrontierDists[s], "set");
+        setpointattrib(0, "phase_mask_center", pt, phaseMaskCenters[s], "set");
+        setpointattrib(0, "phase_mask_radius", pt, phaseMaskRadius, "set");
+        setpointattrib(0, "pscale_fit", pt, pscale_fit, "set");
+
+        orbitRankCounts[o] += 1;
+        id_spoke += 1;
     }
 }

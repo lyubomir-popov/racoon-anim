@@ -498,6 +498,242 @@ export function createRenderer({ stage, canvas, config }) {
     };
   }
 
+  function get_screensaver_cycle_sec() {
+    return Math.max(0, Number(config.screensaver?.cycle_sec || 0));
+  }
+
+  function compute_screensaver_pulse_u(playback_time_sec) {
+    const cycle_sec = get_screensaver_cycle_sec();
+    if (cycle_sec <= 0 || playback_time_sec <= runtime.playback_end_sec) {
+      return 1;
+    }
+
+    const cycle_phase = TAU * (playback_time_sec - runtime.playback_end_sec) / cycle_sec;
+    return 0.5 + 0.5 * Math.cos(cycle_phase);
+  }
+
+  function has_post_finale_field_motion() {
+    const cycle_sec = get_screensaver_cycle_sec();
+    if (cycle_sec <= 0) {
+      return false;
+    }
+
+    const max_orbits = Math.max(1, Number(config.generator_wrangle.num_orbits || 1));
+    const min_orbits = clamp(
+      Number(config.generator_wrangle.min_active_orbits || 1),
+      1,
+      max_orbits
+    );
+    const orbit_motion =
+      config.screensaver?.pulse_orbits !== false &&
+      max_orbits - min_orbits > 0.001;
+    const max_spokes = Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    const min_spokes = clamp(
+      Number(config.screensaver?.min_spoke_count || max_spokes),
+      1,
+      max_spokes
+    );
+    const spoke_motion = Boolean(config.screensaver?.pulse_spokes) && max_spokes - min_spokes > 0.001;
+    return orbit_motion || spoke_motion;
+  }
+
+  function is_post_finale_dynamic_field_active(playback_time_sec) {
+    return playback_time_sec > runtime.playback_end_sec && has_post_finale_field_motion();
+  }
+
+  function compute_effective_orbit_count(playback_time_sec) {
+    const max_orbits = Math.max(1, Math.round(config.generator_wrangle.num_orbits || 1));
+    if (
+      !config.screensaver?.pulse_orbits ||
+      !has_post_finale_field_motion() ||
+      playback_time_sec <= runtime.playback_end_sec
+    ) {
+      return max_orbits;
+    }
+
+    const min_orbits = clamp(
+      Math.round(config.generator_wrangle.min_active_orbits || 1),
+      1,
+      max_orbits
+    );
+    return lerp(min_orbits, max_orbits, compute_screensaver_pulse_u(playback_time_sec));
+  }
+
+  function compute_effective_spoke_count(playback_time_sec) {
+    const max_spokes = Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    if (
+      !config.screensaver?.pulse_spokes ||
+      !has_post_finale_field_motion() ||
+      playback_time_sec <= runtime.playback_end_sec
+    ) {
+      return max_spokes;
+    }
+
+    const min_spokes = clamp(
+      Number(config.screensaver?.min_spoke_count || max_spokes),
+      1,
+      max_spokes
+    );
+    return lerp(min_spokes, max_spokes, compute_screensaver_pulse_u(playback_time_sec));
+  }
+
+  function build_post_finale_field_state(playback_time_sec) {
+    const generator = config.generator_wrangle;
+    const transition = config.transition_wrangle;
+    const center_x_px = config.composition.center_x_px;
+    const center_y_px = config.composition.center_y_px;
+    const radial_scale = config.composition.radial_scale;
+    const rotation_rad = radians(config.composition.global_rotation_deg || 0);
+    const mascot_box = runtime.mascot_box;
+    const geometry_scale = mascot_box ? mascot_box.draw_size_px / MASCOT_VIEWBOX_SIZE : 1;
+    const inner_radius_px = COMPOSITION_SIZE_PX * radial_scale * generator.inner_radius * geometry_scale;
+    const outer_radius_px = COMPOSITION_SIZE_PX * radial_scale * generator.outer_radius * geometry_scale;
+    const radius_span_px = Math.max(0, outer_radius_px - inner_radius_px);
+    const base_pscale_px =
+      transition.base_pscale * config.point_style.base_pscale_px_per_unit * geometry_scale;
+    const min_diameter_px =
+      (config.point_style.min_diameter_px ?? config.point_style.min_rect_px ?? 0.9) * geometry_scale;
+    const phase_mask_radius_px = 250 * geometry_scale;
+    const phase_mask_center_offset_x_px = 50 * geometry_scale;
+    const use_reference_phase_masks = generator.phase_count === 2;
+    const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
+    const effective_spoke_count = Math.max(1, compute_effective_spoke_count(playback_time_sec));
+    const effective_orbit_count = Math.max(1, compute_effective_orbit_count(playback_time_sec));
+    const orbit_step_px =
+      effective_orbit_count <= 1 || radius_span_px <= 0
+        ? radius_span_px
+        : radius_span_px / Math.max(0.0001, effective_orbit_count - 1);
+    const spoke_slots = Math.max(1, Math.ceil(effective_spoke_count));
+    const full_frame_outer_radius_px = get_full_frame_spoke_outer_radius(center_x_px, center_y_px);
+    const halo_outer_radius_px = mascot_box ? mascot_box.draw_size_px * 0.5 : outer_radius_px;
+    const max_central_orbit_index = orbit_step_px > 0
+      ? Math.max(0, Math.ceil(radius_span_px / orbit_step_px))
+      : 0;
+    const points = [];
+    const spokes = [];
+
+    for (let spoke_id = 0; spoke_id < spoke_slots; spoke_id += 1) {
+      const spoke_alpha = smoothstep(0, 1, clamp(effective_spoke_count - spoke_id, 0, 1));
+      if (spoke_alpha <= 0) {
+        continue;
+      }
+
+      const spoke_pattern_id = wrap_positive(
+        spoke_id - generator.pattern_offset_spokes,
+        spoke_slots
+      );
+      const segment_id = Math.min(
+        generator.phase_count - 1,
+        Math.floor(spoke_pattern_id * generator.phase_count / spoke_slots)
+      );
+      const segment_start = Math.floor(segment_id * spoke_slots / generator.phase_count);
+      const segment_end = Math.floor((segment_id + 1) * spoke_slots / generator.phase_count) - 1;
+      const segment_length = Math.max(1, segment_end - segment_start + 1);
+      const segment_index = spoke_pattern_id - segment_start;
+      const fill_u = segment_length <= 1 ? 1 : segment_index / (segment_length - 1);
+      const continuous_active_orbits = clamp(
+        generator.min_active_orbits +
+          fill_u * (effective_orbit_count - generator.min_active_orbits),
+        generator.min_active_orbits,
+        effective_orbit_count
+      );
+      const reach_u = effective_orbit_count <= 1
+        ? 1
+        : clamp(
+          (continuous_active_orbits - 1) / Math.max(0.0001, effective_orbit_count - 1),
+          0,
+          1
+        );
+      const fill_end_radius_px = inner_radius_px + radius_span_px * reach_u;
+      const phase_frontier_scale = compute_frontier_scale(
+        compute_phase_frontier_dist_u(
+          spoke_pattern_id,
+          spoke_slots,
+          generator.phase_count
+        ),
+        transition.phase_frontier_amount,
+        transition.phase_frontier_width_u,
+        transition.phase_frontier_bias,
+        config.point_style.min_scale
+      );
+      const angle = base_angle_rad - TAU * spoke_id / spoke_slots;
+      const phase_mask_center_x_px = segment_id === 0
+        ? center_x_px - phase_mask_center_offset_x_px
+        : center_x_px + phase_mask_center_offset_x_px;
+      const spoke = {
+        angle,
+        alpha: spoke_alpha,
+        phase_u: fill_u,
+        start_radius: config.spoke_lines.start_radius_px * geometry_scale,
+        end_radius: outer_radius_px + config.spoke_lines.end_radius_extra_px * geometry_scale,
+        echo_dot_origin_radius: inner_radius_px,
+        echo_dot_step_px: orbit_step_px,
+        echo_dots: [],
+        inner_clip_offset_px: phase_mask_center_offset_x_px,
+        inner_clip_center_x_px: phase_mask_center_x_px,
+        inner_clip_center_y_px: center_y_px,
+        inner_clip_radius_px: phase_mask_radius_px
+      };
+
+      for (let orbit_index = 0; orbit_index <= max_central_orbit_index; orbit_index += 1) {
+        const radius_px = inner_radius_px + orbit_index * orbit_step_px;
+        if (radius_px > outer_radius_px + 0.01) {
+          break;
+        }
+
+        const orbit_u = radius_span_px <= 0
+          ? 0
+          : clamp((radius_px - inner_radius_px) / Math.max(0.0001, radius_span_px), 0, 1);
+        const point_x = center_x_px + Math.cos(angle) * radius_px;
+        const point_y = center_y_px + Math.sin(angle) * radius_px;
+        const orbital_frontier_scale = compute_frontier_scale(
+          Math.max(0, reach_u - orbit_u),
+          transition.orbital_frontier_amount,
+          transition.orbital_frontier_width_u,
+          transition.orbital_frontier_bias,
+          config.point_style.min_scale
+        );
+        const dot_diameter_px = Math.max(
+          min_diameter_px,
+          base_pscale_px * orbital_frontier_scale * phase_frontier_scale
+        );
+        const dot_radius_px = dot_diameter_px * 0.5;
+        const phase_mask_distance_px = Math.hypot(
+          point_x - phase_mask_center_x_px,
+          point_y - center_y_px
+        );
+        const fits_within_spoke = use_reference_phase_masks
+          ? phase_mask_distance_px + dot_radius_px <= phase_mask_radius_px + 0.01
+          : radius_px + dot_radius_px <= fill_end_radius_px + 0.01;
+
+        if (!fits_within_spoke) {
+          continue;
+        }
+
+        spoke.echo_dots.push({
+          radius_px: dot_radius_px
+        });
+        points.push({
+          x: point_x,
+          y: point_y,
+          radius_px: dot_radius_px,
+          alpha: spoke_alpha
+        });
+      }
+
+      spokes.push(spoke);
+    }
+
+    return {
+      box: mascot_box,
+      points,
+      spokes,
+      orbit_step_px,
+      halo_outer_radius_px,
+      full_frame_outer_radius_px
+    };
+  }
+
   function draw_annulus_sector(
     drawing_context,
     center_x_px,
@@ -742,12 +978,15 @@ export function createRenderer({ stage, canvas, config }) {
     if (inner_width_px > 0) {
       const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
       const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
-      const echo_opacity_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
+      const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
+      const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
+      const ripple_min_scale = 0.45;
+      const ripple_max_scale = 1.55;
+      const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
 
       for (let echo_index = 0; echo_index <= echo_count; echo_index += 1) {
-        const opacity_mult = echo_index === 0 ? 1 : Math.pow(echo_opacity_mult, echo_index);
         const dot_scale_mult = echo_index === 0 ? 1 : Math.pow(echo_dot_scale_mult, echo_index);
-        if (opacity_mult <= 0 || dot_scale_mult <= 0) {
+        if (dot_scale_mult <= 0) {
           continue;
         }
 
@@ -767,7 +1006,6 @@ export function createRenderer({ stage, canvas, config }) {
             clip_mask.radius_px
           );
           layer_context.clip();
-          layer_context.globalAlpha = opacity_mult;
 
           if (echo_index === 0) {
             layer_context.strokeStyle = config.spoke_lines.color;
@@ -795,16 +1033,40 @@ export function createRenderer({ stage, canvas, config }) {
           const max_orbit_index = Math.ceil(
             (full_frame_spoke_outer_radius_px - spoke.echo_dot_origin_radius) / orbit_step_px
           );
+          const ripple_span_px = Math.max(
+            1,
+            full_frame_spoke_outer_radius_px - spoke.echo_dot_origin_radius
+          );
           for (let orbit_index = 0; orbit_index <= max_orbit_index; orbit_index += 1) {
             const template_dot = dot_templates[Math.min(orbit_index, dot_templates.length - 1)];
-            const dot_radius_px = template_dot.radius_px * dot_scale_mult;
+            const dot_radius = spoke.echo_dot_origin_radius + orbit_index * orbit_step_px;
+            const ripple_u = clamp(
+              (dot_radius - spoke.echo_dot_origin_radius) / ripple_span_px,
+              0,
+              1
+            );
+            const ripple_phase = ripple_u * echo_wave_count * TAU;
+            const ripple_scale = echo_wave_count > 0
+              ? lerp(
+                ripple_min_scale,
+                ripple_max_scale,
+                0.5 + 0.5 * Math.cos(ripple_phase)
+              )
+              : 1;
+            const capped_dot_scale_mult = Math.min(1, dot_scale_mult * ripple_scale);
+            const dot_radius_px = template_dot.radius_px * capped_dot_scale_mult;
             if (dot_radius_px <= 0) {
               continue;
             }
 
-            const dot_radius = spoke.echo_dot_origin_radius + orbit_index * orbit_step_px;
+            const dot_alpha = 1 - smoothstep(ripple_fade_start_u, 1, ripple_u);
+            if (dot_alpha <= 0) {
+              continue;
+            }
+
             const dot_x = config.composition.center_x_px + Math.cos(spoke.angle) * dot_radius;
             const dot_y = config.composition.center_y_px + Math.sin(spoke.angle) * dot_radius;
+            layer_context.globalAlpha = dot_alpha;
             layer_context.beginPath();
             layer_context.arc(dot_x, dot_y, dot_radius_px, 0, TAU);
             layer_context.fill();
@@ -872,12 +1134,214 @@ export function createRenderer({ stage, canvas, config }) {
     context.drawImage(layer_canvas, 0, 0);
   }
 
-  function draw_mascot(playback_time_sec, force_final) {
+  function draw_post_finale_background_spokes(field_state) {
+    if (!field_state || field_state.spokes.length === 0) {
+      return;
+    }
+
+    context.save();
+    context.strokeStyle = config.spoke_lines.construction_color;
+    context.lineWidth = BACKGROUND_SPOKE_WIDTH_PX;
+
+    for (let spoke_index = 0; spoke_index < field_state.spokes.length; spoke_index += 1) {
+      const spoke = field_state.spokes[spoke_index];
+      if (spoke.alpha <= 0) {
+        continue;
+      }
+      context.globalAlpha = spoke.alpha;
+      context.beginPath();
+      trace_spoke_path(context, spoke, spoke.start_radius, field_state.full_frame_outer_radius_px);
+      context.stroke();
+    }
+
+    context.restore();
+  }
+
+  function draw_post_finale_points(field_state) {
+    if (!field_state || field_state.points.length === 0) {
+      return;
+    }
+
+    context.save();
+    context.fillStyle = config.point_style.color;
+
+    for (let point_index = 0; point_index < field_state.points.length; point_index += 1) {
+      const point = field_state.points[point_index];
+      const point_alpha = config.point_style.alpha * point.alpha;
+      if (point_alpha <= 0 || point.radius_px <= 0) {
+        continue;
+      }
+
+      context.globalAlpha = point_alpha;
+      context.beginPath();
+      context.moveTo(point.x + point.radius_px, point.y);
+      context.arc(point.x, point.y, point.radius_px, 0, TAU);
+      context.fill();
+    }
+
+    context.restore();
+  }
+
+  function draw_post_finale_halo(field_state) {
+    if (!field_state || !field_state.box) {
+      return;
+    }
+
+    const box = field_state.box;
+
+    if (config.spoke_lines.show_reference_halo) {
+      const halo_reference_canvas = get_reference_halo_canvas(box.draw_size_px);
+      if (halo_reference_canvas) {
+        context.save();
+        context.globalAlpha = HALO_REFERENCE_OPACITY;
+        context.drawImage(
+          halo_reference_canvas,
+          box.left_px,
+          box.top_px,
+          box.draw_size_px,
+          box.draw_size_px
+        );
+        context.restore();
+      }
+    }
+
+    const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0);
+    if (outer_width_px > 0) {
+      context.save();
+      context.strokeStyle = config.spoke_lines.reference_color;
+      context.lineWidth = outer_width_px;
+      for (let spoke_index = 0; spoke_index < field_state.spokes.length; spoke_index += 1) {
+        const spoke = field_state.spokes[spoke_index];
+        if (spoke.alpha <= 0) {
+          continue;
+        }
+        context.globalAlpha = spoke.alpha;
+        context.beginPath();
+        trace_spoke_path(context, spoke, spoke.start_radius, field_state.halo_outer_radius_px);
+        context.stroke();
+      }
+      context.restore();
+    }
+
+    const inner_width_px = Math.max(0, config.spoke_lines.inner_width_px || 0);
+    if (inner_width_px <= 0) {
+      return;
+    }
+
+    const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
+    const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
+    const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
+    const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
+    const ripple_min_scale = 0.45;
+    const ripple_max_scale = 1.55;
+    const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
+
+    for (let echo_index = 0; echo_index <= echo_count; echo_index += 1) {
+      const dot_scale_mult = echo_index === 0 ? 1 : Math.pow(echo_dot_scale_mult, echo_index);
+      if (dot_scale_mult <= 0) {
+        continue;
+      }
+
+      for (let spoke_index = 0; spoke_index < field_state.spokes.length; spoke_index += 1) {
+        const spoke = field_state.spokes[spoke_index];
+        if (spoke.alpha <= 0) {
+          continue;
+        }
+
+        const clip_mask = get_spoke_echo_mask(spoke, echo_index);
+        const previous_clip_radius_px = echo_index === 0
+          ? 0
+          : get_spoke_echo_mask(spoke, echo_index - 1).radius_px;
+
+        context.save();
+        draw_circle_band(
+          context,
+          clip_mask.center_x_px,
+          clip_mask.center_y_px,
+          previous_clip_radius_px,
+          clip_mask.radius_px
+        );
+        context.clip();
+
+        if (echo_index === 0) {
+          context.globalAlpha = spoke.alpha;
+          context.strokeStyle = config.spoke_lines.color;
+          context.lineWidth = inner_width_px * get_spoke_width_scale(spoke);
+          context.beginPath();
+          trace_spoke_path(
+            context,
+            spoke,
+            spoke.start_radius,
+            field_state.full_frame_outer_radius_px
+          );
+          context.stroke();
+          context.restore();
+          continue;
+        }
+
+        const dot_templates = spoke.echo_dots;
+        const orbit_step_px = spoke.echo_dot_step_px;
+        if (!dot_templates.length || orbit_step_px <= 0) {
+          context.restore();
+          continue;
+        }
+
+        context.fillStyle = config.spoke_lines.color;
+        const max_orbit_index = Math.ceil(
+          (field_state.full_frame_outer_radius_px - spoke.echo_dot_origin_radius) / orbit_step_px
+        );
+        const ripple_span_px = Math.max(
+          1,
+          field_state.full_frame_outer_radius_px - spoke.echo_dot_origin_radius
+        );
+
+        for (let orbit_index = 0; orbit_index <= max_orbit_index; orbit_index += 1) {
+          const template_dot = dot_templates[Math.min(orbit_index, dot_templates.length - 1)];
+          const dot_radius = spoke.echo_dot_origin_radius + orbit_index * orbit_step_px;
+          const ripple_u = clamp(
+            (dot_radius - spoke.echo_dot_origin_radius) / ripple_span_px,
+            0,
+            1
+          );
+          const ripple_phase = ripple_u * echo_wave_count * TAU;
+          const ripple_scale = echo_wave_count > 0
+            ? lerp(
+              ripple_min_scale,
+              ripple_max_scale,
+              0.5 + 0.5 * Math.cos(ripple_phase)
+            )
+            : 1;
+          const capped_dot_scale_mult = Math.min(1, dot_scale_mult * ripple_scale);
+          const dot_radius_px = template_dot.radius_px * capped_dot_scale_mult;
+          if (dot_radius_px <= 0) {
+            continue;
+          }
+
+          const dot_alpha = spoke.alpha * (1 - smoothstep(ripple_fade_start_u, 1, ripple_u));
+          if (dot_alpha <= 0) {
+            continue;
+          }
+
+          const dot_x = config.composition.center_x_px + Math.cos(spoke.angle) * dot_radius;
+          const dot_y = config.composition.center_y_px + Math.sin(spoke.angle) * dot_radius;
+          context.globalAlpha = dot_alpha;
+          context.beginPath();
+          context.arc(dot_x, dot_y, dot_radius_px, 0, TAU);
+          context.fill();
+        }
+
+        context.restore();
+      }
+    }
+  }
+
+  function draw_mascot(playback_time_sec, force_final, options = {}) {
     if (!config.mascot.enabled || !runtime.mascot_face_image || !runtime.mascot_box) {
       return;
     }
 
     const box = runtime.mascot_box;
+    const draw_halo_layer = options.draw_halo_layer !== false;
     const fade_amount = force_final ? 1 : compute_mascot_fade_amount(playback_time_sec);
     const base_alpha = clamp(config.mascot.opacity * fade_amount, 0, 1);
     if (base_alpha <= 0) {
@@ -917,7 +1381,7 @@ export function createRenderer({ stage, canvas, config }) {
     context.rotate(radians(head_turn_deg));
     context.translate(-box.center_x_px, -box.center_y_px);
 
-    if (halo_layer_canvas && halo_u > 0) {
+    if (draw_halo_layer && halo_layer_canvas && halo_u > 0) {
       context.save();
       if (
         clip_finale_halo_region(
@@ -1024,11 +1488,21 @@ export function createRenderer({ stage, canvas, config }) {
     const force_dot_final = Boolean(options.force_dot_final);
     const force_mascot_final = Boolean(options.force_mascot_final);
     const playback_time_sec = options.playback_time_sec ?? time_sec;
+    const use_dynamic_post_finale_field = is_post_finale_dynamic_field_active(playback_time_sec);
 
     context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
     context.globalAlpha = 1;
     context.fillStyle = STAGE_BACKGROUND_COLOR;
     context.fillRect(0, 0, STAGE_WIDTH_PX, STAGE_HEIGHT_PX);
+
+    if (use_dynamic_post_finale_field) {
+      const field_state = build_post_finale_field_state(playback_time_sec);
+      draw_post_finale_background_spokes(field_state);
+      draw_post_finale_points(field_state);
+      draw_post_finale_halo(field_state);
+      draw_mascot(playback_time_sec, true, { draw_halo_layer: false });
+      return;
+    }
 
     draw_background_spokes();
     draw_points(time_sec, force_dot_final);
@@ -1036,20 +1510,20 @@ export function createRenderer({ stage, canvas, config }) {
   }
 
   function render_playback_frame(playback_time_sec) {
-    const clamped_playback_time_sec = clamp(playback_time_sec, 0, runtime.playback_end_sec);
-    const dot_time_sec = Math.min(clamped_playback_time_sec, runtime.dot_end_sec);
-    const is_dot_animation_complete = clamped_playback_time_sec >= runtime.dot_end_sec;
-    const is_playback_complete = clamped_playback_time_sec >= runtime.playback_end_sec;
-    runtime.playback_time_sec = clamped_playback_time_sec;
+    const effective_playback_time_sec = Math.max(0, playback_time_sec);
+    const dot_time_sec = Math.min(effective_playback_time_sec, runtime.dot_end_sec);
+    const is_dot_animation_complete = effective_playback_time_sec >= runtime.dot_end_sec;
+    const is_playback_complete = effective_playback_time_sec >= runtime.playback_end_sec;
+    runtime.playback_time_sec = effective_playback_time_sec;
 
     render_scene(dot_time_sec, {
       force_dot_final: is_dot_animation_complete,
       force_mascot_final: is_playback_complete,
-      playback_time_sec: clamped_playback_time_sec
+      playback_time_sec: effective_playback_time_sec
     });
 
     return {
-      playback_time_sec: clamped_playback_time_sec,
+      playback_time_sec: effective_playback_time_sec,
       is_playback_complete
     };
   }
@@ -1057,8 +1531,9 @@ export function createRenderer({ stage, canvas, config }) {
   function render_current_frame(now_ms = performance.now(), skip_schedule = false) {
     const elapsed_sec = Math.max(0, (now_ms - runtime.animation_start_ms) / 1000);
     const { is_playback_complete } = render_playback_frame(elapsed_sec);
+    const should_keep_running = !is_playback_complete || has_post_finale_field_motion();
 
-    if (!skip_schedule && !is_playback_complete) {
+    if (!skip_schedule && should_keep_running) {
       runtime.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
         render_current_frame(frame_now_ms, false);
       });
@@ -1084,9 +1559,14 @@ export function createRenderer({ stage, canvas, config }) {
 
   function get_current_playback_time_sec(now_ms = performance.now()) {
     if (runtime.animation_frame_id) {
-      return clamp((now_ms - runtime.animation_start_ms) / 1000, 0, runtime.playback_end_sec);
+      const elapsed_sec = Math.max(0, (now_ms - runtime.animation_start_ms) / 1000);
+      return has_post_finale_field_motion()
+        ? elapsed_sec
+        : clamp(elapsed_sec, 0, runtime.playback_end_sec);
     }
-    return clamp(runtime.playback_time_sec, 0, runtime.playback_end_sec);
+    return has_post_finale_field_motion()
+      ? Math.max(0, runtime.playback_time_sec)
+      : clamp(runtime.playback_time_sec, 0, runtime.playback_end_sec);
   }
 
   function resize_canvas(playback_time_sec = runtime.playback_time_sec, rebuild_scene = true) {

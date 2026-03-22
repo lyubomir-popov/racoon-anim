@@ -82,6 +82,10 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "finale.halo_inner_radius_u",
   "finale.start_angle_deg",
   "finale.mask_angle_offset_deg",
+  "screensaver.cycle_sec",
+  "screensaver.pulse_orbits",
+  "screensaver.pulse_spokes",
+  "screensaver.min_spoke_count",
   "sneeze.nose_bob_up_px",
   "spoke_lines.show_reference_halo",
   "spoke_lines.construction_color",
@@ -91,8 +95,25 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.phase_start_scale",
   "spoke_lines.echo_count",
   "spoke_lines.echo_width_mult",
+  "spoke_lines.echo_wave_count",
   "spoke_lines.echo_opacity_mult"
 ]);
+
+const SECTION_LABELS = Object.freeze({
+  head_turn: "Head Turn",
+  blink: "Blink",
+  finale: "Finale",
+  generator_wrangle: "Field Layout",
+  transition_wrangle: "Dot Motion",
+  point_style: "Dot Style",
+  spoke_lines: "Halo Spokes",
+  screensaver: "Screensaver Loop",
+  mascot: "Mascot"
+});
+
+function get_section_label(section_key) {
+  return SECTION_LABELS[section_key] || humanize_key(section_key);
+}
 
 function set_preset_meta(message, is_error = false) {
   preset_meta.textContent = message;
@@ -926,7 +947,7 @@ function build_config_editor() {
 
       const title = document.createElement("h2");
       title.className = "p-heading--5 u-no-margin--bottom";
-      title.textContent = humanize_key(section_key);
+      title.textContent = get_section_label(section_key);
       section.prepend(title);
       form.appendChild(section);
     }
@@ -1254,19 +1275,28 @@ async function export_png_sequence() {
       export_sequence_button.textContent = "Exporting...";
     }
 
+    const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
+    const default_frame_count = Math.max(1, Math.floor(renderer.getPlaybackEndSec() * frame_rate) + 1);
+    const frame_count_input = window.prompt(
+      `How many frames should be exported at ${frame_rate} fps? 7200 frames is 5 minutes.`,
+      String(default_frame_count)
+    );
+    if (frame_count_input === null) {
+      return;
+    }
+
+    const frame_count = Math.max(1, Math.round(Number(frame_count_input)));
+    if (!Number.isFinite(frame_count)) {
+      throw new Error("Frame count must be a positive number.");
+    }
+
     const output_selection = await get_sequence_output_directory_handle();
     if (!output_selection) {
       return;
     }
 
-    const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
-    const frame_count = Math.max(1, Math.floor(renderer.getPlaybackEndSec() * frame_rate) + 1);
-
     for (let frame_index = 0; frame_index < frame_count; frame_index += 1) {
-      const playback_time_sec = Math.min(
-        frame_index / frame_rate,
-        renderer.getPlaybackEndSec()
-      );
+      const playback_time_sec = frame_index / frame_rate;
       renderer.renderPlaybackFrame(playback_time_sec);
 
       const blob = await renderer.canvasToBlob("image/png");

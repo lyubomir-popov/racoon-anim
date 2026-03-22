@@ -1,0 +1,289 @@
+// Detail wrangle for mascot head shake + blink, matched to the current browser timing.
+//
+// Recommended defaults from the saved web preset:
+// start_frame = 1
+// dot_duration_sec = 1.0
+// mascot_fade_enabled = 0
+// mascot_fade_duration_sec = 3.0
+// head_turn_enabled = 1
+// head_turn_duration_sec = 0.333
+// head_turn_peak_angle_deg = -30
+// head_turn_reverse_angle_deg = 30
+// head_turn_overshoot_angle_deg = -3
+// head_turn_peak_frac = 0.25
+// head_turn_reverse_frac = 0.56
+// head_turn_overshoot_frac = 0.75
+// head_turn_dot_overlap_sec = 0.27
+// blink_enabled = 1
+// blink_start_delay_sec = 0.04
+// blink_duration_sec = 0.12
+// blink_close_frac = 0.42
+// blink_hold_closed_frac = 0.12
+// blink_eye_scale_y_closed = 0.08
+//
+// Optional direct geometry application:
+// - If apply_point_transforms = 1, this wrangle scales the eye groups first and then rotates the
+//   whole mascot group, matching the local-space order used in the browser renderer.
+// - Leave rotate_group empty to rotate every point.
+// - Eye groups are point groups. Their pivots are in the same space as the imported mascot geometry.
+//
+// Create these parameters:
+//
+// shared timeline
+// start_frame
+// dot_duration_sec
+// mascot_fade_enabled
+// mascot_fade_duration_sec
+//
+// head shake
+// head_turn_enabled
+// head_turn_duration_sec
+// head_turn_peak_angle_deg
+// head_turn_reverse_angle_deg
+// head_turn_overshoot_angle_deg
+// head_turn_peak_frac
+// head_turn_reverse_frac
+// head_turn_overshoot_frac
+// head_turn_dot_overlap_sec
+//
+// blink / squint
+// blink_enabled
+// blink_start_delay_sec
+// blink_duration_sec
+// blink_close_frac
+// blink_hold_closed_frac
+// blink_eye_scale_y_closed
+//
+// optional direct point transforms
+// apply_point_transforms
+// rotate_group
+// left_eye_group
+// right_eye_group
+// rotate_pivot
+// left_eye_pivot
+// right_eye_pivot
+
+float smoothstep_local(float edge0; float edge1; float value)
+{
+    if (abs(edge1 - edge0) < 1e-6)
+        return (value < edge0) ? 0.0 : 1.0;
+
+    float t = clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+    return t * t * (3.0 - 2.0 * t);
+}
+
+float compute_head_turn_deg(
+    float local_time_sec;
+    float duration_sec;
+    float peak_angle_deg;
+    float reverse_angle_deg;
+    float overshoot_angle_deg;
+    float peak_frac;
+    float reverse_frac;
+    float overshoot_frac
+)
+{
+    if (local_time_sec <= 0.0 || local_time_sec >= duration_sec)
+        return 0.0;
+
+    float turn_u = clamp(local_time_sec / duration_sec, 0.0, 1.0);
+    float safe_peak_frac = clamp(peak_frac, 0.05, 0.45);
+    float safe_reverse_frac = clamp(reverse_frac, safe_peak_frac + 0.05, 0.85);
+    float safe_overshoot_frac = clamp(overshoot_frac, safe_reverse_frac + 0.05, 0.98);
+
+    if (turn_u < safe_peak_frac)
+        return lerp(0.0, peak_angle_deg, smoothstep_local(0.0, safe_peak_frac, turn_u));
+
+    if (turn_u < safe_reverse_frac)
+    {
+        return lerp(
+            peak_angle_deg,
+            reverse_angle_deg,
+            smoothstep_local(safe_peak_frac, safe_reverse_frac, turn_u)
+        );
+    }
+
+    if (turn_u < safe_overshoot_frac)
+    {
+        return lerp(
+            reverse_angle_deg,
+            overshoot_angle_deg,
+            smoothstep_local(safe_reverse_frac, safe_overshoot_frac, turn_u)
+        );
+    }
+
+    return lerp(
+        overshoot_angle_deg,
+        0.0,
+        smoothstep_local(safe_overshoot_frac, 1.0, turn_u)
+    );
+}
+
+float compute_blink_curve(float blink_u; float close_frac; float hold_closed_frac)
+{
+    float safe_close_frac = clamp(close_frac, 0.05, 0.9);
+    float hold_end_frac = clamp(safe_close_frac + hold_closed_frac, safe_close_frac, 0.98);
+
+    if (blink_u < safe_close_frac)
+        return smoothstep_local(0.0, safe_close_frac, blink_u);
+
+    if (blink_u < hold_end_frac)
+        return 1.0;
+
+    return 1.0 - smoothstep_local(hold_end_frac, 1.0, blink_u);
+}
+
+float compute_head_turn_eye_squint_amount(float playback_time_sec; float duration_sec)
+{
+    if (playback_time_sec <= 0.0 || playback_time_sec >= duration_sec)
+        return 0.0;
+
+    float ease_sec = min(0.03, duration_sec * 0.18);
+    float close_amount = smoothstep_local(0.0, ease_sec, playback_time_sec);
+    float open_amount = 1.0 - smoothstep_local(duration_sec - ease_sec, duration_sec, playback_time_sec);
+    return clamp(close_amount * open_amount, 0.0, 1.0);
+}
+
+void rotate_points_2d(int geo; int pts[]; vector pivot; float angle_rad)
+{
+    float c = cos(angle_rad);
+    float s = sin(angle_rad);
+
+    foreach (int pt; pts)
+    {
+        vector P = point(geo, "P", pt) - pivot;
+        vector Prot = set(P.x * c - P.y * s, P.x * s + P.y * c, P.z) + pivot;
+        setpointattrib(geo, "P", pt, Prot, "set");
+    }
+}
+
+void scale_points_y(int geo; int pts[]; vector pivot; float scale_y)
+{
+    foreach (int pt; pts)
+    {
+        vector P = point(geo, "P", pt) - pivot;
+        P.y *= scale_y;
+        setpointattrib(geo, "P", pt, P + pivot, "set");
+    }
+}
+
+float start_frame = chf("start_frame");
+float dot_duration_sec = max(0.0, chf("dot_duration_sec"));
+int mascot_fade_enabled = chi("mascot_fade_enabled");
+float mascot_fade_duration_sec = max(0.0, chf("mascot_fade_duration_sec"));
+
+int head_turn_enabled = chi("head_turn_enabled");
+float head_turn_duration_sec = max(0.0001, chf("head_turn_duration_sec"));
+float head_turn_peak_angle_deg = chf("head_turn_peak_angle_deg");
+float head_turn_reverse_angle_deg = chf("head_turn_reverse_angle_deg");
+float head_turn_overshoot_angle_deg = chf("head_turn_overshoot_angle_deg");
+float head_turn_peak_frac = chf("head_turn_peak_frac");
+float head_turn_reverse_frac = chf("head_turn_reverse_frac");
+float head_turn_overshoot_frac = chf("head_turn_overshoot_frac");
+float head_turn_dot_overlap_sec = max(0.0, chf("head_turn_dot_overlap_sec"));
+
+int blink_enabled = chi("blink_enabled");
+float blink_start_delay_sec = max(0.0, chf("blink_start_delay_sec"));
+float blink_duration_sec = max(0.0001, chf("blink_duration_sec"));
+float blink_close_frac = chf("blink_close_frac");
+float blink_hold_closed_frac = chf("blink_hold_closed_frac");
+float blink_eye_scale_y_closed = chf("blink_eye_scale_y_closed");
+
+int apply_point_transforms = chi("apply_point_transforms");
+string rotate_group = chs("rotate_group");
+string left_eye_group = chs("left_eye_group");
+string right_eye_group = chs("right_eye_group");
+vector rotate_pivot = chv("rotate_pivot");
+vector left_eye_pivot = chv("left_eye_pivot");
+vector right_eye_pivot = chv("right_eye_pivot");
+
+float fps = 1.0 / max(1e-6, @TimeInc);
+float playback_time_sec = max(0.0, (@Frame - start_frame) / fps);
+
+float fade_delay_sec = mascot_fade_enabled ? mascot_fade_duration_sec : 0.0;
+float head_turn_delay_sec = head_turn_enabled ? head_turn_duration_sec : 0.0;
+float head_turn_overlap_sec = head_turn_enabled
+    ? clamp(head_turn_dot_overlap_sec, 0.0, head_turn_delay_sec)
+    : 0.0;
+float dot_start_delay_sec = max(
+    fade_delay_sec,
+    max(0.0, head_turn_delay_sec - head_turn_overlap_sec)
+);
+float dot_end_sec = dot_start_delay_sec + dot_duration_sec;
+float blink_start_sec = dot_end_sec + blink_start_delay_sec;
+float blink_end_sec = blink_enabled ? blink_start_sec + blink_duration_sec : dot_end_sec;
+
+float head_turn_deg = head_turn_enabled
+    ? compute_head_turn_deg(
+        playback_time_sec,
+        head_turn_duration_sec,
+        head_turn_peak_angle_deg,
+        head_turn_reverse_angle_deg,
+        head_turn_overshoot_angle_deg,
+        head_turn_peak_frac,
+        head_turn_reverse_frac,
+        head_turn_overshoot_frac
+    )
+    : 0.0;
+
+float head_turn_eye_amount = head_turn_enabled
+    ? compute_head_turn_eye_squint_amount(playback_time_sec, head_turn_duration_sec)
+    : 0.0;
+
+float blink_amount = 0.0;
+if (blink_enabled && playback_time_sec >= blink_start_sec && playback_time_sec <= blink_end_sec)
+{
+    float blink_u = clamp(
+        (playback_time_sec - blink_start_sec) / max(0.0001, blink_duration_sec),
+        0.0,
+        1.0
+    );
+    blink_amount = compute_blink_curve(blink_u, blink_close_frac, blink_hold_closed_frac);
+}
+
+float combined_eye_amount = max(blink_amount, head_turn_eye_amount);
+float eye_scale_y = lerp(1.0, clamp(blink_eye_scale_y_closed, 0.02, 1.0), combined_eye_amount);
+
+setdetailattrib(0, "playback_time_sec", playback_time_sec, "set");
+setdetailattrib(0, "dot_start_delay_sec", dot_start_delay_sec, "set");
+setdetailattrib(0, "dot_end_sec", dot_end_sec, "set");
+setdetailattrib(0, "blink_start_sec", blink_start_sec, "set");
+setdetailattrib(0, "blink_end_sec", blink_end_sec, "set");
+setdetailattrib(0, "head_turn_deg", head_turn_deg, "set");
+setdetailattrib(0, "blink_amount", blink_amount, "set");
+setdetailattrib(0, "head_turn_eye_amount", head_turn_eye_amount, "set");
+setdetailattrib(0, "combined_eye_amount", combined_eye_amount, "set");
+setdetailattrib(0, "eye_scale_y", eye_scale_y, "set");
+
+if (!apply_point_transforms)
+    return;
+
+int left_eye_pts[];
+if (strlen(left_eye_group) > 0)
+    left_eye_pts = expandpointgroup(0, left_eye_group);
+
+int right_eye_pts[];
+if (strlen(right_eye_group) > 0)
+    right_eye_pts = expandpointgroup(0, right_eye_group);
+
+if (len(left_eye_pts) > 0)
+    scale_points_y(0, left_eye_pts, left_eye_pivot, eye_scale_y);
+
+if (len(right_eye_pts) > 0)
+    scale_points_y(0, right_eye_pts, right_eye_pivot, eye_scale_y);
+
+int rotate_pts[];
+if (strlen(rotate_group) > 0)
+{
+    rotate_pts = expandpointgroup(0, rotate_group);
+}
+else
+{
+    int point_count = npoints(0);
+    resize(rotate_pts, point_count);
+    for (int pt = 0; pt < point_count; pt++)
+        rotate_pts[pt] = pt;
+}
+
+if (len(rotate_pts) > 0)
+    rotate_points_2d(0, rotate_pts, rotate_pivot, radians(head_turn_deg));

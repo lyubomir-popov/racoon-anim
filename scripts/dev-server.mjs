@@ -15,11 +15,12 @@ const watch_roots = [
 ];
 const port_arg = process.argv.find((argument) => argument.startsWith("--port="));
 const host_arg = process.argv.find((argument) => argument.startsWith("--host="));
-const port = Number(port_arg?.split("=")[1] || process.env.PORT || 5173);
+const requested_port = Number(port_arg?.split("=")[1] || process.env.PORT || 5173);
 const host = host_arg?.split("=")[1] || process.env.HOST || "127.0.0.1";
 const should_open = !process.argv.includes("--no-open");
 const should_watch = !process.argv.includes("--no-watch");
 const live_clients = new Set();
+const max_port_attempts = 20;
 
 const mime_types = {
   ".ai": "application/postscript",
@@ -62,7 +63,14 @@ function inject_live_reload(html) {
 }
 
 function resolve_public_path(request_path) {
-  const clean_path = request_path.split("?")[0];
+  const encoded_path = request_path.split("?")[0];
+  let clean_path = encoded_path;
+
+  try {
+    clean_path = decodeURIComponent(encoded_path);
+  } catch {
+    clean_path = encoded_path;
+  }
 
   if (clean_path === "/" || clean_path === "/index.html") {
     return source_entry;
@@ -149,6 +157,12 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request_url.split("?")[0] === "/favicon.ico") {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
+
   if (request_url.split("?")[0] === "/assets/app.css") {
     try {
       const css = await compile_styles_to_string({ style: "expanded" });
@@ -188,8 +202,23 @@ const server = http.createServer(async (request, response) => {
   fs.createReadStream(file_path).pipe(response);
 });
 
-server.listen(port, host, () => {
-  const url = `http://${host}:${port}`;
+let active_port = requested_port;
+let port_attempt = 0;
+
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE" && port_attempt < max_port_attempts - 1) {
+    port_attempt += 1;
+    active_port = requested_port + port_attempt;
+    log(`port ${active_port - 1} in use, retrying on ${active_port}`);
+    server.listen(active_port, host);
+    return;
+  }
+
+  throw error;
+});
+
+server.listen(active_port, host, () => {
+  const url = `http://${host}:${active_port}`;
   log(`serving ${url}`);
 
   if (should_watch) {

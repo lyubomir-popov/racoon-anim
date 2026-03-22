@@ -32,34 +32,24 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
     sections: Object.freeze([])
   }),
   Object.freeze({
-    key: "timing",
-    label: "Timing",
+    key: "motion",
+    label: "Motion",
     sections: Object.freeze(["head_turn", "blink", "finale"])
+  }),
+  Object.freeze({
+    key: "field",
+    label: "Field",
+    sections: Object.freeze(["generator_wrangle", "spoke_lines", "screensaver"])
+  }),
+  Object.freeze({
+    key: "dots",
+    label: "Dots",
+    sections: Object.freeze(["transition_wrangle", "point_style"])
   }),
   Object.freeze({
     key: "mascot",
     label: "Mascot",
     sections: Object.freeze(["mascot"])
-  }),
-  Object.freeze({
-    key: "generator",
-    label: "Generator",
-    sections: Object.freeze(["generator_wrangle"])
-  }),
-  Object.freeze({
-    key: "transition",
-    label: "Transition",
-    sections: Object.freeze(["transition_wrangle"])
-  }),
-  Object.freeze({
-    key: "dots",
-    label: "Dots",
-    sections: Object.freeze(["point_style"])
-  }),
-  Object.freeze({
-    key: "spokes",
-    label: "Spokes",
-    sections: Object.freeze(["spoke_lines"])
   })
 ]);
 
@@ -127,21 +117,28 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: -180, max: 180, step: 0.1 }
   },
   "generator_wrangle.inner_radius": {
+    label: "Inner Radius",
     numeric: { min: 0, max: 1, step: 0.001 }
   },
   "generator_wrangle.outer_radius": {
+    label: "Outer Radius",
     numeric: { min: 0, max: 1, step: 0.001 }
   },
   "generator_wrangle.num_orbits": {
+    label: "Max Orbits",
     numeric: { min: 1, max: 24, step: 1 }
   },
   "generator_wrangle.spoke_count": {
+    label: "Max Spokes",
     numeric: { min: 1, max: 180, step: 1 }
   },
   "generator_wrangle.phase_count": {
     numeric: { min: 1, max: 24, step: 1 }
   },
   "generator_wrangle.min_active_orbits": {
+    label: "Min Orbits",
+    help_text:
+      "Defines the thinnest orbit spacing used for the phase fill and for the post-finale orbit breathing floor.",
     numeric: { min: 1, max: 24, step: 1 }
   },
   "generator_wrangle.base_angle_deg": {
@@ -279,9 +276,16 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text: "Each echoed dot band multiplies the previous echoed dot size by this amount.",
     numeric: { min: 0.1, max: 1, step: 0.01 }
   },
+  "spoke_lines.echo_wave_count": {
+    label: "Echo Ripple Count",
+    help_text:
+      "Adds concentric size undulations across the echoed dots, like ripples moving outward from the mascot.",
+    numeric: { min: 0, max: 12, step: 1 }
+  },
   "spoke_lines.echo_opacity_mult": {
-    label: "Echo Opacity Multiplier",
-    help_text: "Each echo multiplies the previous thick-spoke opacity by this amount.",
+    label: "Echo Outer Fade",
+    help_text:
+      "Controls how long the ripple dots hold their opacity before they fade toward the outer edge of the frame.",
     numeric: { min: 0, max: 1, step: 0.01 }
   },
   "spoke_lines.start_radius_px": {
@@ -357,6 +361,26 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "sneeze.nose_bob_up_px": {
     numeric: { min: 0, max: 20, step: 0.1 }
+  },
+  "screensaver.cycle_sec": {
+    label: "Breath Cycle (sec)",
+    help_text:
+      "Sets the full post-finale inhale/exhale cycle for the looping screensaver motion. Set to 0 to keep the final frame static.",
+    numeric: { min: 0, max: 60, step: 0.1 }
+  },
+  "screensaver.pulse_orbits": {
+    label: "Pulse Orbits",
+    help_text:
+      "Breathes the orbit spacing across the full field using Min Orbits and Max Orbits as the endpoints."
+  },
+  "screensaver.pulse_spokes": {
+    label: "Pulse Spokes",
+    help_text:
+      "Breathes the spoke density across the full field using Min Spokes and Max Spokes as the endpoints."
+  },
+  "screensaver.min_spoke_count": {
+    label: "Min Spokes",
+    numeric: { min: 1, max: 180, step: 1 }
   },
   "blink.enabled": {
     hidden: true,
@@ -478,6 +502,7 @@ export function create_default_config() {
       phase_start_scale: 0.05,
       echo_count: 16,
       echo_width_mult: 0.88,
+      echo_wave_count: 4,
       echo_opacity_mult: 0.68,
       start_radius_px: 150,
       end_radius_extra_px: 0
@@ -520,6 +545,12 @@ export function create_default_config() {
     performance: {
       max_device_pixel_ratio: 4,
       desynchronized: true
+    },
+    screensaver: {
+      cycle_sec: 6,
+      pulse_orbits: true,
+      pulse_spokes: false,
+      min_spoke_count: 24
     },
     export_settings: {
       frame_rate: 24
@@ -666,6 +697,12 @@ export function merge_known_config_values(target, source) {
 export function normalize_config_snapshot(source, default_config) {
   const snapshot = deep_clone(default_config);
   merge_known_config_values(snapshot, source);
+  if (
+    !is_plain_object(source?.screensaver) &&
+    Number.isFinite(Number(source?.finale?.orbit_breath_cycle_sec))
+  ) {
+    snapshot.screensaver.cycle_sec = Number(source.finale.orbit_breath_cycle_sec);
+  }
   snapshot.mascot.face_asset_path = default_config.mascot.face_asset_path;
   snapshot.mascot.halo_asset_path = default_config.mascot.halo_asset_path;
   enforce_locked_config_values(snapshot);

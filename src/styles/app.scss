@@ -5,10 +5,11 @@
 :root {
   color-scheme: dark;
   --editor-panel-space: 0px;
+  --editor-panel-max-width: 56rem;
 }
 
 body.editor-docked {
-  --editor-panel-space: min(28rem, 40vw);
+  --editor-panel-space: min(var(--editor-panel-max-width), 72vw);
 }
 
 html,
@@ -52,6 +53,8 @@ body {
 }
 
 .mascot-app .l-aside {
+  inline-size: min(var(--editor-panel-max-width), calc(100vw - 1.5rem));
+  max-inline-size: calc(100vw - 1.5rem);
   overscroll-behavior: contain;
 }
 
@@ -114,13 +117,17 @@ body.editor-docked .mascot-app .l-main {
   padding-right: var(--editor-panel-space);
 }
 
+body.editor-docked .stage {
+  width: min(calc(100vw - var(--editor-panel-space) - 3rem), calc((100svh - 5.5rem) * 1.7777778));
+}
+
 .stage {
-  aspect-ratio: 1;
+  aspect-ratio: 16 / 9;
   background: #262626;
   cursor: pointer;
   overflow: hidden;
   position: relative;
-  width: min(600px, calc(100vw - 3rem), calc(100svh - 5.5rem));
+  width: min(calc(100vw - 3rem), calc((100svh - 5.5rem) * 1.7777778));
 }
 
 canvas {
@@ -177,8 +184,14 @@ body.editor-docked .drawer-panel {
 .drawer-content {
   display: grid;
   gap: 0.75rem;
+  max-width: none;
   padding-bottom: 1rem;
   padding-top: 1rem;
+  width: 100%;
+}
+
+.u-fixed-width.drawer-content {
+  max-width: none;
 }
 
 .preset-panel-content,
@@ -206,19 +219,31 @@ body.editor-docked .drawer-panel {
 .control-help {
   margin-bottom: 0;
   margin-top: -0.25rem;
-  max-inline-size: 34ch;
+  max-inline-size: 42ch;
 }
 
 .config-tabs .p-tabs__list {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
   margin-bottom: 0.75rem;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  white-space: nowrap;
+  overflow: visible;
+  scrollbar-width: auto;
+  white-space: normal;
 }
 
 .config-tabs .p-tabs__item {
-  white-space: nowrap;
+  margin: 0;
+  min-width: 0;
+  white-space: normal;
+}
+
+.config-tabs .p-tabs__link {
+  display: flex;
+  justify-content: center;
+  min-height: 2.5rem;
+  text-align: center;
+  width: 100%;
 }
 
 .config-panels {
@@ -342,7 +367,7 @@ body.editor-docked .drawer-panel {
   }
 
   .stage {
-    width: min(600px, calc(100vw - 1.5rem));
+    width: min(calc(100vw - 1.5rem), calc((100svh - 4.5rem) * 1.7777778));
   }
 
   .viewer-panel__content {
