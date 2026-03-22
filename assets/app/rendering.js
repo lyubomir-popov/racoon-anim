@@ -6,6 +6,7 @@ import {
   BACKGROUND_SPOKE_WIDTH_PX,
   MASCOT_VIEWBOX_SIZE,
   MASCOT_EYE_SPECS,
+  MASCOT_NOSE_PATH_DATA,
   HALO_REFERENCE_OPACITY,
   HALO_REFERENCE_COLOR,
   DEFAULT_OUTPUT_PROFILE_KEY,
@@ -27,7 +28,11 @@ const HALO_THIN_ORDER = 31;
 const HALO_THICK_ORDER = 32;
 const HALO_ECHO_ORDER = 33;
 const MASCOT_FACE_ORDER = 40;
-const MASCOT_EYE_ORDER = 41;
+const MASCOT_NOSE_ORDER = 41;
+const MASCOT_NOSE_CUTOUT_ORDER = 42;
+const MASCOT_EYE_ORDER = 43;
+
+const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
 
 function capacities_match(current_capacities, next_capacities) {
   if (!current_capacities) {
@@ -37,6 +42,25 @@ function capacities_match(current_capacities, next_capacities) {
   return Object.keys(next_capacities).every(
     (key) => current_capacities[key] === next_capacities[key]
   );
+}
+
+function create_nose_texture() {
+  const nose_canvas = document.createElement("canvas");
+  nose_canvas.width = MASCOT_VIEWBOX_SIZE;
+  nose_canvas.height = MASCOT_VIEWBOX_SIZE;
+  const nose_context = nose_canvas.getContext("2d", { alpha: true });
+  if (!nose_context) {
+    throw new Error("Nose texture 2D context is unavailable.");
+  }
+
+  nose_context.clearRect(0, 0, nose_canvas.width, nose_canvas.height);
+  nose_context.fillStyle = "#ffffff";
+  nose_context.fill(MASCOT_NOSE_PATH);
+
+  const nose_texture = new THREE.CanvasTexture(nose_canvas);
+  nose_texture.colorSpace = THREE.SRGBColorSpace;
+  nose_texture.needsUpdate = true;
+  return nose_texture;
 }
 
 export function createRenderer({
@@ -94,6 +118,24 @@ export function createRenderer({
     opacity: HALO_REFERENCE_OPACITY
   });
   halo_reference_material.toneMapped = false;
+  const nose_texture = create_nose_texture();
+  const nose_material = new THREE.MeshBasicMaterial({
+    transparent: true,
+    color: "#ffffff",
+    map: nose_texture,
+    depthTest: false,
+    depthWrite: false
+  });
+  nose_material.toneMapped = false;
+
+  const nose_cutout_material = new THREE.MeshBasicMaterial({
+    transparent: true,
+    color: STAGE_BACKGROUND_COLOR,
+    map: nose_texture,
+    depthTest: false,
+    depthWrite: false
+  });
+  nose_cutout_material.toneMapped = false;
 
   const face_mesh = new THREE.Mesh(mascot_plane_geometry, face_material);
   face_mesh.renderOrder = MASCOT_FACE_ORDER;
@@ -103,8 +145,18 @@ export function createRenderer({
   halo_reference_mesh.renderOrder = HALO_REFERENCE_ORDER;
   halo_reference_mesh.visible = false;
 
+  const nose_mesh = new THREE.Mesh(mascot_plane_geometry, nose_material);
+  nose_mesh.renderOrder = MASCOT_NOSE_ORDER;
+  nose_mesh.visible = false;
+
+  const nose_cutout_mesh = new THREE.Mesh(mascot_plane_geometry, nose_cutout_material);
+  nose_cutout_mesh.renderOrder = MASCOT_NOSE_CUTOUT_ORDER;
+  nose_cutout_mesh.visible = false;
+
   mascot_group.add(halo_reference_mesh);
   mascot_group.add(face_mesh);
+  mascot_group.add(nose_mesh);
+  mascot_group.add(nose_cutout_mesh);
 
   const texture_loader = new THREE.TextureLoader();
 
@@ -953,6 +1005,8 @@ export function createRenderer({
     runtime.layers.haloEchoDots.setColor(config.spoke_lines.color);
     runtime.layers.eyes.setColor("#ffffff");
     face_material.color.set(config.mascot.color);
+    nose_material.color.set(config.mascot.color);
+    nose_cutout_material.color.set(STAGE_BACKGROUND_COLOR);
     halo_reference_material.color.set(HALO_REFERENCE_COLOR);
   }
 
@@ -1158,6 +1212,8 @@ export function createRenderer({
       mascot_group.visible = false;
       face_mesh.visible = false;
       halo_reference_mesh.visible = false;
+      nose_mesh.visible = false;
+      nose_cutout_mesh.visible = false;
       return {
         base_alpha: 0,
         halo_u: 0
@@ -1178,6 +1234,8 @@ export function createRenderer({
 
     if (base_alpha <= 0) {
       halo_reference_mesh.visible = false;
+      nose_mesh.visible = false;
+      nose_cutout_mesh.visible = false;
       return {
         base_alpha: 0,
         halo_u: 0
@@ -1189,8 +1247,21 @@ export function createRenderer({
       ? 0
       : compute_head_turn_eye_squint_amount(playback_time_sec);
     const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
+    const nose_bob_px = config.sneeze.enabled
+      ? config.sneeze.nose_bob_up_px * combined_eye_amount
+      : 0;
     const closed_eye_scale_y = clamp(config.blink.eye_scale_y_closed, 0.02, 1);
     const eye_scale_y = lerp(1, closed_eye_scale_y, combined_eye_amount);
+
+    nose_mesh.visible = true;
+    nose_mesh.position.set(0, 0, 0);
+    nose_mesh.scale.set(box.draw_size_px, box.draw_size_px, 1);
+    nose_material.opacity = base_alpha;
+
+    nose_cutout_mesh.visible = nose_bob_px > 0.01;
+    nose_cutout_mesh.position.set(0, nose_bob_px, 0);
+    nose_cutout_mesh.scale.set(box.draw_size_px, box.draw_size_px, 1);
+    nose_cutout_material.opacity = base_alpha;
 
     for (let eye_index = 0; eye_index < MASCOT_EYE_SPECS.length; eye_index += 1) {
       const eye = MASCOT_EYE_SPECS[eye_index];
