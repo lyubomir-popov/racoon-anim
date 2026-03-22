@@ -1,17 +1,16 @@
+import * as THREE from "../../three/build/three.module.js";
 import {
   TAU,
-  STAGE_WIDTH_PX,
-  STAGE_HEIGHT_PX,
-  STAGE_ASPECT_RATIO,
   COMPOSITION_SIZE_PX,
   STAGE_BACKGROUND_COLOR,
   BACKGROUND_SPOKE_WIDTH_PX,
   MASCOT_VIEWBOX_SIZE,
   MASCOT_EYE_SPECS,
-  MASCOT_NOSE_PATH_DATA,
   HALO_REFERENCE_OPACITY,
   HALO_REFERENCE_COLOR,
+  DEFAULT_OUTPUT_PROFILE_KEY,
   clamp,
+  get_output_profile_metrics,
   lerp,
   smoothstep,
   radians,
@@ -19,31 +18,95 @@ import {
   compute_frontier_scale,
   compute_phase_frontier_dist_u
 } from "./config-schema.js";
+import { createCircleLayer, createSegmentLayer } from "./three-primitives.js";
 
-const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
+const WORLD_BACKGROUND_ORDER = 10;
+const WORLD_POINTS_ORDER = 20;
+const HALO_REFERENCE_ORDER = 30;
+const HALO_THIN_ORDER = 31;
+const HALO_THICK_ORDER = 32;
+const HALO_ECHO_ORDER = 33;
+const MASCOT_FACE_ORDER = 40;
+const MASCOT_EYE_ORDER = 41;
 
-function create_layer_canvas(width_px, height_px) {
-  const layer_canvas = document.createElement("canvas");
-  layer_canvas.width = width_px;
-  layer_canvas.height = height_px;
-  const layer_context = layer_canvas.getContext("2d", { alpha: true });
-  if (!layer_context) {
-    throw new Error("Layer canvas 2D context is unavailable.");
+function capacities_match(current_capacities, next_capacities) {
+  if (!current_capacities) {
+    return false;
   }
-  return {
-    canvas: layer_canvas,
-    context: layer_context
-  };
+
+  return Object.keys(next_capacities).every(
+    (key) => current_capacities[key] === next_capacities[key]
+  );
 }
 
-export function createRenderer({ stage, canvas, config }) {
-  const context = canvas.getContext("2d", {
+export function createRenderer({
+  stage,
+  canvas,
+  config,
+  output_profile_key = DEFAULT_OUTPUT_PROFILE_KEY
+}) {
+  const stage_metrics = get_output_profile_metrics(output_profile_key);
+  const stage_width_px = stage_metrics.width_px;
+  const stage_height_px = stage_metrics.height_px;
+  const stage_aspect_ratio = stage_metrics.aspect_ratio;
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
     alpha: false,
-    desynchronized: config.performance.desynchronized
+    powerPreference: "high-performance"
   });
-  if (!context) {
-    throw new Error("Canvas 2D context is unavailable.");
-  }
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.setPixelRatio(1);
+  renderer.setSize(stage_width_px, stage_height_px, false);
+  renderer.setClearColor(STAGE_BACKGROUND_COLOR, 1);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(
+    0,
+    stage_width_px,
+    stage_height_px,
+    0,
+    -100,
+    100
+  );
+  camera.position.z = 10;
+
+  const world_group = new THREE.Group();
+  const mascot_group = new THREE.Group();
+  scene.add(world_group);
+  scene.add(mascot_group);
+
+  const mascot_plane_geometry = new THREE.PlaneGeometry(1, 1);
+  const face_material = new THREE.MeshBasicMaterial({
+    transparent: true,
+    color: "#ffffff",
+    depthTest: false,
+    depthWrite: false
+  });
+  face_material.toneMapped = false;
+
+  const halo_reference_material = new THREE.MeshBasicMaterial({
+    transparent: true,
+    color: HALO_REFERENCE_COLOR,
+    depthTest: false,
+    depthWrite: false,
+    opacity: HALO_REFERENCE_OPACITY
+  });
+  halo_reference_material.toneMapped = false;
+
+  const face_mesh = new THREE.Mesh(mascot_plane_geometry, face_material);
+  face_mesh.renderOrder = MASCOT_FACE_ORDER;
+  face_mesh.visible = false;
+
+  const halo_reference_mesh = new THREE.Mesh(mascot_plane_geometry, halo_reference_material);
+  halo_reference_mesh.renderOrder = HALO_REFERENCE_ORDER;
+  halo_reference_mesh.visible = false;
+
+  mascot_group.add(halo_reference_mesh);
+  mascot_group.add(face_mesh);
+
+  const texture_loader = new THREE.TextureLoader();
 
   const runtime = {
     dpr: 1,
@@ -57,33 +120,22 @@ export function createRenderer({ stage, canvas, config }) {
     spawn_angle_rad: 0,
     points: [],
     spokes: [],
-    mascot_face_image: null,
-    mascot_halo_image: null,
-    halo_reference_canvas: null,
-    halo_reference_canvas_size_px: 0,
-    halo_layer_canvas: null,
-    halo_layer_canvas_draw_size_px: 0,
-    background_spoke_canvas: null,
+    mascot_face_texture: null,
+    mascot_halo_texture: null,
     mascot_box: null,
     animation_frame_id: 0,
     animation_start_ms: performance.now(),
-    refresh_serial: 0
+    refresh_serial: 0,
+    layers: null,
+    layer_capacities: null
   };
-
-  function invalidate_layer_caches() {
-    runtime.halo_reference_canvas = null;
-    runtime.halo_reference_canvas_size_px = 0;
-    runtime.halo_layer_canvas = null;
-    runtime.halo_layer_canvas_draw_size_px = 0;
-    runtime.background_spoke_canvas = null;
-  }
 
   function apply_stage_styles() {
     document.body.style.background = STAGE_BACKGROUND_COLOR;
-    stage.style.aspectRatio = `${STAGE_WIDTH_PX} / ${STAGE_HEIGHT_PX}`;
+    stage.style.aspectRatio = `${stage_width_px} / ${stage_height_px}`;
     stage.style.width =
-      `min(${STAGE_WIDTH_PX}px, calc(100vw - var(--editor-panel-space, 0px) - 3rem), ` +
-      `calc((100svh - 5.5rem) * ${STAGE_ASPECT_RATIO}))`;
+      `min(${stage_width_px}px, calc(100vw - var(--editor-panel-space, 0px) - 3rem), ` +
+      `calc((100svh - 5.5rem) * ${stage_aspect_ratio}))`;
     stage.style.borderRadius = "0";
     stage.style.background = STAGE_BACKGROUND_COLOR;
     stage.style.borderColor = "transparent";
@@ -105,29 +157,172 @@ export function createRenderer({ stage, canvas, config }) {
     return new URL(asset_path, window.location.href).href;
   }
 
-  function load_image(image_url) {
+  function dispose_texture(texture) {
+    if (texture) {
+      texture.dispose();
+    }
+  }
+
+  function clear_mascot_textures() {
+    dispose_texture(runtime.mascot_face_texture);
+    dispose_texture(runtime.mascot_halo_texture);
+    runtime.mascot_face_texture = null;
+    runtime.mascot_halo_texture = null;
+    face_material.map = null;
+    halo_reference_material.map = null;
+    face_material.needsUpdate = true;
+    halo_reference_material.needsUpdate = true;
+  }
+
+  function load_texture(texture_url) {
     return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.addEventListener("load", () => {
-        resolve(image);
-      });
-      image.addEventListener("error", () => {
-        reject(new Error(`Failed to load image: ${image_url}`));
-      });
-      image.src = image_url;
+      texture_loader.load(
+        texture_url,
+        (texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.needsUpdate = true;
+          resolve(texture);
+        },
+        undefined,
+        () => {
+          reject(new Error(`Failed to load texture: ${texture_url}`));
+        }
+      );
     });
   }
 
-  async function load_mascot_images() {
-    const [face_image, halo_image] = await Promise.all([
-      load_image(get_mascot_asset_url(config.mascot.face_asset_path)),
-      load_image(get_mascot_asset_url(config.mascot.halo_asset_path))
+  async function load_mascot_textures() {
+    const [face_texture, halo_texture] = await Promise.all([
+      load_texture(get_mascot_asset_url(config.mascot.face_asset_path)),
+      load_texture(get_mascot_asset_url(config.mascot.halo_asset_path))
     ]);
 
-    runtime.mascot_face_image = face_image;
-    runtime.mascot_halo_image = halo_image;
-    invalidate_layer_caches();
+    clear_mascot_textures();
+
+    runtime.mascot_face_texture = face_texture;
+    runtime.mascot_halo_texture = halo_texture;
+    face_material.map = face_texture;
+    halo_reference_material.map = halo_texture;
+    face_material.needsUpdate = true;
+    halo_reference_material.needsUpdate = true;
   }
+
+  function get_full_frame_spoke_outer_radius(center_x_px, center_y_px) {
+    const farthest_corner_dx_px = Math.max(center_x_px, stage_width_px - center_x_px);
+    const farthest_corner_dy_px = Math.max(center_y_px, stage_height_px - center_y_px);
+    return Math.hypot(farthest_corner_dx_px, farthest_corner_dy_px);
+  }
+
+  function get_layer_capacities() {
+    const max_spoke_count = Math.max(1, Math.round(config.generator_wrangle.spoke_count || 1));
+    const max_orbit_count = Math.max(1, Math.round(config.generator_wrangle.num_orbits || 1));
+    const mascot_box = config.mascot.enabled ? get_mascot_draw_box() : null;
+    const geometry_scale = mascot_box ? mascot_box.draw_size_px / MASCOT_VIEWBOX_SIZE : 1;
+    const inner_radius_px =
+      COMPOSITION_SIZE_PX *
+      config.composition.radial_scale *
+      config.generator_wrangle.inner_radius *
+      geometry_scale;
+    const outer_radius_px =
+      COMPOSITION_SIZE_PX *
+      config.composition.radial_scale *
+      config.generator_wrangle.outer_radius *
+      geometry_scale;
+    const radius_span_px = Math.max(0, outer_radius_px - inner_radius_px);
+    const orbit_step_px =
+      max_orbit_count <= 1 || radius_span_px <= 0
+        ? Math.max(1, radius_span_px)
+        : radius_span_px / Math.max(0.0001, max_orbit_count - 1);
+    const full_frame_outer_radius_px = get_full_frame_spoke_outer_radius(
+      config.composition.center_x_px,
+      config.composition.center_y_px
+    );
+    const max_full_frame_orbit_index = Math.max(
+      0,
+      Math.ceil((full_frame_outer_radius_px - inner_radius_px) / Math.max(0.0001, orbit_step_px))
+    );
+
+    return {
+      background_spokes: Math.max(32, max_spoke_count),
+      points: Math.max(512, max_spoke_count * max_orbit_count),
+      halo_thin_spokes: Math.max(32, max_spoke_count),
+      halo_thick_spokes: Math.max(32, max_spoke_count),
+      halo_echo_dots: Math.max(512, max_spoke_count * (max_full_frame_orbit_index + 1)),
+      eyes: 2
+    };
+  }
+
+  function dispose_layers() {
+    if (!runtime.layers) {
+      return;
+    }
+
+    world_group.remove(runtime.layers.backgroundSpokes.mesh);
+    world_group.remove(runtime.layers.points.mesh);
+    mascot_group.remove(runtime.layers.haloThinSpokes.mesh);
+    mascot_group.remove(runtime.layers.haloThickSpokes.mesh);
+    mascot_group.remove(runtime.layers.haloEchoDots.mesh);
+    mascot_group.remove(runtime.layers.eyes.mesh);
+
+    runtime.layers.backgroundSpokes.dispose();
+    runtime.layers.points.dispose();
+    runtime.layers.haloThinSpokes.dispose();
+    runtime.layers.haloThickSpokes.dispose();
+    runtime.layers.haloEchoDots.dispose();
+    runtime.layers.eyes.dispose();
+
+    runtime.layers = null;
+    runtime.layer_capacities = null;
+  }
+
+  function ensure_layers() {
+    const next_capacities = get_layer_capacities();
+    if (capacities_match(runtime.layer_capacities, next_capacities)) {
+      return;
+    }
+
+    dispose_layers();
+
+    runtime.layers = {
+      backgroundSpokes: createSegmentLayer(
+        next_capacities.background_spokes,
+        config.spoke_lines.construction_color,
+        WORLD_BACKGROUND_ORDER
+      ),
+      points: createCircleLayer(
+        next_capacities.points,
+        config.point_style.color,
+        WORLD_POINTS_ORDER
+      ),
+      haloThinSpokes: createSegmentLayer(
+        next_capacities.halo_thin_spokes,
+        config.spoke_lines.reference_color,
+        HALO_THIN_ORDER
+      ),
+      haloThickSpokes: createSegmentLayer(
+        next_capacities.halo_thick_spokes,
+        config.spoke_lines.color,
+        HALO_THICK_ORDER
+      ),
+      haloEchoDots: createCircleLayer(
+        next_capacities.halo_echo_dots,
+        config.spoke_lines.color,
+        HALO_ECHO_ORDER
+      ),
+      eyes: createCircleLayer(next_capacities.eyes, "#ffffff", MASCOT_EYE_ORDER)
+    };
+
+    world_group.add(runtime.layers.backgroundSpokes.mesh);
+    world_group.add(runtime.layers.points.mesh);
+    mascot_group.add(runtime.layers.haloThinSpokes.mesh);
+    mascot_group.add(runtime.layers.haloThickSpokes.mesh);
+    mascot_group.add(runtime.layers.haloEchoDots.mesh);
+    mascot_group.add(runtime.layers.eyes.mesh);
+
+    runtime.layer_capacities = next_capacities;
+  }
+
+  function invalidate_layer_caches() {}
 
   function build_scene_data() {
     const generator = config.generator_wrangle;
@@ -357,7 +552,6 @@ export function createRenderer({ stage, canvas, config }) {
         const point_capture_start_sec = Math.max(capture_start_sec, visible_sec);
 
         spokes[spoke_id].echo_dots.push({
-          radius: point_metrics.radius,
           radius_px: point_metrics.radius_px
         });
 
@@ -381,7 +575,6 @@ export function createRenderer({ stage, canvas, config }) {
 
     runtime.points = points;
     runtime.spokes = spokes;
-    invalidate_layer_caches();
   }
 
   function compute_mascot_fade_amount(playback_time_sec) {
@@ -533,7 +726,8 @@ export function createRenderer({ stage, canvas, config }) {
       1,
       max_spokes
     );
-    const spoke_motion = Boolean(config.screensaver?.pulse_spokes) && max_spokes - min_spokes > 0.001;
+    const spoke_motion =
+      Boolean(config.screensaver?.pulse_spokes) && max_spokes - min_spokes > 0.001;
     return orbit_motion || spoke_motion;
   }
 
@@ -728,699 +922,69 @@ export function createRenderer({ stage, canvas, config }) {
       box: mascot_box,
       points,
       spokes,
-      orbit_step_px,
       halo_outer_radius_px,
       full_frame_outer_radius_px
     };
   }
 
-  function draw_annulus_sector(
-    drawing_context,
-    center_x_px,
-    center_y_px,
-    inner_radius_px,
-    outer_radius_px,
-    start_angle_rad,
-    end_angle_rad,
-    anticlockwise = false
-  ) {
-    drawing_context.beginPath();
-    drawing_context.arc(
-      center_x_px,
-      center_y_px,
-      outer_radius_px,
-      start_angle_rad,
-      end_angle_rad,
-      anticlockwise
-    );
-    drawing_context.arc(
-      center_x_px,
-      center_y_px,
-      inner_radius_px,
-      end_angle_rad,
-      start_angle_rad,
-      !anticlockwise
-    );
-    drawing_context.closePath();
+  function clear_layers() {
+    runtime.layers.backgroundSpokes.clear();
+    runtime.layers.points.clear();
+    runtime.layers.haloThinSpokes.clear();
+    runtime.layers.haloThickSpokes.clear();
+    runtime.layers.haloEchoDots.clear();
+    runtime.layers.eyes.clear();
   }
 
-  function draw_full_annulus(
-    drawing_context,
-    center_x_px,
-    center_y_px,
-    inner_radius_px,
-    outer_radius_px
-  ) {
-    drawing_context.beginPath();
-    drawing_context.arc(center_x_px, center_y_px, outer_radius_px, 0, TAU);
-    drawing_context.arc(center_x_px, center_y_px, inner_radius_px, TAU, 0, true);
-    drawing_context.closePath();
+  function finalize_layers() {
+    runtime.layers.backgroundSpokes.finalize();
+    runtime.layers.points.finalize();
+    runtime.layers.haloThinSpokes.finalize();
+    runtime.layers.haloThickSpokes.finalize();
+    runtime.layers.haloEchoDots.finalize();
+    runtime.layers.eyes.finalize();
   }
 
-  function draw_circle_band(
-    drawing_context,
-    center_x_px,
-    center_y_px,
-    inner_radius_px,
-    outer_radius_px
-  ) {
-    drawing_context.beginPath();
-    drawing_context.arc(center_x_px, center_y_px, outer_radius_px, 0, TAU);
-    if (inner_radius_px > 0) {
-      drawing_context.arc(center_x_px, center_y_px, inner_radius_px, TAU, 0, true);
-    }
-    drawing_context.closePath();
+  function update_layer_colors() {
+    runtime.layers.backgroundSpokes.setColor(config.spoke_lines.construction_color);
+    runtime.layers.points.setColor(config.point_style.color);
+    runtime.layers.haloThinSpokes.setColor(config.spoke_lines.reference_color);
+    runtime.layers.haloThickSpokes.setColor(config.spoke_lines.color);
+    runtime.layers.haloEchoDots.setColor(config.spoke_lines.color);
+    runtime.layers.eyes.setColor("#ffffff");
+    face_material.color.set(config.mascot.color);
+    halo_reference_material.color.set(HALO_REFERENCE_COLOR);
   }
 
-  function get_full_frame_spoke_outer_radius(center_x_px, center_y_px) {
-    const farthest_corner_dx_px = Math.max(center_x_px, STAGE_WIDTH_PX - center_x_px);
-    const farthest_corner_dy_px = Math.max(center_y_px, STAGE_HEIGHT_PX - center_y_px);
-    return Math.hypot(farthest_corner_dx_px, farthest_corner_dy_px);
-  }
+  function push_background_spokes(spokes, full_frame_outer_radius_px) {
+    for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
+      const spoke = spokes[spoke_index];
+      const spoke_alpha = clamp(spoke.alpha ?? 1, 0, 1);
+      if (spoke_alpha <= 0) {
+        continue;
+      }
 
-  function clip_finale_halo_region(
-    drawing_context,
-    box,
-    halo_u,
-    mask_start_angle_rad,
-    sweep_end_angle_rad,
-    halo_inner_radius_px,
-    halo_outer_radius_px,
-    force_final
-  ) {
-    if (halo_u <= 0) {
-      return false;
-    }
+      const start_x =
+        config.composition.center_x_px + Math.cos(spoke.angle) * spoke.start_radius;
+      const start_y =
+        config.composition.center_y_px + Math.sin(spoke.angle) * spoke.start_radius;
+      const end_x =
+        config.composition.center_x_px + Math.cos(spoke.angle) * full_frame_outer_radius_px;
+      const end_y =
+        config.composition.center_y_px + Math.sin(spoke.angle) * full_frame_outer_radius_px;
 
-    if (force_final || halo_u >= 0.999) {
-      draw_full_annulus(
-        drawing_context,
-        box.center_x_px,
-        box.center_y_px,
-        halo_inner_radius_px,
-        halo_outer_radius_px
-      );
-    } else {
-      draw_annulus_sector(
-        drawing_context,
-        box.center_x_px,
-        box.center_y_px,
-        halo_inner_radius_px,
-        halo_outer_radius_px,
-        mask_start_angle_rad,
-        sweep_end_angle_rad,
-        true
+      runtime.layers.backgroundSpokes.push(
+        start_x,
+        start_y,
+        end_x,
+        end_y,
+        BACKGROUND_SPOKE_WIDTH_PX,
+        spoke_alpha
       );
     }
-
-    drawing_context.clip();
-    return true;
   }
 
-  function trace_spoke_path(
-    drawing_context,
-    spoke,
-    start_radius_px = spoke.start_radius,
-    end_radius_px = spoke.end_radius
-  ) {
-    const x0 = config.composition.center_x_px + Math.cos(spoke.angle) * start_radius_px;
-    const y0 = config.composition.center_y_px + Math.sin(spoke.angle) * start_radius_px;
-    const x1 = config.composition.center_x_px + Math.cos(spoke.angle) * end_radius_px;
-    const y1 = config.composition.center_y_px + Math.sin(spoke.angle) * end_radius_px;
-    drawing_context.moveTo(x0, y0);
-    drawing_context.lineTo(x1, y1);
-  }
-
-  function get_spoke_width_scale(spoke) {
-    const phase_start_scale = clamp(config.spoke_lines.phase_start_scale ?? 1, 0.01, 1);
-    return lerp(phase_start_scale, 1, clamp(spoke.phase_u ?? 1, 0, 1));
-  }
-
-  function get_spoke_echo_mask(spoke, echo_index) {
-    return {
-      center_x_px: spoke.inner_clip_center_x_px,
-      center_y_px: spoke.inner_clip_center_y_px,
-      radius_px: spoke.inner_clip_radius_px + spoke.inner_clip_offset_px * echo_index
-    };
-  }
-
-  function get_background_spoke_canvas() {
-    if (runtime.background_spoke_canvas || runtime.spokes.length === 0) {
-      return runtime.background_spoke_canvas;
-    }
-
-    const { canvas: layer_canvas, context: layer_context } = create_layer_canvas(
-      STAGE_WIDTH_PX,
-      STAGE_HEIGHT_PX
-    );
-    const full_frame_outer_radius_px = get_full_frame_spoke_outer_radius(
-      config.composition.center_x_px,
-      config.composition.center_y_px
-    );
-
-    layer_context.clearRect(0, 0, STAGE_WIDTH_PX, STAGE_HEIGHT_PX);
-    layer_context.globalAlpha = 1;
-    layer_context.strokeStyle = config.spoke_lines.construction_color;
-    layer_context.lineWidth = BACKGROUND_SPOKE_WIDTH_PX;
-
-    for (let spoke_index = 0; spoke_index < runtime.spokes.length; spoke_index += 1) {
-      const spoke = runtime.spokes[spoke_index];
-      layer_context.beginPath();
-      trace_spoke_path(layer_context, spoke, spoke.start_radius, full_frame_outer_radius_px);
-      layer_context.stroke();
-    }
-
-    runtime.background_spoke_canvas = layer_canvas;
-    return runtime.background_spoke_canvas;
-  }
-
-  function get_reference_halo_canvas(draw_size_px) {
-    if (!runtime.mascot_halo_image) {
-      return null;
-    }
-
-    const halo_size_px = Math.max(1, Math.round(draw_size_px));
-    if (
-      runtime.halo_reference_canvas &&
-      runtime.halo_reference_canvas_size_px === halo_size_px
-    ) {
-      return runtime.halo_reference_canvas;
-    }
-
-    const { canvas: halo_canvas, context: halo_context } = create_layer_canvas(
-      halo_size_px,
-      halo_size_px
-    );
-    halo_context.clearRect(0, 0, halo_size_px, halo_size_px);
-    halo_context.drawImage(runtime.mascot_halo_image, 0, 0, halo_size_px, halo_size_px);
-    halo_context.globalCompositeOperation = "source-in";
-    halo_context.fillStyle = HALO_REFERENCE_COLOR;
-    halo_context.fillRect(0, 0, halo_size_px, halo_size_px);
-    halo_context.globalCompositeOperation = "source-over";
-
-    runtime.halo_reference_canvas = halo_canvas;
-    runtime.halo_reference_canvas_size_px = halo_size_px;
-    return halo_canvas;
-  }
-
-  function get_halo_layer_canvas(box) {
-    if (
-      runtime.halo_layer_canvas &&
-      runtime.halo_layer_canvas_draw_size_px === box.draw_size_px
-    ) {
-      return runtime.halo_layer_canvas;
-    }
-
-    const { canvas: layer_canvas, context: layer_context } = create_layer_canvas(
-      STAGE_WIDTH_PX,
-      STAGE_HEIGHT_PX
-    );
-    const halo_outer_radius_px = box.draw_size_px * 0.5;
-    const full_frame_spoke_outer_radius_px = get_full_frame_spoke_outer_radius(
-      box.center_x_px,
-      box.center_y_px
-    );
-
-    layer_context.clearRect(0, 0, STAGE_WIDTH_PX, STAGE_HEIGHT_PX);
-
-    if (config.spoke_lines.show_reference_halo) {
-      const halo_reference_canvas = get_reference_halo_canvas(box.draw_size_px);
-      if (halo_reference_canvas) {
-        layer_context.save();
-        layer_context.globalAlpha = HALO_REFERENCE_OPACITY;
-        layer_context.drawImage(
-          halo_reference_canvas,
-          box.left_px,
-          box.top_px,
-          box.draw_size_px,
-          box.draw_size_px
-        );
-        layer_context.restore();
-      }
-    }
-
-    const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0);
-    if (outer_width_px > 0) {
-      layer_context.save();
-      layer_context.strokeStyle = config.spoke_lines.reference_color;
-      layer_context.globalAlpha = 1;
-      layer_context.lineWidth = outer_width_px;
-      for (let spoke_index = 0; spoke_index < runtime.spokes.length; spoke_index += 1) {
-        const spoke = runtime.spokes[spoke_index];
-        layer_context.beginPath();
-        trace_spoke_path(layer_context, spoke, spoke.start_radius, halo_outer_radius_px);
-        layer_context.stroke();
-      }
-      layer_context.restore();
-    }
-
-    const inner_width_px = Math.max(0, config.spoke_lines.inner_width_px || 0);
-    if (inner_width_px > 0) {
-      const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
-      const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
-      const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
-      const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
-      const ripple_min_scale = 0.45;
-      const ripple_max_scale = 1.55;
-      const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
-
-      for (let echo_index = 0; echo_index <= echo_count; echo_index += 1) {
-        const dot_scale_mult = echo_index === 0 ? 1 : Math.pow(echo_dot_scale_mult, echo_index);
-        if (dot_scale_mult <= 0) {
-          continue;
-        }
-
-        for (let spoke_index = 0; spoke_index < runtime.spokes.length; spoke_index += 1) {
-          const spoke = runtime.spokes[spoke_index];
-          const clip_mask = get_spoke_echo_mask(spoke, echo_index);
-          const previous_clip_radius_px = echo_index === 0
-            ? 0
-            : get_spoke_echo_mask(spoke, echo_index - 1).radius_px;
-
-          layer_context.save();
-          draw_circle_band(
-            layer_context,
-            clip_mask.center_x_px,
-            clip_mask.center_y_px,
-            previous_clip_radius_px,
-            clip_mask.radius_px
-          );
-          layer_context.clip();
-
-          if (echo_index === 0) {
-            layer_context.strokeStyle = config.spoke_lines.color;
-            layer_context.lineWidth = inner_width_px * get_spoke_width_scale(spoke);
-            layer_context.beginPath();
-            trace_spoke_path(
-              layer_context,
-              spoke,
-              spoke.start_radius,
-              full_frame_spoke_outer_radius_px
-            );
-            layer_context.stroke();
-            layer_context.restore();
-            continue;
-          }
-
-          layer_context.fillStyle = config.spoke_lines.color;
-          const dot_templates = spoke.echo_dots;
-          const orbit_step_px = spoke.echo_dot_step_px;
-          if (!dot_templates.length || orbit_step_px <= 0) {
-            layer_context.restore();
-            continue;
-          }
-
-          const max_orbit_index = Math.ceil(
-            (full_frame_spoke_outer_radius_px - spoke.echo_dot_origin_radius) / orbit_step_px
-          );
-          const ripple_span_px = Math.max(
-            1,
-            full_frame_spoke_outer_radius_px - spoke.echo_dot_origin_radius
-          );
-          for (let orbit_index = 0; orbit_index <= max_orbit_index; orbit_index += 1) {
-            const template_dot = dot_templates[Math.min(orbit_index, dot_templates.length - 1)];
-            const dot_radius = spoke.echo_dot_origin_radius + orbit_index * orbit_step_px;
-            const ripple_u = clamp(
-              (dot_radius - spoke.echo_dot_origin_radius) / ripple_span_px,
-              0,
-              1
-            );
-            const ripple_phase = ripple_u * echo_wave_count * TAU;
-            const ripple_scale = echo_wave_count > 0
-              ? lerp(
-                ripple_min_scale,
-                ripple_max_scale,
-                0.5 + 0.5 * Math.cos(ripple_phase)
-              )
-              : 1;
-            const capped_dot_scale_mult = Math.min(1, dot_scale_mult * ripple_scale);
-            const dot_radius_px = template_dot.radius_px * capped_dot_scale_mult;
-            if (dot_radius_px <= 0) {
-              continue;
-            }
-
-            const dot_alpha = 1 - smoothstep(ripple_fade_start_u, 1, ripple_u);
-            if (dot_alpha <= 0) {
-              continue;
-            }
-
-            const dot_x = config.composition.center_x_px + Math.cos(spoke.angle) * dot_radius;
-            const dot_y = config.composition.center_y_px + Math.sin(spoke.angle) * dot_radius;
-            layer_context.globalAlpha = dot_alpha;
-            layer_context.beginPath();
-            layer_context.arc(dot_x, dot_y, dot_radius_px, 0, TAU);
-            layer_context.fill();
-          }
-          layer_context.restore();
-        }
-      }
-    }
-
-    runtime.halo_layer_canvas = layer_canvas;
-    runtime.halo_layer_canvas_draw_size_px = box.draw_size_px;
-    return runtime.halo_layer_canvas;
-  }
-
-  function draw_mascot_nose(box, nose_offset_px, base_alpha) {
-    if (base_alpha <= 0) {
-      return;
-    }
-
-    const scale = box.draw_size_px / MASCOT_VIEWBOX_SIZE;
-    if (scale <= 0) {
-      return;
-    }
-
-    context.save();
-    context.translate(box.left_px, box.top_px);
-    context.scale(scale, scale);
-    context.globalAlpha = base_alpha;
-    context.fillStyle = config.mascot.color;
-    context.fill(MASCOT_NOSE_PATH);
-    context.translate(0, -nose_offset_px / scale);
-    context.fillStyle = STAGE_BACKGROUND_COLOR;
-    context.fill(MASCOT_NOSE_PATH);
-    context.restore();
-  }
-
-  function draw_mascot_eyes(box, eye_amount, base_alpha) {
-    const closed_eye_scale_y = clamp(config.blink.eye_scale_y_closed, 0.02, 1);
-    const eye_scale_y = lerp(1, closed_eye_scale_y, eye_amount);
-
-    context.save();
-    context.fillStyle = "#ffffff";
-    context.globalAlpha = base_alpha;
-
-    for (let eye_index = 0; eye_index < MASCOT_EYE_SPECS.length; eye_index += 1) {
-      const eye = MASCOT_EYE_SPECS[eye_index];
-      const center_x_px = box.left_px + box.draw_size_px * (eye.cx / MASCOT_VIEWBOX_SIZE);
-      const center_y_px = box.top_px + box.draw_size_px * (eye.cy / MASCOT_VIEWBOX_SIZE);
-      const radius_x_px = box.draw_size_px * (eye.radius / MASCOT_VIEWBOX_SIZE);
-      const radius_y_px = Math.max(0.75, radius_x_px * eye_scale_y);
-
-      context.beginPath();
-      context.ellipse(center_x_px, center_y_px, radius_x_px, radius_y_px, 0, 0, TAU);
-      context.fill();
-    }
-
-    context.restore();
-  }
-
-  function draw_background_spokes() {
-    const layer_canvas = get_background_spoke_canvas();
-    if (!layer_canvas) {
-      return;
-    }
-    context.drawImage(layer_canvas, 0, 0);
-  }
-
-  function draw_post_finale_background_spokes(field_state) {
-    if (!field_state || field_state.spokes.length === 0) {
-      return;
-    }
-
-    context.save();
-    context.strokeStyle = config.spoke_lines.construction_color;
-    context.lineWidth = BACKGROUND_SPOKE_WIDTH_PX;
-
-    for (let spoke_index = 0; spoke_index < field_state.spokes.length; spoke_index += 1) {
-      const spoke = field_state.spokes[spoke_index];
-      if (spoke.alpha <= 0) {
-        continue;
-      }
-      context.globalAlpha = spoke.alpha;
-      context.beginPath();
-      trace_spoke_path(context, spoke, spoke.start_radius, field_state.full_frame_outer_radius_px);
-      context.stroke();
-    }
-
-    context.restore();
-  }
-
-  function draw_post_finale_points(field_state) {
-    if (!field_state || field_state.points.length === 0) {
-      return;
-    }
-
-    context.save();
-    context.fillStyle = config.point_style.color;
-
-    for (let point_index = 0; point_index < field_state.points.length; point_index += 1) {
-      const point = field_state.points[point_index];
-      const point_alpha = config.point_style.alpha * point.alpha;
-      if (point_alpha <= 0 || point.radius_px <= 0) {
-        continue;
-      }
-
-      context.globalAlpha = point_alpha;
-      context.beginPath();
-      context.moveTo(point.x + point.radius_px, point.y);
-      context.arc(point.x, point.y, point.radius_px, 0, TAU);
-      context.fill();
-    }
-
-    context.restore();
-  }
-
-  function draw_post_finale_halo(field_state) {
-    if (!field_state || !field_state.box) {
-      return;
-    }
-
-    const box = field_state.box;
-
-    if (config.spoke_lines.show_reference_halo) {
-      const halo_reference_canvas = get_reference_halo_canvas(box.draw_size_px);
-      if (halo_reference_canvas) {
-        context.save();
-        context.globalAlpha = HALO_REFERENCE_OPACITY;
-        context.drawImage(
-          halo_reference_canvas,
-          box.left_px,
-          box.top_px,
-          box.draw_size_px,
-          box.draw_size_px
-        );
-        context.restore();
-      }
-    }
-
-    const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0);
-    if (outer_width_px > 0) {
-      context.save();
-      context.strokeStyle = config.spoke_lines.reference_color;
-      context.lineWidth = outer_width_px;
-      for (let spoke_index = 0; spoke_index < field_state.spokes.length; spoke_index += 1) {
-        const spoke = field_state.spokes[spoke_index];
-        if (spoke.alpha <= 0) {
-          continue;
-        }
-        context.globalAlpha = spoke.alpha;
-        context.beginPath();
-        trace_spoke_path(context, spoke, spoke.start_radius, field_state.halo_outer_radius_px);
-        context.stroke();
-      }
-      context.restore();
-    }
-
-    const inner_width_px = Math.max(0, config.spoke_lines.inner_width_px || 0);
-    if (inner_width_px <= 0) {
-      return;
-    }
-
-    const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
-    const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
-    const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
-    const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
-    const ripple_min_scale = 0.45;
-    const ripple_max_scale = 1.55;
-    const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
-
-    for (let echo_index = 0; echo_index <= echo_count; echo_index += 1) {
-      const dot_scale_mult = echo_index === 0 ? 1 : Math.pow(echo_dot_scale_mult, echo_index);
-      if (dot_scale_mult <= 0) {
-        continue;
-      }
-
-      for (let spoke_index = 0; spoke_index < field_state.spokes.length; spoke_index += 1) {
-        const spoke = field_state.spokes[spoke_index];
-        if (spoke.alpha <= 0) {
-          continue;
-        }
-
-        const clip_mask = get_spoke_echo_mask(spoke, echo_index);
-        const previous_clip_radius_px = echo_index === 0
-          ? 0
-          : get_spoke_echo_mask(spoke, echo_index - 1).radius_px;
-
-        context.save();
-        draw_circle_band(
-          context,
-          clip_mask.center_x_px,
-          clip_mask.center_y_px,
-          previous_clip_radius_px,
-          clip_mask.radius_px
-        );
-        context.clip();
-
-        if (echo_index === 0) {
-          context.globalAlpha = spoke.alpha;
-          context.strokeStyle = config.spoke_lines.color;
-          context.lineWidth = inner_width_px * get_spoke_width_scale(spoke);
-          context.beginPath();
-          trace_spoke_path(
-            context,
-            spoke,
-            spoke.start_radius,
-            field_state.full_frame_outer_radius_px
-          );
-          context.stroke();
-          context.restore();
-          continue;
-        }
-
-        const dot_templates = spoke.echo_dots;
-        const orbit_step_px = spoke.echo_dot_step_px;
-        if (!dot_templates.length || orbit_step_px <= 0) {
-          context.restore();
-          continue;
-        }
-
-        context.fillStyle = config.spoke_lines.color;
-        const max_orbit_index = Math.ceil(
-          (field_state.full_frame_outer_radius_px - spoke.echo_dot_origin_radius) / orbit_step_px
-        );
-        const ripple_span_px = Math.max(
-          1,
-          field_state.full_frame_outer_radius_px - spoke.echo_dot_origin_radius
-        );
-
-        for (let orbit_index = 0; orbit_index <= max_orbit_index; orbit_index += 1) {
-          const template_dot = dot_templates[Math.min(orbit_index, dot_templates.length - 1)];
-          const dot_radius = spoke.echo_dot_origin_radius + orbit_index * orbit_step_px;
-          const ripple_u = clamp(
-            (dot_radius - spoke.echo_dot_origin_radius) / ripple_span_px,
-            0,
-            1
-          );
-          const ripple_phase = ripple_u * echo_wave_count * TAU;
-          const ripple_scale = echo_wave_count > 0
-            ? lerp(
-              ripple_min_scale,
-              ripple_max_scale,
-              0.5 + 0.5 * Math.cos(ripple_phase)
-            )
-            : 1;
-          const capped_dot_scale_mult = Math.min(1, dot_scale_mult * ripple_scale);
-          const dot_radius_px = template_dot.radius_px * capped_dot_scale_mult;
-          if (dot_radius_px <= 0) {
-            continue;
-          }
-
-          const dot_alpha = spoke.alpha * (1 - smoothstep(ripple_fade_start_u, 1, ripple_u));
-          if (dot_alpha <= 0) {
-            continue;
-          }
-
-          const dot_x = config.composition.center_x_px + Math.cos(spoke.angle) * dot_radius;
-          const dot_y = config.composition.center_y_px + Math.sin(spoke.angle) * dot_radius;
-          context.globalAlpha = dot_alpha;
-          context.beginPath();
-          context.arc(dot_x, dot_y, dot_radius_px, 0, TAU);
-          context.fill();
-        }
-
-        context.restore();
-      }
-    }
-  }
-
-  function draw_mascot(playback_time_sec, force_final, options = {}) {
-    if (!config.mascot.enabled || !runtime.mascot_face_image || !runtime.mascot_box) {
-      return;
-    }
-
-    const box = runtime.mascot_box;
-    const draw_halo_layer = options.draw_halo_layer !== false;
-    const fade_amount = force_final ? 1 : compute_mascot_fade_amount(playback_time_sec);
-    const base_alpha = clamp(config.mascot.opacity * fade_amount, 0, 1);
-    if (base_alpha <= 0) {
-      return;
-    }
-
-    const head_turn_deg = force_final ? 0 : compute_head_turn_deg(playback_time_sec);
-    const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec);
-    const head_turn_eye_amount = force_final
-      ? 0
-      : compute_head_turn_eye_squint_amount(playback_time_sec);
-    const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
-    const nose_bob_px = config.sneeze.enabled
-      ? config.sneeze.nose_bob_up_px * combined_eye_amount
-      : 0;
-    const { halo_u } = compute_finale_progress(playback_time_sec, force_final);
-    const pattern_angle_offset_rad =
-      -TAU * (config.generator_wrangle.pattern_offset_spokes || 0) /
-      Math.max(1, config.generator_wrangle.spoke_count || 1);
-    const mask_start_angle_rad =
-      radians((config.finale.start_angle_deg || 0) + (config.finale.mask_angle_offset_deg || 0)) +
-      pattern_angle_offset_rad +
-      radians(config.composition.global_rotation_deg || 0);
-    const sweep_end_angle_rad = mask_start_angle_rad - TAU * halo_u;
-    const halo_inner_radius_px =
-      box.draw_size_px * clamp(config.finale.halo_inner_radius_u, 0.01, 0.5);
-    const halo_outer_radius_px = box.draw_size_px * 0.5;
-    const full_frame_spoke_outer_radius_px = get_full_frame_spoke_outer_radius(
-      box.center_x_px,
-      box.center_y_px
-    );
-    const halo_layer_canvas = get_halo_layer_canvas(box);
-
-    context.save();
-    context.imageSmoothingEnabled = true;
-    context.translate(box.center_x_px, box.center_y_px);
-    context.rotate(radians(head_turn_deg));
-    context.translate(-box.center_x_px, -box.center_y_px);
-
-    if (draw_halo_layer && halo_layer_canvas && halo_u > 0) {
-      context.save();
-      if (
-        clip_finale_halo_region(
-          context,
-          box,
-          halo_u,
-          mask_start_angle_rad,
-          sweep_end_angle_rad,
-          halo_inner_radius_px,
-          full_frame_spoke_outer_radius_px,
-          force_final
-        )
-      ) {
-        context.globalAlpha = base_alpha;
-        context.drawImage(halo_layer_canvas, 0, 0);
-      }
-      context.restore();
-    }
-
-    context.globalAlpha = base_alpha;
-    context.drawImage(
-      runtime.mascot_face_image,
-      box.left_px,
-      box.top_px,
-      box.draw_size_px,
-      box.draw_size_px
-    );
-    draw_mascot_nose(box, nose_bob_px, base_alpha);
-    draw_mascot_eyes(box, combined_eye_amount, base_alpha);
-    context.restore();
-  }
-
-  function draw_points(time_sec, force_final) {
-    if (runtime.points.length === 0) {
-      return;
-    }
-
-    context.save();
-    context.fillStyle = config.point_style.color;
+  function push_intro_points(time_sec, force_final) {
     const alpha_ramp_duration_sec = Math.max(
       0,
       config.transition_wrangle.alpha_ramp_duration_sec || 0
@@ -1474,39 +1038,449 @@ export function createRenderer({ stage, canvas, config }) {
         continue;
       }
 
-      context.globalAlpha = point_alpha;
-      context.beginPath();
-      context.moveTo(point_x + point.radius_px, point_y);
-      context.arc(point_x, point_y, point.radius_px, 0, TAU);
-      context.fill();
+      runtime.layers.points.push(
+        point_x,
+        point_y,
+        point.radius_px * 2,
+        point.radius_px * 2,
+        point_alpha
+      );
+    }
+  }
+
+  function push_post_finale_points(field_state) {
+    for (let point_index = 0; point_index < field_state.points.length; point_index += 1) {
+      const point = field_state.points[point_index];
+      const point_alpha = config.point_style.alpha * point.alpha;
+      if (point_alpha <= 0 || point.radius_px <= 0) {
+        continue;
+      }
+
+      runtime.layers.points.push(
+        point.x,
+        point.y,
+        point.radius_px * 2,
+        point.radius_px * 2,
+        point_alpha
+      );
+    }
+  }
+
+  function get_world_ray_circle_segment(
+    ray_origin_x,
+    ray_origin_y,
+    angle,
+    circle_center_x,
+    circle_center_y,
+    radius_px,
+    ray_start_radius,
+    ray_end_radius
+  ) {
+    const dir_x = Math.cos(angle);
+    const dir_y = Math.sin(angle);
+    const relative_center_x = circle_center_x - ray_origin_x;
+    const relative_center_y = circle_center_y - ray_origin_y;
+    const projection = dir_x * relative_center_x + dir_y * relative_center_y;
+    const center_distance_sq =
+      relative_center_x * relative_center_x + relative_center_y * relative_center_y;
+    const discriminant = projection * projection - (center_distance_sq - radius_px * radius_px);
+
+    if (discriminant <= 0) {
+      return null;
     }
 
-    context.restore();
+    const root = Math.sqrt(discriminant);
+    const entry_radius = projection - root;
+    const exit_radius = projection + root;
+    const start_radius = Math.max(ray_start_radius, Math.min(entry_radius, exit_radius));
+    const end_radius = Math.min(ray_end_radius, Math.max(entry_radius, exit_radius));
+
+    if (end_radius <= start_radius) {
+      return null;
+    }
+
+    return {
+      start_x: ray_origin_x + dir_x * start_radius,
+      start_y: ray_origin_y + dir_y * start_radius,
+      end_x: ray_origin_x + dir_x * end_radius,
+      end_y: ray_origin_y + dir_y * end_radius
+    };
+  }
+
+  function get_spoke_width_scale(spoke) {
+    const phase_start_scale = clamp(config.spoke_lines.phase_start_scale ?? 1, 0.01, 1);
+    return lerp(phase_start_scale, 1, clamp(spoke.phase_u ?? 1, 0, 1));
+  }
+
+  function is_revealed_local_point(local_x, local_y, reveal_state) {
+    if (!reveal_state) {
+      return true;
+    }
+
+    const radius = Math.hypot(local_x, local_y);
+    if (radius < reveal_state.inner_radius_px - 0.01 || radius > reveal_state.outer_radius_px + 0.01) {
+      return false;
+    }
+
+    if (reveal_state.force_final || reveal_state.halo_u >= 0.999) {
+      return true;
+    }
+
+    if (reveal_state.halo_u <= 0) {
+      return false;
+    }
+
+    const point_angle = Math.atan2(local_y, local_x);
+    const sweep_distance = wrap_positive(reveal_state.start_angle_rad - point_angle, TAU);
+    return sweep_distance <= TAU * reveal_state.halo_u + 0.0001;
+  }
+
+  function set_reference_halo_visibility(box, base_alpha, reveal_state) {
+    const should_show =
+      Boolean(config.spoke_lines.show_reference_halo) &&
+      Boolean(runtime.mascot_halo_texture) &&
+      Boolean(box) &&
+      base_alpha > 0;
+
+    halo_reference_mesh.visible = should_show;
+    if (!should_show) {
+      return;
+    }
+
+    const reveal_amount = reveal_state ? clamp(reveal_state.halo_u, 0, 1) : 1;
+    halo_reference_mesh.position.set(0, 0, 0);
+    halo_reference_mesh.scale.set(box.draw_size_px, box.draw_size_px, 1);
+    halo_reference_material.opacity = base_alpha * HALO_REFERENCE_OPACITY * reveal_amount;
+  }
+
+  function update_mascot(playback_time_sec, force_final, box) {
+    if (!config.mascot.enabled || !runtime.mascot_face_texture || !box) {
+      mascot_group.visible = false;
+      face_mesh.visible = false;
+      halo_reference_mesh.visible = false;
+      return {
+        base_alpha: 0,
+        halo_u: 0
+      };
+    }
+
+    const fade_amount = force_final ? 1 : compute_mascot_fade_amount(playback_time_sec);
+    const base_alpha = clamp(config.mascot.opacity * fade_amount, 0, 1);
+
+    mascot_group.visible = true;
+    mascot_group.position.set(box.center_x_px, box.center_y_px, 0);
+    mascot_group.rotation.z = radians(force_final ? 0 : compute_head_turn_deg(playback_time_sec));
+
+    face_mesh.visible = base_alpha > 0;
+    face_mesh.position.set(0, 0, 0);
+    face_mesh.scale.set(box.draw_size_px, box.draw_size_px, 1);
+    face_material.opacity = base_alpha;
+
+    if (base_alpha <= 0) {
+      halo_reference_mesh.visible = false;
+      return {
+        base_alpha: 0,
+        halo_u: 0
+      };
+    }
+
+    const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec);
+    const head_turn_eye_amount = force_final
+      ? 0
+      : compute_head_turn_eye_squint_amount(playback_time_sec);
+    const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
+    const closed_eye_scale_y = clamp(config.blink.eye_scale_y_closed, 0.02, 1);
+    const eye_scale_y = lerp(1, closed_eye_scale_y, combined_eye_amount);
+
+    for (let eye_index = 0; eye_index < MASCOT_EYE_SPECS.length; eye_index += 1) {
+      const eye = MASCOT_EYE_SPECS[eye_index];
+      const local_center_x = box.draw_size_px * (eye.cx / MASCOT_VIEWBOX_SIZE - 0.5);
+      const local_center_y = box.draw_size_px * (eye.cy / MASCOT_VIEWBOX_SIZE - 0.5);
+      const radius_x_px = box.draw_size_px * (eye.radius / MASCOT_VIEWBOX_SIZE);
+      const radius_y_px = Math.max(0.75, radius_x_px * eye_scale_y);
+
+      runtime.layers.eyes.push(
+        local_center_x,
+        local_center_y,
+        radius_x_px * 2,
+        radius_y_px * 2,
+        base_alpha
+      );
+    }
+
+    return {
+      base_alpha,
+      halo_u: compute_finale_progress(playback_time_sec, force_final).halo_u
+    };
+  }
+
+  function get_halo_reveal_state(
+    playback_time_sec,
+    force_final,
+    box,
+    full_frame_outer_radius_px,
+    halo_u
+  ) {
+    if (!box) {
+      return null;
+    }
+
+    const pattern_angle_offset_rad =
+      -TAU * (config.generator_wrangle.pattern_offset_spokes || 0) /
+      Math.max(1, config.generator_wrangle.spoke_count || 1);
+
+    return {
+      force_final,
+      halo_u,
+      start_angle_rad:
+        radians((config.finale.start_angle_deg || 0) + (config.finale.mask_angle_offset_deg || 0)) +
+        pattern_angle_offset_rad +
+        radians(config.composition.global_rotation_deg || 0),
+      inner_radius_px: box.draw_size_px * clamp(config.finale.halo_inner_radius_u, 0.01, 0.5),
+      outer_radius_px: full_frame_outer_radius_px
+    };
+  }
+
+  function push_halo_layers({
+    spokes,
+    box,
+    halo_outer_radius_px,
+    full_frame_outer_radius_px,
+    base_alpha,
+    reveal_state
+  }) {
+    if (!box || base_alpha <= 0) {
+      halo_reference_mesh.visible = false;
+      return;
+    }
+
+    set_reference_halo_visibility(box, base_alpha, reveal_state);
+
+    const field_center_x = config.composition.center_x_px;
+    const field_center_y = config.composition.center_y_px;
+    const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0);
+    const inner_width_px = Math.max(0, config.spoke_lines.inner_width_px || 0);
+    const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
+    const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
+    const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
+    const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
+    const ripple_min_scale = 0.45;
+    const ripple_max_scale = 1.55;
+    const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
+
+    for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
+      const spoke = spokes[spoke_index];
+      const spoke_alpha = base_alpha * clamp(spoke.alpha ?? 1, 0, 1);
+      if (spoke_alpha <= 0) {
+        continue;
+      }
+
+      const world_start_x = field_center_x + Math.cos(spoke.angle) * spoke.start_radius;
+      const world_start_y = field_center_y + Math.sin(spoke.angle) * spoke.start_radius;
+      const world_halo_end_x = field_center_x + Math.cos(spoke.angle) * halo_outer_radius_px;
+      const world_halo_end_y = field_center_y + Math.sin(spoke.angle) * halo_outer_radius_px;
+
+      const local_start_x = world_start_x - box.center_x_px;
+      const local_start_y = world_start_y - box.center_y_px;
+      const local_halo_end_x = world_halo_end_x - box.center_x_px;
+      const local_halo_end_y = world_halo_end_y - box.center_y_px;
+
+      if (outer_width_px > 0) {
+        const midpoint_x = (local_start_x + local_halo_end_x) * 0.5;
+        const midpoint_y = (local_start_y + local_halo_end_y) * 0.5;
+        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+          runtime.layers.haloThinSpokes.push(
+            local_start_x,
+            local_start_y,
+            local_halo_end_x,
+            local_halo_end_y,
+            outer_width_px,
+            spoke_alpha
+          );
+        }
+      }
+
+      if (inner_width_px <= 0) {
+        continue;
+      }
+
+      const segment = get_world_ray_circle_segment(
+        field_center_x,
+        field_center_y,
+        spoke.angle,
+        spoke.inner_clip_center_x_px,
+        spoke.inner_clip_center_y_px,
+        spoke.inner_clip_radius_px,
+        spoke.start_radius,
+        full_frame_outer_radius_px
+      );
+
+      if (segment) {
+        const local_segment_start_x = segment.start_x - box.center_x_px;
+        const local_segment_start_y = segment.start_y - box.center_y_px;
+        const local_segment_end_x = segment.end_x - box.center_x_px;
+        const local_segment_end_y = segment.end_y - box.center_y_px;
+        const midpoint_x = (local_segment_start_x + local_segment_end_x) * 0.5;
+        const midpoint_y = (local_segment_start_y + local_segment_end_y) * 0.5;
+
+        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+          runtime.layers.haloThickSpokes.push(
+            local_segment_start_x,
+            local_segment_start_y,
+            local_segment_end_x,
+            local_segment_end_y,
+            inner_width_px * get_spoke_width_scale(spoke),
+            spoke_alpha
+          );
+        }
+      }
+
+      const dot_templates = spoke.echo_dots;
+      const orbit_step_px = spoke.echo_dot_step_px;
+      if (!dot_templates.length || orbit_step_px <= 0 || echo_count <= 0 || spoke.inner_clip_offset_px <= 0) {
+        continue;
+      }
+
+      const clip_center_local_x = spoke.inner_clip_center_x_px - box.center_x_px;
+      const clip_center_local_y = spoke.inner_clip_center_y_px - box.center_y_px;
+      const max_orbit_index = Math.ceil(
+        (full_frame_outer_radius_px - spoke.echo_dot_origin_radius) / orbit_step_px
+      );
+      const ripple_span_px = Math.max(
+        1,
+        full_frame_outer_radius_px - spoke.echo_dot_origin_radius
+      );
+
+      for (let orbit_index = 0; orbit_index <= max_orbit_index; orbit_index += 1) {
+        const template_dot = dot_templates[Math.min(orbit_index, dot_templates.length - 1)];
+        const dot_radius = spoke.echo_dot_origin_radius + orbit_index * orbit_step_px;
+        const world_dot_x = field_center_x + Math.cos(spoke.angle) * dot_radius;
+        const world_dot_y = field_center_y + Math.sin(spoke.angle) * dot_radius;
+        const local_dot_x = world_dot_x - box.center_x_px;
+        const local_dot_y = world_dot_y - box.center_y_px;
+        const clip_distance = Math.hypot(
+          local_dot_x - clip_center_local_x,
+          local_dot_y - clip_center_local_y
+        );
+
+        if (clip_distance <= spoke.inner_clip_radius_px + 0.01) {
+          continue;
+        }
+
+        const echo_index = Math.ceil(
+          (clip_distance - spoke.inner_clip_radius_px) / spoke.inner_clip_offset_px
+        );
+        if (echo_index < 1 || echo_index > echo_count) {
+          continue;
+        }
+
+        if (!is_revealed_local_point(local_dot_x, local_dot_y, reveal_state)) {
+          continue;
+        }
+
+        const ripple_u = clamp(
+          (dot_radius - spoke.echo_dot_origin_radius) / ripple_span_px,
+          0,
+          1
+        );
+        const ripple_phase = ripple_u * echo_wave_count * TAU;
+        const ripple_scale = echo_wave_count > 0
+          ? lerp(
+            ripple_min_scale,
+            ripple_max_scale,
+            0.5 + 0.5 * Math.cos(ripple_phase)
+          )
+          : 1;
+        const capped_scale_mult = Math.min(1, Math.pow(echo_dot_scale_mult, echo_index) * ripple_scale);
+        const dot_radius_px = template_dot.radius_px * capped_scale_mult;
+        if (dot_radius_px <= 0) {
+          continue;
+        }
+
+        const dot_alpha =
+          spoke_alpha *
+          (1 - smoothstep(ripple_fade_start_u, 1, ripple_u));
+        if (dot_alpha <= 0) {
+          continue;
+        }
+
+        runtime.layers.haloEchoDots.push(
+          local_dot_x,
+          local_dot_y,
+          dot_radius_px * 2,
+          dot_radius_px * 2,
+          dot_alpha
+        );
+      }
+    }
   }
 
   function render_scene(time_sec, options = {}) {
+    ensure_layers();
+    clear_layers();
+    update_layer_colors();
+
     const force_dot_final = Boolean(options.force_dot_final);
     const force_mascot_final = Boolean(options.force_mascot_final);
     const playback_time_sec = options.playback_time_sec ?? time_sec;
     const use_dynamic_post_finale_field = is_post_finale_dynamic_field_active(playback_time_sec);
 
-    context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
-    context.globalAlpha = 1;
-    context.fillStyle = STAGE_BACKGROUND_COLOR;
-    context.fillRect(0, 0, STAGE_WIDTH_PX, STAGE_HEIGHT_PX);
-
     if (use_dynamic_post_finale_field) {
       const field_state = build_post_finale_field_state(playback_time_sec);
-      draw_post_finale_background_spokes(field_state);
-      draw_post_finale_points(field_state);
-      draw_post_finale_halo(field_state);
-      draw_mascot(playback_time_sec, true, { draw_halo_layer: false });
+      const mascot_state = update_mascot(playback_time_sec, true, field_state.box);
+      const reveal_state = get_halo_reveal_state(
+        playback_time_sec,
+        true,
+        field_state.box,
+        field_state.full_frame_outer_radius_px,
+        mascot_state.halo_u
+      );
+
+      push_background_spokes(field_state.spokes, field_state.full_frame_outer_radius_px);
+      push_post_finale_points(field_state);
+      push_halo_layers({
+        spokes: field_state.spokes,
+        box: field_state.box,
+        halo_outer_radius_px: field_state.halo_outer_radius_px,
+        full_frame_outer_radius_px: field_state.full_frame_outer_radius_px,
+        base_alpha: mascot_state.base_alpha,
+        reveal_state
+      });
+      finalize_layers();
+      renderer.render(scene, camera);
       return;
     }
 
-    draw_background_spokes();
-    draw_points(time_sec, force_dot_final);
-    draw_mascot(playback_time_sec, force_mascot_final);
+    const full_frame_outer_radius_px = get_full_frame_spoke_outer_radius(
+      config.composition.center_x_px,
+      config.composition.center_y_px
+    );
+    const mascot_state = update_mascot(
+      playback_time_sec,
+      force_mascot_final,
+      runtime.mascot_box
+    );
+    const reveal_state = get_halo_reveal_state(
+      playback_time_sec,
+      force_mascot_final,
+      runtime.mascot_box,
+      full_frame_outer_radius_px,
+      mascot_state.halo_u
+    );
+
+    push_background_spokes(runtime.spokes, full_frame_outer_radius_px);
+    push_intro_points(time_sec, force_dot_final);
+    push_halo_layers({
+      spokes: runtime.spokes,
+      box: runtime.mascot_box,
+      halo_outer_radius_px: runtime.mascot_box ? runtime.mascot_box.draw_size_px * 0.5 : 0,
+      full_frame_outer_radius_px,
+      base_alpha: mascot_state.base_alpha,
+      reveal_state
+    });
+
+    finalize_layers();
+    renderer.render(scene, camera);
   }
 
   function render_playback_frame(playback_time_sec) {
@@ -1564,18 +1538,23 @@ export function createRenderer({ stage, canvas, config }) {
         ? elapsed_sec
         : clamp(elapsed_sec, 0, runtime.playback_end_sec);
     }
+
     return has_post_finale_field_motion()
       ? Math.max(0, runtime.playback_time_sec)
       : clamp(runtime.playback_time_sec, 0, runtime.playback_end_sec);
   }
 
   function resize_canvas(playback_time_sec = runtime.playback_time_sec, rebuild_scene = true) {
-    canvas.width = STAGE_WIDTH_PX;
-    canvas.height = STAGE_HEIGHT_PX;
+    renderer.setPixelRatio(1);
+    renderer.setSize(stage_width_px, stage_height_px, false);
+    renderer.setViewport(0, 0, stage_width_px, stage_height_px);
+    camera.left = 0;
+    camera.right = stage_width_px;
+    camera.top = stage_height_px;
+    camera.bottom = 0;
+    camera.updateProjectionMatrix();
 
     runtime.dpr = 1;
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.imageSmoothingEnabled = false;
 
     if (rebuild_scene) {
       build_scene_data();
@@ -1600,16 +1579,15 @@ export function createRenderer({ stage, canvas, config }) {
     apply_stage_styles();
 
     if (!config.mascot.enabled) {
-      runtime.mascot_face_image = null;
-      runtime.mascot_halo_image = null;
+      clear_mascot_textures();
       runtime.mascot_box = null;
       invalidate_layer_caches();
     } else if (
       options.reload_mascot ||
-      !runtime.mascot_face_image ||
-      !runtime.mascot_halo_image
+      !runtime.mascot_face_texture ||
+      !runtime.mascot_halo_texture
     ) {
-      await load_mascot_images();
+      await load_mascot_textures();
       if (refresh_id !== runtime.refresh_serial) {
         return;
       }

@@ -1,13 +1,53 @@
 export const TAU = Math.PI * 2;
-export const STAGE_WIDTH_PX = 1920;
-export const STAGE_HEIGHT_PX = 1080;
-export const STAGE_ASPECT_RATIO = STAGE_WIDTH_PX / STAGE_HEIGHT_PX;
+export const OUTPUT_PROFILES = Object.freeze({
+  authoring_full_hd: Object.freeze({
+    key: "authoring_full_hd",
+    label: "Authoring Full HD",
+    width_px: 1920,
+    height_px: 1080,
+    kind: "authoring"
+  }),
+  led_wall_7680x2160: Object.freeze({
+    key: "led_wall_7680x2160",
+    label: "LED Wall 7680 x 2160",
+    width_px: 7680,
+    height_px: 2160,
+    kind: "largest_target"
+  })
+});
+export const DEFAULT_OUTPUT_PROFILE_KEY = "authoring_full_hd";
+export const LARGEST_OUTPUT_PROFILE_KEY = "led_wall_7680x2160";
+
+export function get_output_profile(profile_key = DEFAULT_OUTPUT_PROFILE_KEY) {
+  return OUTPUT_PROFILES[profile_key] || OUTPUT_PROFILES[DEFAULT_OUTPUT_PROFILE_KEY];
+}
+
+export function get_output_profile_metrics(profile_or_key = DEFAULT_OUTPUT_PROFILE_KEY) {
+  const profile = typeof profile_or_key === "string"
+    ? get_output_profile(profile_or_key)
+    : profile_or_key;
+  const width_px = profile.width_px;
+  const height_px = profile.height_px;
+
+  return Object.freeze({
+    ...profile,
+    aspect_ratio: width_px / height_px,
+    center_x_px: width_px * 0.5,
+    center_y_px: height_px * 0.5
+  });
+}
+
+export const DEFAULT_OUTPUT_PROFILE = get_output_profile_metrics(DEFAULT_OUTPUT_PROFILE_KEY);
+export const LARGEST_OUTPUT_PROFILE = get_output_profile_metrics(LARGEST_OUTPUT_PROFILE_KEY);
+export const STAGE_WIDTH_PX = DEFAULT_OUTPUT_PROFILE.width_px;
+export const STAGE_HEIGHT_PX = DEFAULT_OUTPUT_PROFILE.height_px;
+export const STAGE_ASPECT_RATIO = DEFAULT_OUTPUT_PROFILE.aspect_ratio;
 export const COMPOSITION_SIZE_PX = 600;
 export const STAGE_BACKGROUND_COLOR = "#262626";
 export const BACKGROUND_SPOKE_WIDTH_PX = 1;
 export const MASCOT_VIEWBOX_SIZE = 600;
-export const COMPOSITION_CENTER_X_PX = STAGE_WIDTH_PX * 0.5;
-export const COMPOSITION_CENTER_Y_PX = STAGE_HEIGHT_PX * 0.5;
+export const COMPOSITION_CENTER_X_PX = DEFAULT_OUTPUT_PROFILE.center_x_px;
+export const COMPOSITION_CENTER_Y_PX = DEFAULT_OUTPUT_PROFILE.center_y_px;
 export const MASCOT_EYE_SPECS = Object.freeze([
   Object.freeze({ cx: 260, cy: 290.25, radius: 8 }),
   Object.freeze({ cx: 340, cy: 290.25, radius: 8 })

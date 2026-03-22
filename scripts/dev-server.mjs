@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const project_root = path.resolve(__dirname, "..");
 const source_root = path.join(project_root, "src");
 const source_entry = path.join(source_root, "index.html");
+const three_root = path.join(project_root, "node_modules", "three");
 const watch_roots = [
   source_root,
   path.join(project_root, "assets")
@@ -74,6 +75,19 @@ function resolve_public_path(request_path) {
 
   if (clean_path === "/" || clean_path === "/index.html") {
     return source_entry;
+  }
+
+  if (clean_path.startsWith("/three/")) {
+    const relative_three_path = clean_path.slice("/three/".length);
+    const absolute_three_path = path.join(three_root, relative_three_path);
+    const normalized_three_root = path.normalize(three_root + path.sep);
+    const normalized_three_path = path.normalize(absolute_three_path);
+
+    if (!normalized_three_path.startsWith(normalized_three_root)) {
+      return null;
+    }
+
+    return normalized_three_path;
   }
 
   const relative_path = clean_path.replace(/^\/+/, "");
