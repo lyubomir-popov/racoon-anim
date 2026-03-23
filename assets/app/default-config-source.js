@@ -129,12 +129,12 @@ export const SOURCE_DEFAULT_CONFIG = {
     "desynchronized": true
   },
   "screensaver": {
-    "cycle_sec": 60,
+    "cycle_sec": 40,
     "ramp_in_sec": 2,
     "pulse_orbits": true,
     "pulse_spokes": true,
     "min_spoke_count": 16,
-    "phase_boundary_transition_sec": 0.12
+    "phase_boundary_transition_sec": 0.04
   },
   "vignette": {
     "enabled": true,
