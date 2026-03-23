@@ -432,7 +432,7 @@ export const CONFIG_FIELD_META = Object.freeze({
   "screensaver.phase_boundary_transition_sec": {
     label: "Phase Boundary Width Ease (sec)",
     help_text:
-      "When folded spokes cross the 3PM phase boundary, ease their thick-spoke width over this duration instead of snapping instantly.",
+      "When folded spokes cross the 3PM phase boundary, ease the thick-spoke width and clip handoff over this duration instead of snapping instantly.",
     numeric: { min: 0, max: 1.5, step: 0.01 }
   },
   "blink.enabled": {

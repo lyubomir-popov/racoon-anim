@@ -261,6 +261,7 @@ export function createRenderer({
     animation_start_ms: performance.now(),
     refresh_serial: 0,
     spoke_width_phase_u_by_source: new Map(),
+    spoke_clip_center_x_by_source: new Map(),
     spoke_width_transition_playback_time_sec: null,
     layers: null,
     layer_capacities: null
@@ -885,6 +886,7 @@ export function createRenderer({
 
   function reset_spoke_width_transition_state() {
     runtime.spoke_width_phase_u_by_source.clear();
+    runtime.spoke_clip_center_x_by_source.clear();
     runtime.spoke_width_transition_playback_time_sec = null;
   }
 
@@ -1020,6 +1022,7 @@ export function createRenderer({
       ? 1
       : 1 - Math.exp(-width_transition_delta_sec / width_transition_duration_sec);
     const next_spoke_width_phase_u_by_source = new Map();
+    const next_spoke_clip_center_x_by_source = new Map();
     const points = [];
     const spokes = [];
 
@@ -1047,10 +1050,15 @@ export function createRenderer({
       });
       const fill_u = phase_metrics.fill_u;
       const previous_width_phase_u = runtime.spoke_width_phase_u_by_source.get(source_index);
+      const previous_clip_center_x_px = runtime.spoke_clip_center_x_by_source.get(source_index);
       const width_phase_u = previous_width_phase_u == null
         ? fill_u
         : lerp(previous_width_phase_u, fill_u, width_transition_lerp_u);
+      const clip_center_x_px = previous_clip_center_x_px == null
+        ? phase_metrics.phase_mask_center_x_px
+        : lerp(previous_clip_center_x_px, phase_metrics.phase_mask_center_x_px, width_transition_lerp_u);
       next_spoke_width_phase_u_by_source.set(source_index, width_phase_u);
+      next_spoke_clip_center_x_by_source.set(source_index, clip_center_x_px);
       const continuous_active_orbits = clamp(
         generator.min_active_orbits +
           fill_u * (effective_orbit_count - generator.min_active_orbits),
@@ -1086,7 +1094,7 @@ export function createRenderer({
         echo_dot_step_px: orbit_step_px,
         echo_dots: [],
         inner_clip_offset_px: phase_mask_center_offset_x_px,
-        inner_clip_center_x_px: phase_metrics.phase_mask_center_x_px,
+        inner_clip_center_x_px: clip_center_x_px,
         inner_clip_center_y_px: center_y_px,
         inner_clip_radius_px: phase_mask_radius_px
       };
@@ -1115,7 +1123,7 @@ export function createRenderer({
         );
         const dot_radius_px = dot_diameter_px * 0.5;
         const phase_mask_distance_px = Math.hypot(
-          point_x - phase_metrics.phase_mask_center_x_px,
+          point_x - clip_center_x_px,
           point_y - center_y_px
         );
         const fits_within_spoke = use_reference_phase_masks
@@ -1141,6 +1149,7 @@ export function createRenderer({
     }
 
     runtime.spoke_width_phase_u_by_source = next_spoke_width_phase_u_by_source;
+    runtime.spoke_clip_center_x_by_source = next_spoke_clip_center_x_by_source;
     runtime.spoke_width_transition_playback_time_sec = playback_time_sec;
 
     return {
@@ -1334,6 +1343,24 @@ export function createRenderer({
     };
   }
 
+  function get_phase_end_alpha(angle_rad) {
+    const base_angle_rad = radians(config.generator_wrangle.base_angle_deg) +
+      radians(config.composition.global_rotation_deg || 0);
+    const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
+    const seam_display_u = 0.5;
+    const seam_distance_u = Math.min(
+      wrap_positive(display_u - seam_display_u, 1),
+      wrap_positive(seam_display_u - display_u, 1)
+    );
+    const fade_half_width_u = 3.5 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    const fade_floor_alpha = 0.28;
+    return lerp(
+      fade_floor_alpha,
+      1,
+      smoothstep(0, fade_half_width_u, seam_distance_u)
+    );
+  }
+
   function get_spoke_width_scale(spoke) {
     const phase_start_scale = clamp(config.spoke_lines.phase_start_scale ?? 1, 0.01, 1);
     return lerp(phase_start_scale, 1, clamp(spoke.width_phase_u ?? spoke.phase_u ?? 1, 0, 1));
@@ -1514,7 +1541,8 @@ export function createRenderer({
 
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
-      const spoke_alpha = base_alpha * clamp(spoke.alpha ?? 1, 0, 1);
+      const phase_end_alpha = get_phase_end_alpha(spoke.angle);
+      const spoke_alpha = base_alpha * phase_end_alpha * clamp(spoke.alpha ?? 1, 0, 1);
       if (spoke_alpha <= 0) {
         continue;
       }
