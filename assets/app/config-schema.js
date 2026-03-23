@@ -526,29 +526,23 @@ export const CONFIG_FIELD_META = Object.freeze({
   "vignette.enabled": {
     label: "Show Vignette"
   },
-  "vignette.offset_x_px": {
-    label: "Center Offset X (px)",
-    help_text:
-      "Moves the circular vignette left or right relative to the composition center so you can clear space for overlaid text.",
-    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
-  },
-  "vignette.offset_y_px": {
-    label: "Center Offset Y (px)",
-    help_text:
-      "Moves the circular vignette up or down relative to the composition center so you can clear space for overlaid text.",
-    numeric: { min: -MAX_OUTPUT_PROFILE_HEIGHT_PX, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
-  },
   "vignette.radius_px": {
-    label: "Clear Radius (px)",
+    label: "Radius (px)",
     help_text:
-      "The fully clear inner radius before the vignette starts fading the scene toward the background color.",
+      "How far the circular vignette reaches from the center before it is fully faded to the background color.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
   "vignette.feather_px": {
     label: "Feather (px)",
     help_text:
-      "How wide the circular fade band is before the overlay reaches the full background color.",
+      "How much of the vignette radius is used for the fade from transparent center to darkened edge.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "vignette.choke": {
+    label: "Choke",
+    help_text:
+      "Biases the midpoint of the vignette fade. Higher values keep more of the center revealed; lower values make the fade bite inward sooner.",
+    numeric: { min: 0, max: 1, step: 0.01 }
   },
   "blink.enabled": {
     hidden: true,

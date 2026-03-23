@@ -897,6 +897,7 @@ export function createRenderer({
       const spoke_spec = spoke_specs[spoke_id];
       spokes[spoke_id] = {
         source_spoke_id: spoke_id,
+        display_slot_id: spoke_id,
         spoke_pattern_id: spoke_spec.spoke_pattern_id ?? spoke_id,
         angle: spoke_spec.target_angle,
         phase_u: spoke_spec.fill_u,
@@ -1248,6 +1249,10 @@ export function createRenderer({
       }
 
       const display_u = wrap_positive(seam_display_u - wrapped_turn_position, 1);
+      const display_slot_id = wrap_positive(
+        Math.round(display_u * max_spoke_count),
+        max_spoke_count
+      );
       const angle = base_angle_rad + TAU * display_u;
       const spoke_pattern_id = wrap_positive(
         source_index - generator.pattern_offset_spokes,
@@ -1307,6 +1312,7 @@ export function createRenderer({
       );
       const spoke = {
         source_spoke_id: source_index,
+        display_slot_id,
         spoke_pattern_id,
         angle,
         alpha: 1,
@@ -1793,7 +1799,7 @@ export function createRenderer({
 
       const canvas_x = world_x;
       const canvas_y = stage_height_px - world_y;
-      const label_index = (spoke.source_spoke_id ?? spoke_index) % label_count;
+      const label_index = (spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index) % label_count;
       const label = UBUNTU_RELEASE_LABELS[label_index];
       text_overlay_context.save();
       text_overlay_context.translate(canvas_x, canvas_y);
@@ -1814,23 +1820,25 @@ export function createRenderer({
       return;
     }
 
-    const clear_radius_px = Math.max(0, Number(config.vignette.radius_px || 0));
+    const outer_radius_px = Math.max(0, Number(config.vignette.radius_px || 0));
     const feather_px = Math.max(0, Number(config.vignette.feather_px || 0));
-    if (clear_radius_px <= 0 && feather_px <= 0) {
+    const choke = clamp(Number(config.vignette.choke ?? 0.5), 0, 1);
+    if (outer_radius_px <= 0) {
       return;
     }
 
-    const center_x_px =
-      config.composition.center_x_px + Number(config.vignette.offset_x_px || 0);
-    const center_y_px =
-      config.composition.center_y_px + Number(config.vignette.offset_y_px || 0);
-    const outer_radius_px = Math.max(clear_radius_px + feather_px, clear_radius_px + 1);
+    const center_x_px = config.composition.center_x_px;
+    const center_y_px = config.composition.center_y_px;
+    const clear_radius_px = Math.max(0, outer_radius_px - feather_px);
     const safe_outer_radius_px = Math.max(1, outer_radius_px);
-    const inner_stop = clamp(clear_radius_px / safe_outer_radius_px, 0, 1);
+    const inner_stop = feather_px <= 0
+      ? 0.999
+      : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
+    const midpoint_stop = lerp(inner_stop, 1, choke);
     const gradient = text_overlay_context.createRadialGradient(
       center_x_px,
       center_y_px,
-      clear_radius_px,
+      0,
       center_x_px,
       center_y_px,
       outer_radius_px
@@ -1838,7 +1846,8 @@ export function createRenderer({
 
     gradient.addColorStop(0, "rgba(38, 38, 38, 0)");
     gradient.addColorStop(inner_stop, "rgba(38, 38, 38, 0)");
-    gradient.addColorStop(1, STAGE_BACKGROUND_COLOR);
+    gradient.addColorStop(midpoint_stop, "rgba(38, 38, 38, 0.5)");
+    gradient.addColorStop(1, "rgba(38, 38, 38, 1)");
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
@@ -2152,7 +2161,7 @@ export function createRenderer({
         // the current clip-derived echo rank, which can shift when mask geometry changes.
         const echo_marker_variant = get_echo_marker_variant(
           echo_style,
-          spoke.source_spoke_id ?? spoke_index,
+          spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index,
           orbit_index
         );
         let marker_outer_extent_px = dot_radius_px;
@@ -2246,6 +2255,7 @@ export function createRenderer({
       push_phase_debug_overlay(field_state.box);
       finalize_layers();
       renderer.render(scene, camera);
+      draw_vignette_overlay();
       return;
     }
 
