@@ -1348,10 +1348,11 @@ export function createRenderer({
       radians(config.composition.global_rotation_deg || 0);
     const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
     const seam_display_u = 0.5;
-    const seam_distance_u = Math.min(
-      wrap_positive(display_u - seam_display_u, 1),
-      wrap_positive(seam_display_u - display_u, 1)
-    );
+    if (display_u < seam_display_u) {
+      return 1;
+    }
+
+    const seam_distance_u = wrap_positive(display_u - seam_display_u, 1);
     const fade_half_width_u = 3.5 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
     const fade_floor_alpha = 0.28;
     return lerp(
@@ -1366,27 +1367,29 @@ export function createRenderer({
     return lerp(phase_start_scale, 1, clamp(spoke.width_phase_u ?? spoke.phase_u ?? 1, 0, 1));
   }
 
-  function is_revealed_local_point(local_x, local_y, reveal_state) {
+  function get_reveal_local_alpha(local_x, local_y, reveal_state) {
     if (!reveal_state) {
-      return true;
+      return 1;
     }
 
     const radius = Math.hypot(local_x, local_y);
     if (radius < reveal_state.inner_radius_px - 0.01 || radius > reveal_state.outer_radius_px + 0.01) {
-      return false;
+      return 0;
     }
 
     if (reveal_state.force_final || reveal_state.halo_u >= 0.999) {
-      return true;
+      return 1;
     }
 
     if (reveal_state.halo_u <= 0) {
-      return false;
+      return 0;
     }
 
     const point_angle = Math.atan2(local_y, local_x);
     const sweep_distance = wrap_positive(reveal_state.start_angle_rad - point_angle, TAU);
-    return sweep_distance <= TAU * reveal_state.halo_u + 0.0001;
+    const sweep_limit = TAU * reveal_state.halo_u;
+    const reveal_softness_rad = TAU * 2 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    return 1 - smoothstep(sweep_limit, sweep_limit + reveal_softness_rad, sweep_distance);
   }
 
   function set_reference_halo_visibility(box, base_alpha, reveal_state) {
@@ -1560,14 +1563,15 @@ export function createRenderer({
       if (outer_width_px > 0) {
         const midpoint_x = (local_start_x + local_halo_end_x) * 0.5;
         const midpoint_y = (local_start_y + local_halo_end_y) * 0.5;
-        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+        const reveal_alpha = get_reveal_local_alpha(midpoint_x, midpoint_y, reveal_state);
+        if (reveal_alpha > 0) {
           runtime.layers.haloThinSpokes.push(
             local_start_x,
             local_start_y,
             local_halo_end_x,
             local_halo_end_y,
             outer_width_px,
-            spoke_alpha
+            spoke_alpha * reveal_alpha
           );
         }
       }
@@ -1595,14 +1599,15 @@ export function createRenderer({
         const midpoint_x = (local_segment_start_x + local_segment_end_x) * 0.5;
         const midpoint_y = (local_segment_start_y + local_segment_end_y) * 0.5;
 
-        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+        const reveal_alpha = get_reveal_local_alpha(midpoint_x, midpoint_y, reveal_state);
+        if (reveal_alpha > 0) {
           runtime.layers.haloThickSpokes.push(
             local_segment_start_x,
             local_segment_start_y,
             local_segment_end_x,
             local_segment_end_y,
             inner_width_px * get_spoke_width_scale(spoke),
-            spoke_alpha
+            spoke_alpha * reveal_alpha
           );
         }
       }
@@ -1646,7 +1651,8 @@ export function createRenderer({
           continue;
         }
 
-        if (!is_revealed_local_point(local_dot_x, local_dot_y, reveal_state)) {
+        const reveal_alpha = get_reveal_local_alpha(local_dot_x, local_dot_y, reveal_state);
+        if (reveal_alpha <= 0) {
           continue;
         }
 
@@ -1671,6 +1677,7 @@ export function createRenderer({
 
         const dot_alpha =
           spoke_alpha *
+          reveal_alpha *
           (1 - smoothstep(ripple_fade_start_u, 1, ripple_u));
         if (dot_alpha <= 0) {
           continue;
