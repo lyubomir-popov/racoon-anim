@@ -1,0 +1,260 @@
+:root {
+  --bg: #121212;
+  --panel: #1d1d1d;
+  --panel-2: #232323;
+  --line: #353535;
+  --text: #f4f2eb;
+  --muted: #b9b2a3;
+  --construction: #393939;
+  --visible: #f4f2eb;
+  --glass: #8a8477;
+  --accent: #d7d1c4;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font: 16px/1.5 "Segoe UI", Helvetica, Arial, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.05), transparent 26rem),
+    linear-gradient(180deg, #0f0f0f, var(--bg));
+}
+
+a {
+  color: var(--accent);
+}
+
+.app-shell {
+  width: min(1600px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 2rem;
+}
+
+.hero,
+.panel {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent),
+    var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.eyebrow,
+.panel__header h2,
+.notes h2,
+.strip-header h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3vw, 3.1rem);
+  line-height: 1.05;
+}
+
+.hero-copy,
+.panel__header p,
+.strip-header p,
+.notes p,
+.notes li {
+  color: var(--accent);
+}
+
+.hero-copy {
+  margin: 0.7rem 0 0;
+  max-width: 60ch;
+}
+
+.hero-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 0.75rem;
+  align-self: start;
+}
+
+.metric {
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+}
+
+.metric__label {
+  display: block;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+}
+
+.metric__value {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 1.55rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.7fr);
+  gap: 1rem;
+}
+
+.panel {
+  padding: 1rem;
+}
+
+.panel__header,
+.strip-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 0.85rem;
+}
+
+.panel__header p,
+.strip-header p,
+.notes p {
+  margin: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  margin-right: 0.35rem;
+  border-radius: 999px;
+  vertical-align: -0.15rem;
+  border: 1px solid var(--line);
+}
+
+.swatch--construction {
+  background: var(--construction);
+}
+
+.swatch--visible {
+  background: var(--visible);
+}
+
+.swatch--glass {
+  background: var(--glass);
+}
+
+.canvas-frame,
+.strip-frame {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-2);
+}
+
+.canvas-frame {
+  overflow: hidden;
+}
+
+.stage-canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.strip-frame {
+  margin-top: 0.9rem;
+  padding: 0.9rem;
+}
+
+.strip-canvas {
+  display: block;
+  width: 100%;
+  height: 160px;
+}
+
+.controls {
+  display: grid;
+  gap: 1rem;
+}
+
+.control,
+.toggle {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.control span,
+.toggle span {
+  color: var(--text);
+}
+
+.control output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+.toggle {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+}
+
+.notes {
+  margin-top: 1rem;
+  padding: 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.notes ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.controls-panel {
+  align-self: start;
+}
+
+@media (max-width: 1100px) {
+  .layout,
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-meta {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spoke Fold 2.0 Demo</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Isolated Prototype</p>
+        <h1>Spoke Fold 2.0</h1>
+        <p class="hero-copy">
+          This demo implements the wrapped rubber-band model with a fixed glass field for thickness and
+          length sampling. It does not touch the current production renderer.
+        </p>
+      </div>
+      <div class="hero-meta">
+        <div class="metric">
+          <span class="metric__label">Source Spokes</span>
+          <strong class="metric__value" data-source-spokes>60</strong>
+        </div>
+        <div class="metric">
+          <span class="metric__label">Visible Spokes</span>
+          <strong class="metric__value" data-visible-spokes>60.0</strong>
+        </div>
+        <div class="metric">
+          <span class="metric__label">Total Turns</span>
+          <strong class="metric__value" data-total-turns>1.00</strong>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel stage-panel">
+        <div class="panel__header">
+          <div>
+            <h2>Stage</h2>
+            <p>Front turn only. Hidden turns disappear behind the seam at the lower side of 3pm.</p>
+          </div>
+          <div class="legend">
+            <span><i class="swatch swatch--construction"></i>construction</span>
+            <span><i class="swatch swatch--visible"></i>visible spokes</span>
+            <span><i class="swatch swatch--glass"></i>glass field</span>
+          </div>
+        </div>
+        <div class="canvas-frame">
+          <canvas class="stage-canvas" data-stage-canvas aria-label="Wrapped spoke demo"></canvas>
+        </div>
+        <div class="strip-frame">
+          <div class="strip-header">
+            <div>
+              <h2>Strip Debug</h2>
+              <p>Source order on the rubber band and the front-turn cutoff.</p>
+            </div>
+          </div>
+          <canvas class="strip-canvas" data-strip-canvas aria-label="Source strip debug"></canvas>
+        </div>
+      </section>
+
+      <aside class="panel controls-panel">
+        <div class="panel__header">
+          <div>
+            <h2>Controls</h2>
+            <p>Adjust the winding and the glass response without touching the main app.</p>
+          </div>
+        </div>
+
+        <div class="controls">
+          <label class="toggle">
+            <input type="checkbox" data-animate checked>
+            <span>Animate breathing</span>
+          </label>
+
+          <label class="control">
+            <span>Cycle seconds</span>
+            <input type="range" min="6" max="60" step="1" value="30" data-cycle-sec>
+            <output data-cycle-sec-output>30s</output>
+          </label>
+
+          <label class="control">
+            <span>Min visible spokes</span>
+            <input type="range" min="12" max="60" step="1" value="24" data-min-visible>
+            <output data-min-visible-output>24</output>
+          </label>
+
+          <label class="control">
+            <span>Manual visible spokes</span>
+            <input type="range" min="12" max="60" step="0.1" value="24" data-manual-visible>
+            <output data-manual-visible-output>24.0</output>
+          </label>
+
+          <label class="control">
+            <span>Glass gamma</span>
+            <input type="range" min="0.8" max="2.4" step="0.05" value="1.4" data-glass-gamma>
+            <output data-glass-gamma-output>1.40</output>
+          </label>
+
+          <label class="toggle">
+            <input type="checkbox" data-show-glass checked>
+            <span>Show glass field overlay</span>
+          </label>
+
+          <label class="toggle">
+            <input type="checkbox" data-show-strip checked>
+            <span>Show strip debug</span>
+          </label>
+        </div>
+
+        <section class="notes">
+          <h2>Model Notes</h2>
+          <ul>
+            <li>The rubber band controls source order and which marks wrap behind the front turn.</li>
+            <li>The glass field stays fixed in display space and determines visible thickness and length.</li>
+            <li>Upper phase gets thicker from 3pm to 9am. Lower phase mirrors that and thickens from 9am to 3pm.</li>
+            <li>The seam is pinned at 3pm, and disappearing spokes leave only on the lower side of that seam.</li>
+          </ul>
+        </section>
+
+        <section class="notes">
+          <h2>Files</h2>
+          <p><a href="./spec.md">2.0/spec.md</a></p>
+          <p><a href="../spoke-fold-spec.md">root spec</a></p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script type="module" src="./demo.js"></script>
+</body>
+</html>

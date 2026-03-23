@@ -28,6 +28,7 @@ function copy_directory(source_path, destination_path) {
 fs.rmSync(dist_root, { recursive: true, force: true });
 fs.mkdirSync(dist_root, { recursive: true });
 fs.copyFileSync(path.join(project_root, "src", "index.html"), path.join(dist_root, "index.html"));
+copy_directory(path.join(project_root, "2.0"), path.join(dist_root, "2.0"));
 copy_directory(path.join(project_root, "assets"), path.join(dist_root, "assets"));
 copy_directory(path.join(three_root, "build"), path.join(dist_root, "three", "build"));
 await write_stylesheet(path.join(dist_root, "assets", "app.css"), { style: "compressed" });
