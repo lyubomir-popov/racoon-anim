@@ -120,7 +120,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     cycle_sec: 30,
     ramp_in_sec: 6,
     pulse_orbits: true,
-    pulse_spokes: false,
+    pulse_spokes: true,
     min_spoke_count: 24
   },
   export_settings: {

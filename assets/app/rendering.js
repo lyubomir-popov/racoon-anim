@@ -1001,6 +1001,7 @@ export function createRenderer({
       ? Math.max(0, Math.ceil(radius_span_px / orbit_step_px))
       : 0;
     const total_turns = max_spoke_count / Math.max(1, effective_spoke_count);
+    const seam_display_u = 0.5;
     const points = [];
     const spokes = [];
 
@@ -1011,7 +1012,7 @@ export function createRenderer({
         continue;
       }
 
-      const display_u = wrapped_turn_position - Math.floor(wrapped_turn_position);
+      const display_u = wrap_positive(seam_display_u - wrapped_turn_position, 1);
       const angle = base_angle_rad + TAU * display_u;
       const spoke_pattern_id = wrap_positive(
         source_index - generator.pattern_offset_spokes,
@@ -1308,6 +1309,58 @@ export function createRenderer({
     return lerp(phase_start_scale, 1, clamp(spoke.phase_u ?? 1, 0, 1));
   }
 
+  function push_faded_segment(
+    layer,
+    start_x,
+    start_y,
+    end_x,
+    end_y,
+    width_px,
+    alpha,
+    reveal_state
+  ) {
+    if (width_px <= 0 || alpha <= 0) {
+      return;
+    }
+
+    const fade_start_u = 0.75;
+    const fade_step_count = 4;
+    const push_slice = (slice_start_u, slice_end_u, slice_alpha) => {
+      if (slice_end_u <= slice_start_u || slice_alpha <= 0) {
+        return;
+      }
+
+      const segment_start_x = lerp(start_x, end_x, slice_start_u);
+      const segment_start_y = lerp(start_y, end_y, slice_start_u);
+      const segment_end_x = lerp(start_x, end_x, slice_end_u);
+      const segment_end_y = lerp(start_y, end_y, slice_end_u);
+      const midpoint_x = (segment_start_x + segment_end_x) * 0.5;
+      const midpoint_y = (segment_start_y + segment_end_y) * 0.5;
+
+      if (!is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+        return;
+      }
+
+      layer.push(
+        segment_start_x,
+        segment_start_y,
+        segment_end_x,
+        segment_end_y,
+        width_px,
+        slice_alpha
+      );
+    };
+
+    push_slice(0, fade_start_u, alpha);
+
+    for (let fade_step = 0; fade_step < fade_step_count; fade_step += 1) {
+      const slice_start_u = lerp(fade_start_u, 1, fade_step / fade_step_count);
+      const slice_end_u = lerp(fade_start_u, 1, (fade_step + 1) / fade_step_count);
+      const slice_alpha = alpha * (1 - (fade_step + 1) / (fade_step_count + 1));
+      push_slice(slice_start_u, slice_end_u, slice_alpha);
+    }
+  }
+
   function is_revealed_local_point(local_x, local_y, reveal_state) {
     if (!reveal_state) {
       return true;
@@ -1499,18 +1552,16 @@ export function createRenderer({
       const local_halo_end_y = world_halo_end_y - box.center_y_px;
 
       if (outer_width_px > 0) {
-        const midpoint_x = (local_start_x + local_halo_end_x) * 0.5;
-        const midpoint_y = (local_start_y + local_halo_end_y) * 0.5;
-        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
-          runtime.layers.haloThinSpokes.push(
-            local_start_x,
-            local_start_y,
-            local_halo_end_x,
-            local_halo_end_y,
-            outer_width_px,
-            spoke_alpha
-          );
-        }
+        push_faded_segment(
+          runtime.layers.haloThinSpokes,
+          local_start_x,
+          local_start_y,
+          local_halo_end_x,
+          local_halo_end_y,
+          outer_width_px,
+          spoke_alpha,
+          reveal_state
+        );
       }
 
       if (inner_width_px <= 0) {
@@ -1533,19 +1584,16 @@ export function createRenderer({
         const local_segment_start_y = segment.start_y - box.center_y_px;
         const local_segment_end_x = segment.end_x - box.center_x_px;
         const local_segment_end_y = segment.end_y - box.center_y_px;
-        const midpoint_x = (local_segment_start_x + local_segment_end_x) * 0.5;
-        const midpoint_y = (local_segment_start_y + local_segment_end_y) * 0.5;
-
-        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
-          runtime.layers.haloThickSpokes.push(
-            local_segment_start_x,
-            local_segment_start_y,
-            local_segment_end_x,
-            local_segment_end_y,
-            inner_width_px * get_spoke_width_scale(spoke),
-            spoke_alpha
-          );
-        }
+        push_faded_segment(
+          runtime.layers.haloThickSpokes,
+          local_segment_start_x,
+          local_segment_start_y,
+          local_segment_end_x,
+          local_segment_end_y,
+          inner_width_px * get_spoke_width_scale(spoke),
+          spoke_alpha,
+          reveal_state
+        );
       }
 
       const dot_templates = spoke.echo_dots;
