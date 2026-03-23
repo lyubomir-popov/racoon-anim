@@ -5,7 +5,8 @@
   "scripts": {
     "build": "node scripts/build-site.mjs",
     "dev": "node scripts/dev-server.mjs",
-    "serve": "node scripts/dev-server.mjs --no-open --no-watch"
+    "serve": "node scripts/dev-server.mjs --no-open --no-watch",
+    "export:cli": "python scripts/export_frames.py"
   },
   "dependencies": {
     "sass": "^1.98.0",

@@ -158,6 +158,115 @@ function set_preset_meta(message, is_error = false) {
   preset_meta.classList.toggle("is-error", is_error);
 }
 
+function blob_to_data_url(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      resolve(String(reader.result || ""));
+    });
+    reader.addEventListener("error", () => {
+      reject(reader.error || new Error("Failed to read blob as data URL."));
+    });
+    reader.readAsDataURL(blob);
+  });
+}
+
+function get_automation_state() {
+  const output_profile_key = get_current_output_profile_key();
+  const output_profile = OUTPUT_PROFILES[output_profile_key];
+  return {
+    config: normalize_config_snapshot(config, default_config),
+    current_playback_time_sec: renderer.getCurrentPlaybackTimeSec(),
+    frame_rate: Math.max(1, Math.round(config.export_settings.frame_rate || 24)),
+    output_profile: output_profile
+      ? {
+          key: output_profile.key,
+          width_px: output_profile.width_px,
+          height_px: output_profile.height_px,
+          label: output_profile.label
+        }
+      : null,
+    output_profile_key,
+    playback_end_sec: renderer.getPlaybackEndSec(),
+    transparent_background: Boolean(config.export_settings?.transparent_background)
+  };
+}
+
+async function apply_automation_snapshot(payload = {}) {
+  if (typeof payload.config !== "undefined" && !is_plain_object(payload.config)) {
+    throw new Error("Automation snapshot config must be an object.");
+  }
+
+  const next_config =
+    typeof payload.config === "undefined"
+      ? normalize_config_snapshot(config, default_config)
+      : normalize_config_snapshot(payload.config, default_config);
+  replace_config(config, next_config, default_config);
+
+  if (typeof payload.transparent_background !== "undefined") {
+    config.export_settings.transparent_background = Boolean(payload.transparent_background);
+  }
+
+  if (Number.isFinite(payload.frame_rate)) {
+    config.export_settings.frame_rate = Math.max(1, Math.round(Number(payload.frame_rate)));
+  }
+
+  const next_profile_key =
+    typeof payload.output_profile_key === "string" && OUTPUT_PROFILES[payload.output_profile_key]
+      ? payload.output_profile_key
+      : get_current_output_profile_key();
+  const next_metrics = get_output_profile_metrics(next_profile_key);
+  config.output_profile_key = next_profile_key;
+  config.composition.center_x_px = next_metrics.center_x_px;
+  config.composition.center_y_px = next_metrics.center_y_px;
+
+  renderer.stopAnimation();
+  renderer.setOutputProfile(next_profile_key);
+  sync_editor_values();
+  await renderer.refreshScene({
+    invalidate_layers: true,
+    rebuild_scene: true,
+    reload_mascot: true,
+    restart_animation: false
+  });
+
+  const playback_time_sec = Number.isFinite(payload.playback_time_sec)
+    ? Math.max(0, Number(payload.playback_time_sec))
+    : 0;
+  renderer.renderPlaybackFrame(playback_time_sec);
+
+  return get_automation_state();
+}
+
+async function export_automation_frame(payload = {}) {
+  const playback_time_sec = Number.isFinite(payload.playback_time_sec)
+    ? Math.max(0, Number(payload.playback_time_sec))
+    : renderer.getCurrentPlaybackTimeSec();
+  const transparent_background =
+    typeof payload.transparent_background === "undefined"
+      ? Boolean(config.export_settings?.transparent_background)
+      : Boolean(payload.transparent_background);
+
+  renderer.stopAnimation();
+  renderer.renderPlaybackFrame(playback_time_sec);
+  const blob = await renderer.canvasToBlob("image/png", {
+    transparent_background
+  });
+  const png_data_url = await blob_to_data_url(blob);
+  const output_profile_key = get_current_output_profile_key();
+  const output_profile = OUTPUT_PROFILES[output_profile_key];
+  return {
+    frame_rate: Math.max(1, Math.round(config.export_settings.frame_rate || 24)),
+    height_px: output_profile?.height_px || 0,
+    playback_time_sec,
+    png_data_url,
+    png_base64: png_data_url.replace(/^data:image\/png;base64,/, ""),
+    output_profile_key,
+    transparent_background,
+    width_px: output_profile?.width_px || 0
+  };
+}
+
 function get_next_preset_name() {
   let index = state.presets.length + 1;
   const existing_names = new Set(state.presets.map((preset) => preset.name));
@@ -1991,6 +2100,26 @@ async function init() {
   resize_observer.observe(stage);
 }
 
-init().catch((error) => {
+const init_promise = init();
+
+window.__mascotAutomation = {
+  version: 1,
+  ready: async () => {
+    await init_promise;
+    renderer.stopAnimation();
+    return get_automation_state();
+  },
+  getState: () => get_automation_state(),
+  applySnapshot: async (payload = {}) => {
+    await init_promise;
+    return apply_automation_snapshot(payload);
+  },
+  exportFrame: async (payload = {}) => {
+    await init_promise;
+    return export_automation_frame(payload);
+  }
+};
+
+init_promise.catch((error) => {
   console.error(error);
 });
