@@ -128,8 +128,8 @@ function get_display_phase_metrics({
     };
   }
 
-  // Sample phases in screen-clock space: 3PM=0, 12PM=0.25, 9AM=0.5, 6PM=0.75.
-  const display_u = wrap_positive(base_angle_rad - angle_rad, TAU) / TAU;
+  // In the stage's y-up world space this already maps as: 3PM=0, 12PM=0.25, 9AM=0.5, 6PM=0.75.
+  const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
   const is_upper_phase = display_u <= 0.5;
   const fill_u = is_upper_phase
     ? display_u / 0.5
@@ -1005,7 +1005,7 @@ export function createRenderer({
       }
 
       const display_u = wrap_positive(seam_display_u - wrapped_turn_position, 1);
-      const angle = base_angle_rad - TAU * display_u;
+      const angle = base_angle_rad + TAU * display_u;
       const spoke_pattern_id = wrap_positive(
         source_index - generator.pattern_offset_spokes,
         max_spoke_count
