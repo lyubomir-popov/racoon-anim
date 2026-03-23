@@ -128,16 +128,8 @@ function get_display_phase_metrics({
     };
   }
 
-  const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
-  const seam_threshold_u = 1 / (Math.max(1, slot_count) * 3);
-  if (display_u < seam_threshold_u || display_u > 1 - seam_threshold_u) {
-    return {
-      fill_u: 1,
-      phase_frontier_u: 1,
-      phase_mask_center_x_px: center_x_px + phase_mask_center_offset_x_px
-    };
-  }
-
+  // Sample phases in screen-clock space: 3PM=0, 12PM=0.25, 9AM=0.5, 6PM=0.75.
+  const display_u = wrap_positive(base_angle_rad - angle_rad, TAU) / TAU;
   const is_upper_phase = display_u <= 0.5;
   const fill_u = is_upper_phase
     ? display_u / 0.5
@@ -1013,7 +1005,7 @@ export function createRenderer({
       }
 
       const display_u = wrap_positive(seam_display_u - wrapped_turn_position, 1);
-      const angle = base_angle_rad + TAU * display_u;
+      const angle = base_angle_rad - TAU * display_u;
       const spoke_pattern_id = wrap_positive(
         source_index - generator.pattern_offset_spokes,
         max_spoke_count
@@ -1049,9 +1041,12 @@ export function createRenderer({
         transition.phase_frontier_bias,
         config.point_style.min_scale
       );
+      const fold_fade_alpha = total_turns <= 1.0001
+        ? 1
+        : 1 - smoothstep(0.75, 1, wrapped_turn_position);
       const spoke = {
         angle,
-        alpha: 1,
+        alpha: fold_fade_alpha,
         phase_u: fill_u,
         start_radius: config.spoke_lines.start_radius_px * geometry_scale,
         end_radius: outer_radius_px + config.spoke_lines.end_radius_extra_px * geometry_scale,
@@ -1309,58 +1304,6 @@ export function createRenderer({
     return lerp(phase_start_scale, 1, clamp(spoke.phase_u ?? 1, 0, 1));
   }
 
-  function push_faded_segment(
-    layer,
-    start_x,
-    start_y,
-    end_x,
-    end_y,
-    width_px,
-    alpha,
-    reveal_state
-  ) {
-    if (width_px <= 0 || alpha <= 0) {
-      return;
-    }
-
-    const fade_start_u = 0.75;
-    const fade_step_count = 4;
-    const push_slice = (slice_start_u, slice_end_u, slice_alpha) => {
-      if (slice_end_u <= slice_start_u || slice_alpha <= 0) {
-        return;
-      }
-
-      const segment_start_x = lerp(start_x, end_x, slice_start_u);
-      const segment_start_y = lerp(start_y, end_y, slice_start_u);
-      const segment_end_x = lerp(start_x, end_x, slice_end_u);
-      const segment_end_y = lerp(start_y, end_y, slice_end_u);
-      const midpoint_x = (segment_start_x + segment_end_x) * 0.5;
-      const midpoint_y = (segment_start_y + segment_end_y) * 0.5;
-
-      if (!is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
-        return;
-      }
-
-      layer.push(
-        segment_start_x,
-        segment_start_y,
-        segment_end_x,
-        segment_end_y,
-        width_px,
-        slice_alpha
-      );
-    };
-
-    push_slice(0, fade_start_u, alpha);
-
-    for (let fade_step = 0; fade_step < fade_step_count; fade_step += 1) {
-      const slice_start_u = lerp(fade_start_u, 1, fade_step / fade_step_count);
-      const slice_end_u = lerp(fade_start_u, 1, (fade_step + 1) / fade_step_count);
-      const slice_alpha = alpha * (1 - (fade_step + 1) / (fade_step_count + 1));
-      push_slice(slice_start_u, slice_end_u, slice_alpha);
-    }
-  }
-
   function is_revealed_local_point(local_x, local_y, reveal_state) {
     if (!reveal_state) {
       return true;
@@ -1552,16 +1495,18 @@ export function createRenderer({
       const local_halo_end_y = world_halo_end_y - box.center_y_px;
 
       if (outer_width_px > 0) {
-        push_faded_segment(
-          runtime.layers.haloThinSpokes,
-          local_start_x,
-          local_start_y,
-          local_halo_end_x,
-          local_halo_end_y,
-          outer_width_px,
-          spoke_alpha,
-          reveal_state
-        );
+        const midpoint_x = (local_start_x + local_halo_end_x) * 0.5;
+        const midpoint_y = (local_start_y + local_halo_end_y) * 0.5;
+        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+          runtime.layers.haloThinSpokes.push(
+            local_start_x,
+            local_start_y,
+            local_halo_end_x,
+            local_halo_end_y,
+            outer_width_px,
+            spoke_alpha
+          );
+        }
       }
 
       if (inner_width_px <= 0) {
@@ -1584,16 +1529,19 @@ export function createRenderer({
         const local_segment_start_y = segment.start_y - box.center_y_px;
         const local_segment_end_x = segment.end_x - box.center_x_px;
         const local_segment_end_y = segment.end_y - box.center_y_px;
-        push_faded_segment(
-          runtime.layers.haloThickSpokes,
-          local_segment_start_x,
-          local_segment_start_y,
-          local_segment_end_x,
-          local_segment_end_y,
-          inner_width_px * get_spoke_width_scale(spoke),
-          spoke_alpha,
-          reveal_state
-        );
+        const midpoint_x = (local_segment_start_x + local_segment_end_x) * 0.5;
+        const midpoint_y = (local_segment_start_y + local_segment_end_y) * 0.5;
+
+        if (is_revealed_local_point(midpoint_x, midpoint_y, reveal_state)) {
+          runtime.layers.haloThickSpokes.push(
+            local_segment_start_x,
+            local_segment_start_y,
+            local_segment_end_x,
+            local_segment_end_y,
+            inner_width_px * get_spoke_width_scale(spoke),
+            spoke_alpha
+          );
+        }
       }
 
       const dot_templates = spoke.echo_dots;
