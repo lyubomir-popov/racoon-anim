@@ -16,12 +16,6 @@
           <section class="stage" data-stage aria-label="Animated mascot point field">
             <canvas aria-hidden="true"></canvas>
           </section>
-          <div class="viewer-actions">
-            <button class="p-button is-dense" type="button" data-replay-button>Replay</button>
-            <button class="p-button--base is-dense" type="button" data-export-sequence-button>Export PNG Seq</button>
-            <button class="p-button--base is-dense" type="button" data-set-defaults-button>Set Current Default</button>
-            <button class="p-button--base is-dense" type="button" data-reset-button>Reset Defaults</button>
-          </div>
         </div>
       </div>
     </main>
@@ -37,9 +31,38 @@
         <div class="p-panel__content drawer-panel__content">
           <div class="u-fixed-width drawer-content">
             <div class="preset-panel-content" data-preset-panel hidden>
+              <div class="main-actions">
+                <h2 class="p-muted-heading u-no-margin--bottom">Playback And Source Default</h2>
+                <div class="row">
+                  <div class="col-2">
+                    <button class="p-button is-dense" type="button" data-replay-button>Replay</button>
+                  </div>
+                  <div class="col-2">
+                    <button class="p-button--base is-dense" type="button" data-export-sequence-button>Export PNG Seq</button>
+                  </div>
+                  <div class="col-2">
+                    <button class="p-button--base is-dense" type="button" data-set-defaults-button>Write Source Default</button>
+                  </div>
+                  <div class="col-2">
+                    <button class="p-button--base is-dense" type="button" data-reset-button>Load Source Default</button>
+                  </div>
+                </div>
+                <p class="p-form-help-text main-actions-help u-no-margin--bottom">
+                  Presets are temporary browser-stored test states. The source default lives in
+                  <code>assets/app/default-config-source.js</code>.
+                </p>
+              </div>
+
+              <div class="preset-section-header">
+                <h2 class="p-muted-heading u-no-margin--bottom">Temporary Presets</h2>
+                <p class="p-form-help-text u-no-margin--bottom">
+                  Save snapshots for testing. Use Write Source Default when you want the current settings to become the tracked app default.
+                </p>
+              </div>
+
               <form class="p-form p-form--stacked preset-editor" onsubmit="return false;">
                 <div class="p-form__group preset-toolbar__name">
-                  <label class="p-form__label" for="preset-name">Preset name</label>
+                  <label class="p-form__label u-no-margin--bottom" for="preset-name">Preset name</label>
                   <div class="p-form__control">
                     <input class="p-form-validation__input is-dense" id="preset-name" type="text" data-preset-name placeholder="Preset name">
                   </div>

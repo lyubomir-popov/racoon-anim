@@ -264,6 +264,8 @@ export function createRenderer({
     mascot_halo_texture: null,
     mascot_box: null,
     animation_frame_id: 0,
+    is_paused: false,
+    pause_time_ms: 0,
     animation_start_ms: performance.now(),
     refresh_serial: 0,
     layers: null,
@@ -1734,7 +1736,26 @@ export function createRenderer({
     }
   }
 
+  function toggle_pause() {
+    if (runtime.is_paused) {
+      runtime.is_paused = false;
+      runtime.animation_start_ms += performance.now() - runtime.pause_time_ms;
+      runtime.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
+        render_current_frame(frame_now_ms, false);
+      });
+      return;
+    }
+
+    runtime.is_paused = true;
+    runtime.pause_time_ms = performance.now();
+    if (runtime.animation_frame_id) {
+      cancelAnimationFrame(runtime.animation_frame_id);
+      runtime.animation_frame_id = 0;
+    }
+  }
+
   function start_animation() {
+    runtime.is_paused = false;
     stop_animation();
     runtime.animation_start_ms = performance.now();
     runtime.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
@@ -1843,6 +1864,8 @@ export function createRenderer({
     renderCurrentFrame: render_current_frame,
     renderPlaybackFrame: render_playback_frame,
     startAnimation: start_animation,
-    stopAnimation: stop_animation
+    stopAnimation: stop_animation,
+    togglePause: toggle_pause,
+    isPaused: () => runtime.is_paused
   };
 }

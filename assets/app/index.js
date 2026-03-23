@@ -159,6 +159,35 @@ function clear_legacy_browser_default_config() {
   }
 }
 
+async function write_source_default_snapshot(snapshot) {
+  let response;
+  try {
+    response = await fetch("/__authoring/source-default-config", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ config: snapshot })
+    });
+  } catch (error) {
+    throw new Error(
+      "Source-default writeback needs the authoring dev server. Run `npm run dev` to write assets/app/default-config-source.js."
+    );
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (response.status === 404) {
+    throw new Error(
+      "Source-default writeback is not available in this build. Run `npm run dev` to write assets/app/default-config-source.js."
+    );
+  }
+
+  if (!response.ok || !payload?.ok) {
+    throw new Error(payload?.error || `Source default write failed with ${response.status}.`);
+  }
+  return payload;
+}
+
 function set_active_editor_tab(next_tab_key) {
   state.active_editor_tab_key = next_tab_key;
 
@@ -1190,7 +1219,7 @@ function reset_to_defaults() {
   save_presets_to_storage();
   return renderer.refreshScene({ reload_mascot: true })
     .then(() => {
-      set_preset_meta("Loaded the source default config.", false);
+      set_preset_meta("Loaded the source default from assets/app/default-config-source.js.", false);
     })
     .catch((error) => {
       console.error(error);
@@ -1198,12 +1227,21 @@ function reset_to_defaults() {
     });
 }
 
-function set_current_as_browser_default() {
-  clear_legacy_browser_default_config();
-  set_preset_meta(
-    "Browser-default overrides are disabled in this clean port. Source defaults drive the app.",
-    false
-  );
+async function write_current_as_source_default() {
+  const normalized_snapshot = normalize_config_snapshot(config, default_config);
+
+  try {
+    const payload = await write_source_default_snapshot(normalized_snapshot);
+    replace_config(default_config, normalized_snapshot, default_config);
+    clear_legacy_browser_default_config();
+    set_preset_meta(
+      `Wrote the current config to ${payload.path}. This is now the source default.`,
+      false
+    );
+  } catch (error) {
+    console.error(error);
+    set_preset_meta(`Source default write failed: ${error.message}`, true);
+  }
 }
 
 function activate_selected_preset() {
@@ -1339,7 +1377,7 @@ function attach_ui_events() {
   });
 
   set_defaults_button.addEventListener("click", () => {
-    set_current_as_browser_default();
+    void write_current_as_source_default();
   });
 
   preset_save_button.addEventListener("click", () => {
@@ -1374,6 +1412,19 @@ function attach_ui_events() {
     if (event.key === "Escape" && !document.body.classList.contains("editor-docked")) {
       set_drawer_open(false);
     }
+    if (
+      (event.key === " " || event.key.toLowerCase() === "p") &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !(event.target instanceof HTMLInputElement) &&
+      !(event.target instanceof HTMLTextAreaElement) &&
+      !(event.target instanceof HTMLSelectElement) &&
+      !(event.target instanceof HTMLElement && event.target.isContentEditable)
+    ) {
+      event.preventDefault();
+      renderer.togglePause();
+    }
   });
 }
 
@@ -1402,7 +1453,7 @@ async function init() {
   await renderer.refreshScene({ reload_mascot: true });
   if (is_local_editor) {
     set_preset_meta(
-      "Presets are stored in this browser. Save adds a preset when the name is new, otherwise it updates that preset.",
+      "Presets are browser-stored test snapshots. The tracked source default lives in assets/app/default-config-source.js.",
       false
     );
   }

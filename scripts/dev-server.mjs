@@ -10,9 +10,11 @@ const project_root = path.resolve(__dirname, "..");
 const source_root = path.join(project_root, "src");
 const source_entry = path.join(source_root, "index.html");
 const three_root = path.join(project_root, "node_modules", "three");
+const source_default_config_path = path.join(project_root, "assets", "app", "default-config-source.js");
 const watch_roots = [
   source_root,
-  path.join(project_root, "assets")
+  path.join(project_root, "assets"),
+  path.join(project_root, "2.0")
 ];
 const port_arg = process.argv.find((argument) => argument.startsWith("--port="));
 const host_arg = process.argv.find((argument) => argument.startsWith("--host="));
@@ -153,8 +155,60 @@ function open_browser(url) {
   exec(`xdg-open "${url}"`);
 }
 
+function read_request_body(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+
+    request.on("data", (chunk) => {
+      chunks.push(chunk);
+    });
+
+    request.on("end", () => {
+      resolve(Buffer.concat(chunks).toString("utf8"));
+    });
+
+    request.on("error", reject);
+  });
+}
+
+function write_source_default_config(snapshot) {
+  const module_source =
+    "export const SOURCE_DEFAULT_CONFIG = " +
+    `${JSON.stringify(snapshot, null, 2)};\n\n` +
+    "export default SOURCE_DEFAULT_CONFIG;\n";
+
+  fs.writeFileSync(source_default_config_path, module_source);
+}
+
 const server = http.createServer(async (request, response) => {
   const request_url = request.url || "/";
+  const request_path = request_url.split("?")[0];
+
+  if (request_path === "/__authoring/source-default-config" && request.method === "POST") {
+    try {
+      const request_body = await read_request_body(request);
+      const payload = JSON.parse(request_body || "{}");
+      const next_config = payload?.config;
+
+      if (!next_config || typeof next_config !== "object" || Array.isArray(next_config)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ error: "Expected a config object." }));
+        return;
+      }
+
+      write_source_default_config(next_config);
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({
+        ok: true,
+        path: "assets/app/default-config-source.js"
+      }));
+      return;
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error.message }));
+      return;
+    }
+  }
 
   if (request_url === "/__live") {
     response.writeHead(200, {
