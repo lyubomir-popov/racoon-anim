@@ -86,6 +86,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "screensaver.pulse_orbits",
   "screensaver.pulse_spokes",
   "screensaver.min_spoke_count",
+  "screensaver.phase_boundary_transition_sec",
   "sneeze.nose_bob_up_px",
   "spoke_lines.show_reference_halo",
   "spoke_lines.construction_color",

@@ -121,7 +121,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     ramp_in_sec: 6,
     pulse_orbits: true,
     pulse_spokes: true,
-    min_spoke_count: 24
+    min_spoke_count: 24,
+    phase_boundary_transition_sec: 0.12
   },
   export_settings: {
     frame_rate: 24

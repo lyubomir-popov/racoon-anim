@@ -260,6 +260,8 @@ export function createRenderer({
     pause_time_ms: 0,
     animation_start_ms: performance.now(),
     refresh_serial: 0,
+    spoke_width_phase_u_by_source: new Map(),
+    spoke_width_transition_playback_time_sec: null,
     layers: null,
     layer_capacities: null
   };
@@ -877,6 +879,15 @@ export function createRenderer({
     return Math.max(0, Number(config.screensaver?.cycle_sec || 0));
   }
 
+  function get_phase_boundary_transition_sec() {
+    return Math.max(0, Number(config.screensaver?.phase_boundary_transition_sec || 0));
+  }
+
+  function reset_spoke_width_transition_state() {
+    runtime.spoke_width_phase_u_by_source.clear();
+    runtime.spoke_width_transition_playback_time_sec = null;
+  }
+
   function compute_screensaver_pulse_u(playback_time_sec) {
     const cycle_sec = get_screensaver_cycle_sec();
     if (cycle_sec <= 0 || playback_time_sec <= runtime.playback_end_sec) {
@@ -994,6 +1005,21 @@ export function createRenderer({
       : 0;
     const total_turns = max_spoke_count / Math.max(1, effective_spoke_count);
     const seam_display_u = 0.5;
+    const width_transition_duration_sec = get_phase_boundary_transition_sec();
+    const last_width_transition_time_sec = runtime.spoke_width_transition_playback_time_sec;
+    const width_transition_delta_sec =
+      last_width_transition_time_sec == null
+        ? null
+        : playback_time_sec - last_width_transition_time_sec;
+    const should_snap_width_transition =
+      width_transition_duration_sec <= 0 ||
+      width_transition_delta_sec == null ||
+      width_transition_delta_sec <= 0 ||
+      width_transition_delta_sec > 0.25;
+    const width_transition_lerp_u = should_snap_width_transition
+      ? 1
+      : 1 - Math.exp(-width_transition_delta_sec / width_transition_duration_sec);
+    const next_spoke_width_phase_u_by_source = new Map();
     const points = [];
     const spokes = [];
 
@@ -1020,6 +1046,11 @@ export function createRenderer({
         phase_mask_center_offset_x_px
       });
       const fill_u = phase_metrics.fill_u;
+      const previous_width_phase_u = runtime.spoke_width_phase_u_by_source.get(source_index);
+      const width_phase_u = previous_width_phase_u == null
+        ? fill_u
+        : lerp(previous_width_phase_u, fill_u, width_transition_lerp_u);
+      next_spoke_width_phase_u_by_source.set(source_index, width_phase_u);
       const continuous_active_orbits = clamp(
         generator.min_active_orbits +
           fill_u * (effective_orbit_count - generator.min_active_orbits),
@@ -1048,6 +1079,7 @@ export function createRenderer({
         angle,
         alpha: fold_fade_alpha,
         phase_u: fill_u,
+        width_phase_u,
         start_radius: config.spoke_lines.start_radius_px * geometry_scale,
         end_radius: outer_radius_px + config.spoke_lines.end_radius_extra_px * geometry_scale,
         echo_dot_origin_radius: inner_radius_px,
@@ -1107,6 +1139,9 @@ export function createRenderer({
 
       spokes.push(spoke);
     }
+
+    runtime.spoke_width_phase_u_by_source = next_spoke_width_phase_u_by_source;
+    runtime.spoke_width_transition_playback_time_sec = playback_time_sec;
 
     return {
       box: mascot_box,
@@ -1301,7 +1336,7 @@ export function createRenderer({
 
   function get_spoke_width_scale(spoke) {
     const phase_start_scale = clamp(config.spoke_lines.phase_start_scale ?? 1, 0.01, 1);
-    return lerp(phase_start_scale, 1, clamp(spoke.phase_u ?? 1, 0, 1));
+    return lerp(phase_start_scale, 1, clamp(spoke.width_phase_u ?? spoke.phase_u ?? 1, 0, 1));
   }
 
   function is_revealed_local_point(local_x, local_y, reveal_state) {
@@ -1660,6 +1695,8 @@ export function createRenderer({
       return;
     }
 
+    reset_spoke_width_transition_state();
+
     const full_frame_outer_radius_px = get_full_frame_spoke_outer_radius(
       config.composition.center_x_px,
       config.composition.center_y_px
@@ -1753,6 +1790,7 @@ export function createRenderer({
   function start_animation() {
     runtime.is_paused = false;
     stop_animation();
+    reset_spoke_width_transition_state();
     runtime.animation_start_ms = performance.now();
     runtime.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
       render_current_frame(frame_now_ms, false);

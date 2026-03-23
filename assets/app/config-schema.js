@@ -429,6 +429,12 @@ export const CONFIG_FIELD_META = Object.freeze({
     label: "Min Spokes",
     numeric: { min: 1, max: 180, step: 1 }
   },
+  "screensaver.phase_boundary_transition_sec": {
+    label: "Phase Boundary Width Ease (sec)",
+    help_text:
+      "When folded spokes cross the 3PM phase boundary, ease their thick-spoke width over this duration instead of snapping instantly.",
+    numeric: { min: 0, max: 1.5, step: 0.01 }
+  },
   "blink.enabled": {
     hidden: true,
     locked_value: true
