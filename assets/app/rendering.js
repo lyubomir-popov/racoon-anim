@@ -375,7 +375,8 @@ export function createRenderer({
   }
 
   function get_mascot_draw_box() {
-    const draw_size_px = config.mascot.base_width_px * config.mascot.scale;
+    const composition_scale = Math.max(0.01, Number(config.composition?.scale || 1));
+    const draw_size_px = config.mascot.base_width_px * config.mascot.scale * composition_scale;
     return {
       draw_size_px,
       center_x_px: config.composition.center_x_px + config.mascot.offset_x_px,
@@ -545,6 +546,14 @@ export function createRenderer({
       debug_masks: DEBUG_MASK_SEGMENT_COUNT * 2 + 4,
       eyes: 2
     };
+  }
+
+  function get_halo_geometry_scale(box = runtime.mascot_box) {
+    if (box) {
+      return box.draw_size_px / MASCOT_VIEWBOX_SIZE;
+    }
+
+    return Math.max(0.01, Number(config.composition?.scale || 1));
   }
 
   function dispose_layers() {
@@ -1042,6 +1051,7 @@ export function createRenderer({
       box: field_state.box,
       points: field_state.points,
       spokes: field_state.spokes,
+      visible_spoke_count: field_state.visible_spoke_count,
       halo_outer_radius_px: field_state.halo_outer_radius_px,
       full_frame_outer_radius_px: field_state.full_frame_outer_radius_px
     };
@@ -1089,6 +1099,7 @@ export function createRenderer({
   }
 
   function push_background_spokes(spokes, full_frame_outer_radius_px) {
+    const background_spoke_width_px = BACKGROUND_SPOKE_WIDTH_PX * get_halo_geometry_scale();
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
       if (spoke.seam_overlay_only) {
@@ -1113,7 +1124,7 @@ export function createRenderer({
         start_y,
         end_x,
         end_y,
-        BACKGROUND_SPOKE_WIDTH_PX,
+        background_spoke_width_px,
         spoke_alpha
       );
     }
@@ -1363,21 +1374,25 @@ export function createRenderer({
       : "triangles";
   }
 
-  function push_plus_marker(center_x, center_y, size_px, width_px, alpha) {
+  function push_plus_marker(center_x, center_y, size_px, width_px, alpha, axis_angle_rad) {
     const half_size = size_px * 0.5;
+    const dir_x = Math.cos(axis_angle_rad);
+    const dir_y = Math.sin(axis_angle_rad);
+    const perp_x = -dir_y;
+    const perp_y = dir_x;
     runtime.layers.haloEchoMarks.push(
-      center_x - half_size,
-      center_y,
-      center_x + half_size,
-      center_y,
+      center_x - dir_x * half_size,
+      center_y - dir_y * half_size,
+      center_x + dir_x * half_size,
+      center_y + dir_y * half_size,
       width_px,
       alpha
     );
     runtime.layers.haloEchoMarks.push(
-      center_x,
-      center_y - half_size,
-      center_x,
-      center_y + half_size,
+      center_x - perp_x * half_size,
+      center_y - perp_y * half_size,
+      center_x + perp_x * half_size,
+      center_y + perp_y * half_size,
       width_px,
       alpha
     );
@@ -1640,6 +1655,7 @@ export function createRenderer({
 
   function push_halo_layers({
     spokes,
+    visible_spoke_count,
     box,
     halo_outer_radius_px,
     full_frame_outer_radius_px,
@@ -1655,14 +1671,48 @@ export function createRenderer({
 
     const field_center_x = config.composition.center_x_px;
     const field_center_y = config.composition.center_y_px;
-    const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0);
-    const inner_width_px = Math.max(0, config.spoke_lines.inner_width_px || 0);
+    const halo_geometry_scale = get_halo_geometry_scale(box);
+    const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0) * halo_geometry_scale;
+    const inner_width_px =
+      Math.max(0, config.spoke_lines.inner_width_px || 0) * halo_geometry_scale;
     const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
     const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
     const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
     const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
     const echo_style = get_echo_style();
-    const echo_marker_width_px = Math.max(0.5, outer_width_px);
+    const echo_marker_scale_mult = Math.max(
+      0.1,
+      Number(config.spoke_lines.echo_marker_scale_mult ?? 1)
+    );
+    const max_spoke_count = Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    const min_spoke_count = clamp(
+      Number(config.screensaver?.min_spoke_count || max_spoke_count),
+      1,
+      max_spoke_count
+    );
+    const current_visible_spoke_count = clamp(
+      Number(visible_spoke_count || max_spoke_count),
+      1,
+      max_spoke_count
+    );
+    const sparse_scale_boost = Math.max(
+      0,
+      Number(config.spoke_lines.echo_sparse_scale_boost ?? 0)
+    );
+    const sparse_scale_u = max_spoke_count <= min_spoke_count
+      ? 0
+      : clamp(
+        (max_spoke_count - current_visible_spoke_count) /
+          Math.max(0.0001, max_spoke_count - min_spoke_count),
+        0,
+        1
+      );
+    const echo_sparse_scale_mult = 1 + sparse_scale_boost * sparse_scale_u;
+    const echo_marker_width_px = Math.max(
+      0.5 * halo_geometry_scale,
+      Math.max(0, config.spoke_lines.echo_marker_stroke_px ?? config.spoke_lines.width_px ?? 0) *
+        halo_geometry_scale
+    );
     const ripple_min_scale = 0.45;
     const ripple_max_scale = 1.55;
     const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
@@ -1835,10 +1885,16 @@ export function createRenderer({
         if (echo_marker_variant === "plus") {
           plus_size_px =
             ECHO_PLUS_SIZE_PX *
-            clamp(dot_radius_px / Math.max(0.0001, template_dot.radius_px), 0.25, 4);
+            halo_geometry_scale *
+            clamp(dot_radius_px / Math.max(0.0001, template_dot.radius_px), 0.25, 4) *
+            echo_marker_scale_mult *
+            echo_sparse_scale_mult;
           marker_outer_extent_px = plus_size_px * 0.5 + echo_marker_width_px * 0.5;
         } else if (echo_marker_variant === "triangles") {
-          triangle_side_px = Math.max(6.4, dot_radius_px * 3.2);
+          triangle_side_px = Math.max(
+            6.4 * halo_geometry_scale,
+            dot_radius_px * 3.2 * echo_marker_scale_mult * echo_sparse_scale_mult
+          );
           marker_outer_extent_px =
             triangle_side_px / Math.sqrt(3) + echo_marker_width_px * 0.5;
         }
@@ -1851,7 +1907,14 @@ export function createRenderer({
         }
 
         if (echo_marker_variant === "plus") {
-          push_plus_marker(local_dot_x, local_dot_y, plus_size_px, echo_marker_width_px, dot_alpha);
+          push_plus_marker(
+            local_dot_x,
+            local_dot_y,
+            plus_size_px,
+            echo_marker_width_px,
+            dot_alpha,
+            spoke.angle
+          );
           continue;
         }
 
@@ -1910,6 +1973,7 @@ export function createRenderer({
       push_post_finale_points(field_state);
       push_halo_layers({
         spokes: field_state.spokes,
+        visible_spoke_count: field_state.visible_spoke_count,
         box: field_state.box,
         halo_outer_radius_px: field_state.halo_outer_radius_px,
         full_frame_outer_radius_px: field_state.full_frame_outer_radius_px,
@@ -1946,6 +2010,7 @@ export function createRenderer({
     push_intro_points(time_sec, force_dot_final);
     push_halo_layers({
       spokes: runtime.spokes,
+      visible_spoke_count: runtime.spokes.length,
       box: runtime.mascot_box,
       halo_outer_radius_px: runtime.mascot_box ? runtime.mascot_box.draw_size_px * 0.5 : 0,
       full_frame_outer_radius_px,

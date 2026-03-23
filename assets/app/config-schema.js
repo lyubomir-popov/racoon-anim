@@ -213,6 +213,12 @@ export const CONFIG_FIELD_META = Object.freeze({
   "composition.background_color": {
     label: "Background Color"
   },
+  "composition.scale": {
+    label: "Composition Scale",
+    help_text:
+      "Scales the whole composition together: mascot, dots, halo spokes, echo markers, and construction lines.",
+    numeric: { min: 0.1, max: 6, step: 0.01 }
+  },
   "composition.radial_scale": {
     hidden: true,
     locked_value: 1,
@@ -373,6 +379,24 @@ export const CONFIG_FIELD_META = Object.freeze({
       "Controls the thinner white reference spoke pass around the mascot boundary. This stays at a constant thickness.",
     numeric: { min: 0, max: 12, step: 0.1 }
   },
+  "spoke_lines.echo_marker_stroke_px": {
+    label: "Echo Shape Stroke (px)",
+    help_text:
+      "Controls the outline thickness for plus signs and triangles independently from the thin outer reference spokes.",
+    numeric: { min: 0, max: 12, step: 0.1 }
+  },
+  "spoke_lines.echo_marker_scale_mult": {
+    label: "Echo Shape Scale Multiplier",
+    help_text:
+      "Scales plus signs and triangles independently from the dot-based echo sizing, so replacement shapes can stay readable.",
+    numeric: { min: 0.1, max: 6, step: 0.01 }
+  },
+  "spoke_lines.echo_sparse_scale_boost": {
+    label: "Echo Sparse Scale Boost",
+    help_text:
+      "Adds extra size to plus signs and triangles as the breathing loop reduces the visible spoke count. Zero disables the effect.",
+    numeric: { min: 0, max: 6, step: 0.01 }
+  },
   "spoke_lines.inner_width_px": {
     label: "Inner Spoke Thickness (px)",
     help_text:
@@ -461,7 +485,7 @@ export const CONFIG_FIELD_META = Object.freeze({
     label: "Base Draw Width (px)",
     help_text:
       "This is the mascot's draw box before any scaling. With the current 600x600 art, 600 keeps the artwork at its native size.",
-    numeric: { min: 0, max: 800, step: 1 }
+    numeric: { min: 0, max: 3000, step: 1 }
   },
   "mascot.scale": {
     hidden: true,

@@ -376,7 +376,8 @@ export function build_intro_halo_field_state({
     orbit_counts,
     max_orbit_count: Math.max(1, ...orbit_counts),
     point_specs,
-    spokes
+    spokes,
+    visible_spoke_count: generator.spoke_count
   };
 }
 
@@ -549,6 +550,7 @@ export function build_post_finale_halo_field_state({
     box: mascot_box,
     points,
     spokes,
+    visible_spoke_count: effective_spoke_count,
     halo_outer_radius_px,
     full_frame_outer_radius_px,
     next_spoke_width_phase_u_by_source,
