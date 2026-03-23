@@ -64,6 +64,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   spoke_lines: {
     enabled: true,
     show_reference_halo: false,
+    show_debug_masks: false,
     construction_color: "#333333",
     reference_color: "#ffffff",
     color: "#ffffff",
@@ -117,7 +118,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     desynchronized: true
   },
   screensaver: {
-    cycle_sec: 30,
+    cycle_sec: 60,
     ramp_in_sec: 6,
     pulse_orbits: true,
     pulse_spokes: true,

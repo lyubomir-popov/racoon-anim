@@ -275,6 +275,11 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text:
       "Overlays the original halo SVG in green at 50% opacity so you can compare the procedural spokes against the reference art."
   },
+  "spoke_lines.show_debug_masks": {
+    label: "Show Phase Debug Overlay",
+    help_text:
+      "Draws the actual horizontal phase boundary plus both clipping-mask circles and their centers, using the same geometry as the live spoke masking."
+  },
   "spoke_lines.construction_color": {
     label: "Construction Plane Color",
     help_text:

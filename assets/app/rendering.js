@@ -28,10 +28,15 @@ const HALO_REFERENCE_ORDER = 30;
 const HALO_THIN_ORDER = 31;
 const HALO_THICK_ORDER = 32;
 const HALO_ECHO_ORDER = 33;
+const DEBUG_BOUNDARY_ORDER = 90;
+const DEBUG_MASK_ORDER = 91;
 const MASCOT_FACE_ORDER = 40;
 const MASCOT_NOSE_ORDER = 41;
 const MASCOT_NOSE_CUTOUT_ORDER = 42;
 const MASCOT_EYE_ORDER = 43;
+const DEBUG_BOUNDARY_COLOR = "#ff4d6d";
+const DEBUG_MASK_COLOR = "#22d3ee";
+const DEBUG_MASK_SEGMENT_COUNT = 96;
 
 const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
 const MASCOT_TEXTURE_SCALE = Math.max(
@@ -128,12 +133,15 @@ function get_display_phase_metrics({
     };
   }
 
-  // In the stage's y-up world space this already maps as: 3PM=0, 12PM=0.25, 9AM=0.5, 6PM=0.75.
+  // In the stage's y-up world space this maps as: 3PM=0, 12PM=0.25, 9AM=0.5, 6PM=0.75.
+  // Boundary ownership is intentionally asymmetric:
+  // - 3PM belongs to the bottom phase, so it carries the bottom phase's maximum thickness/length.
+  // - 9AM belongs to the top phase, so it carries the top phase's maximum thickness/length.
   const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
-  const is_upper_phase = display_u <= 0.5;
+  const is_upper_phase = display_u > 0 && display_u <= 0.5;
   const fill_u = is_upper_phase
     ? display_u / 0.5
-    : (display_u - 0.5) / 0.5;
+    : (display_u > 0.5 ? (display_u - 0.5) / 0.5 : 1);
   return {
     fill_u,
     phase_frontier_u: fill_u,
@@ -141,6 +149,70 @@ function get_display_phase_metrics({
       ? center_x_px - phase_mask_center_offset_x_px
       : center_x_px + phase_mask_center_offset_x_px
   };
+}
+
+function get_phase_mask_geometry({
+  box,
+  center_x_px,
+  center_y_px
+}) {
+  const geometry_scale = box ? box.draw_size_px / MASCOT_VIEWBOX_SIZE : 1;
+  const radius_px = 250 * geometry_scale;
+  const center_offset_x_px = 50 * geometry_scale;
+  return {
+    radius_px,
+    center_offset_x_px,
+    center_y_px,
+    left_center_x_px: center_x_px - center_offset_x_px,
+    right_center_x_px: center_x_px + center_offset_x_px
+  };
+}
+
+function get_width_transition_phase_metrics({
+  angle_rad,
+  base_angle_rad,
+  slot_count,
+  phase_count,
+  spoke_pattern_id,
+  center_x_px,
+  phase_mask_center_offset_x_px
+}) {
+  const phase_metrics = get_display_phase_metrics({
+    angle_rad,
+    base_angle_rad,
+    slot_count,
+    phase_count,
+    spoke_pattern_id,
+    center_x_px,
+    phase_mask_center_offset_x_px
+  });
+
+  if (phase_count !== 2 || slot_count <= 1) {
+    return phase_metrics;
+  }
+
+  const spoke_slot_u = 1 / slot_count;
+  const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
+  if (!(display_u > 0 && display_u < spoke_slot_u * 3)) {
+    return phase_metrics;
+  }
+
+  const skew_strength = 1 - smoothstep(spoke_slot_u, spoke_slot_u * 3, display_u);
+  if (skew_strength <= 0) {
+    return phase_metrics;
+  }
+
+  const skewed_display_u = clamp(display_u + spoke_slot_u * skew_strength, 0, 0.5);
+  const skewed_angle_rad = base_angle_rad + TAU * skewed_display_u;
+  return get_display_phase_metrics({
+    angle_rad: skewed_angle_rad,
+    base_angle_rad,
+    slot_count,
+    phase_count,
+    spoke_pattern_id,
+    center_x_px,
+    phase_mask_center_offset_x_px
+  });
 }
 
 export function createRenderer({
@@ -445,6 +517,8 @@ export function createRenderer({
       halo_thin_spokes: Math.max(32, max_spoke_count),
       halo_thick_spokes: Math.max(32, max_spoke_count),
       halo_echo_dots: Math.max(512, max_spoke_count * (max_full_frame_orbit_index + 1)),
+      debug_boundary: 1,
+      debug_masks: DEBUG_MASK_SEGMENT_COUNT * 2 + 4,
       eyes: 2
     };
   }
@@ -456,6 +530,8 @@ export function createRenderer({
 
     world_group.remove(runtime.layers.backgroundSpokes.mesh);
     world_group.remove(runtime.layers.points.mesh);
+    world_group.remove(runtime.layers.debugBoundary.mesh);
+    world_group.remove(runtime.layers.debugMasks.mesh);
     mascot_group.remove(runtime.layers.haloThinSpokes.mesh);
     mascot_group.remove(runtime.layers.haloThickSpokes.mesh);
     mascot_group.remove(runtime.layers.haloEchoDots.mesh);
@@ -463,6 +539,8 @@ export function createRenderer({
 
     runtime.layers.backgroundSpokes.dispose();
     runtime.layers.points.dispose();
+    runtime.layers.debugBoundary.dispose();
+    runtime.layers.debugMasks.dispose();
     runtime.layers.haloThinSpokes.dispose();
     runtime.layers.haloThickSpokes.dispose();
     runtime.layers.haloEchoDots.dispose();
@@ -491,6 +569,16 @@ export function createRenderer({
         config.point_style.color,
         WORLD_POINTS_ORDER
       ),
+      debugBoundary: createSegmentLayer(
+        next_capacities.debug_boundary,
+        DEBUG_BOUNDARY_COLOR,
+        DEBUG_BOUNDARY_ORDER
+      ),
+      debugMasks: createSegmentLayer(
+        next_capacities.debug_masks,
+        DEBUG_MASK_COLOR,
+        DEBUG_MASK_ORDER
+      ),
       haloThinSpokes: createSegmentLayer(
         next_capacities.halo_thin_spokes,
         config.spoke_lines.reference_color,
@@ -511,6 +599,8 @@ export function createRenderer({
 
     world_group.add(runtime.layers.backgroundSpokes.mesh);
     world_group.add(runtime.layers.points.mesh);
+    world_group.add(runtime.layers.debugBoundary.mesh);
+    world_group.add(runtime.layers.debugMasks.mesh);
     mascot_group.add(runtime.layers.haloThinSpokes.mesh);
     mascot_group.add(runtime.layers.haloThickSpokes.mesh);
     mascot_group.add(runtime.layers.haloEchoDots.mesh);
@@ -568,8 +658,13 @@ export function createRenderer({
     const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
     const spawn_angle_rad =
       radians(generator.anim_start_angle_deg + transition.spawn_angle_offset_deg) + rotation_rad;
-    const phase_mask_radius_px = 250 * geometry_scale;
-    const phase_mask_center_offset_x_px = 50 * geometry_scale;
+    const phase_mask = get_phase_mask_geometry({
+      box: mascot_box,
+      center_x_px,
+      center_y_px
+    });
+    const phase_mask_radius_px = phase_mask.radius_px;
+    const phase_mask_center_offset_x_px = phase_mask.center_offset_x_px;
     const use_reference_phase_masks = generator.phase_count === 2;
 
     const spoke_specs = new Array(generator.spoke_count);
@@ -989,8 +1084,13 @@ export function createRenderer({
       transition.base_pscale * config.point_style.base_pscale_px_per_unit * geometry_scale;
     const min_diameter_px =
       (config.point_style.min_diameter_px ?? config.point_style.min_rect_px ?? 0.9) * geometry_scale;
-    const phase_mask_radius_px = 250 * geometry_scale;
-    const phase_mask_center_offset_x_px = 50 * geometry_scale;
+    const phase_mask = get_phase_mask_geometry({
+      box: mascot_box,
+      center_x_px,
+      center_y_px
+    });
+    const phase_mask_radius_px = phase_mask.radius_px;
+    const phase_mask_center_offset_x_px = phase_mask.center_offset_x_px;
     const use_reference_phase_masks = generator.phase_count === 2;
     const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
     const effective_spoke_count = Math.max(1, compute_effective_spoke_count(playback_time_sec));
@@ -1007,7 +1107,6 @@ export function createRenderer({
       : 0;
     const total_turns = max_spoke_count / Math.max(1, effective_spoke_count);
     const seam_display_u = 0.5;
-    const seam_visibility_band_turns = 1.25 / max_spoke_count;
     const width_transition_duration_sec = get_phase_boundary_transition_sec();
     const last_width_transition_time_sec = runtime.spoke_width_transition_playback_time_sec;
     const width_transition_delta_sec =
@@ -1030,7 +1129,7 @@ export function createRenderer({
     for (let source_index = 0; source_index < max_spoke_count; source_index += 1) {
       const strip_u = source_index / max_spoke_count;
       const wrapped_turn_position = strip_u * total_turns;
-      if (wrapped_turn_position >= 1 + seam_visibility_band_turns) {
+      if (wrapped_turn_position >= 1) {
         continue;
       }
 
@@ -1049,15 +1148,26 @@ export function createRenderer({
         center_x_px,
         phase_mask_center_offset_x_px
       });
+      const width_transition_phase_metrics = get_width_transition_phase_metrics({
+        angle_rad: angle,
+        base_angle_rad,
+        slot_count: max_spoke_count,
+        phase_count: generator.phase_count,
+        spoke_pattern_id,
+        center_x_px,
+        phase_mask_center_offset_x_px
+      });
       const fill_u = phase_metrics.fill_u;
       const previous_width_phase_u = runtime.spoke_width_phase_u_by_source.get(source_index);
       const previous_clip_center_x_px = runtime.spoke_clip_center_x_by_source.get(source_index);
+      const target_width_phase_u = width_transition_phase_metrics.fill_u;
+      const target_clip_center_x_px = width_transition_phase_metrics.phase_mask_center_x_px;
       const width_phase_u = previous_width_phase_u == null
-        ? fill_u
-        : lerp(previous_width_phase_u, fill_u, width_transition_lerp_u);
+        ? target_width_phase_u
+        : lerp(previous_width_phase_u, target_width_phase_u, width_transition_lerp_u);
       const clip_center_x_px = previous_clip_center_x_px == null
-        ? phase_metrics.phase_mask_center_x_px
-        : lerp(previous_clip_center_x_px, phase_metrics.phase_mask_center_x_px, width_transition_lerp_u);
+        ? target_clip_center_x_px
+        : lerp(previous_clip_center_x_px, target_clip_center_x_px, width_transition_lerp_u);
       next_spoke_width_phase_u_by_source.set(source_index, width_phase_u);
       next_spoke_clip_center_x_by_source.set(source_index, clip_center_x_px);
       const continuous_active_orbits = clamp(
@@ -1081,19 +1191,12 @@ export function createRenderer({
         transition.phase_frontier_bias,
         config.point_style.min_scale
       );
-      const seam_visibility_alpha = 1 - smoothstep(
-        1 - seam_visibility_band_turns,
-        1 + seam_visibility_band_turns,
-        wrapped_turn_position
-      );
-      const fold_fade_alpha = total_turns <= 1.0001
-        ? seam_visibility_alpha
-        : seam_visibility_alpha * (1 - smoothstep(0.75, 1, wrapped_turn_position));
       const spoke = {
         angle,
-        alpha: fold_fade_alpha,
+        alpha: 1,
         phase_u: fill_u,
         width_phase_u,
+        seam_overlay_only: false,
         start_radius: config.spoke_lines.start_radius_px * geometry_scale,
         end_radius: outer_radius_px + config.spoke_lines.end_radius_extra_px * geometry_scale,
         echo_dot_origin_radius: inner_radius_px,
@@ -1170,6 +1273,8 @@ export function createRenderer({
   function clear_layers() {
     runtime.layers.backgroundSpokes.clear();
     runtime.layers.points.clear();
+    runtime.layers.debugBoundary.clear();
+    runtime.layers.debugMasks.clear();
     runtime.layers.haloThinSpokes.clear();
     runtime.layers.haloThickSpokes.clear();
     runtime.layers.haloEchoDots.clear();
@@ -1179,6 +1284,8 @@ export function createRenderer({
   function finalize_layers() {
     runtime.layers.backgroundSpokes.finalize();
     runtime.layers.points.finalize();
+    runtime.layers.debugBoundary.finalize();
+    runtime.layers.debugMasks.finalize();
     runtime.layers.haloThinSpokes.finalize();
     runtime.layers.haloThickSpokes.finalize();
     runtime.layers.haloEchoDots.finalize();
@@ -1188,6 +1295,8 @@ export function createRenderer({
   function update_layer_colors() {
     runtime.layers.backgroundSpokes.setColor(config.spoke_lines.construction_color);
     runtime.layers.points.setColor(config.point_style.color);
+    runtime.layers.debugBoundary.setColor(DEBUG_BOUNDARY_COLOR);
+    runtime.layers.debugMasks.setColor(DEBUG_MASK_COLOR);
     runtime.layers.haloThinSpokes.setColor(config.spoke_lines.reference_color);
     runtime.layers.haloThickSpokes.setColor(config.spoke_lines.color);
     runtime.layers.haloEchoDots.setColor(config.spoke_lines.color);
@@ -1201,6 +1310,9 @@ export function createRenderer({
   function push_background_spokes(spokes, full_frame_outer_radius_px) {
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
+      if (spoke.seam_overlay_only) {
+        continue;
+      }
       const spoke_alpha = clamp(spoke.alpha ?? 1, 0, 1);
       if (spoke_alpha <= 0) {
         continue;
@@ -1350,22 +1462,21 @@ export function createRenderer({
   }
 
   function get_phase_end_alpha(angle_rad) {
+    void angle_rad;
+    return 1;
+  }
+
+  function get_fold_seam_alpha(angle_rad) {
     const base_angle_rad = radians(config.generator_wrangle.base_angle_deg) +
       radians(config.composition.global_rotation_deg || 0);
     const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
     const seam_display_u = 0.5;
-    if (display_u < seam_display_u) {
+    if (display_u <= seam_display_u) {
       return 1;
     }
 
-    const seam_distance_u = wrap_positive(display_u - seam_display_u, 1);
-    const fade_half_width_u = 3.5 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
-    const fade_floor_alpha = 0.28;
-    return lerp(
-      fade_floor_alpha,
-      1,
-      smoothstep(0, fade_half_width_u, seam_distance_u)
-    );
+    const fade_width_u = 3.5 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    return smoothstep(0, fade_width_u, display_u - seam_display_u);
   }
 
   function get_spoke_width_scale(spoke) {
@@ -1396,6 +1507,30 @@ export function createRenderer({
     const sweep_limit = TAU * reveal_state.halo_u;
     const reveal_softness_rad = TAU * 0.45 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
     return 1 - smoothstep(sweep_limit, sweep_limit + reveal_softness_rad, sweep_distance);
+  }
+
+  function get_spoke_reveal_alpha(local_x, local_y, reveal_state) {
+    if (!reveal_state) {
+      return 1;
+    }
+
+    const radius = Math.hypot(local_x, local_y);
+    if (radius < reveal_state.inner_radius_px - 0.01 || radius > reveal_state.outer_radius_px + 0.01) {
+      return 0;
+    }
+
+    if (reveal_state.force_final || reveal_state.halo_u >= 0.999) {
+      return 1;
+    }
+
+    if (reveal_state.halo_u <= 0) {
+      return 0;
+    }
+
+    const point_angle = Math.atan2(local_y, local_x);
+    const sweep_distance = wrap_positive(reveal_state.start_angle_rad - point_angle, TAU);
+    const sweep_limit = TAU * reveal_state.halo_u;
+    return sweep_distance <= sweep_limit ? 1 : 0;
   }
 
   function set_reference_halo_visibility(box, base_alpha, reveal_state) {
@@ -1505,16 +1640,11 @@ export function createRenderer({
       return null;
     }
 
-    const pattern_angle_offset_rad =
-      TAU * (config.generator_wrangle.pattern_offset_spokes || 0) /
-      Math.max(1, config.generator_wrangle.spoke_count || 1);
-
     return {
       force_final,
       halo_u,
       start_angle_rad:
         radians((config.finale.start_angle_deg || 0) + (config.finale.mask_angle_offset_deg || 0)) +
-        pattern_angle_offset_rad +
         radians(config.composition.global_rotation_deg || 0),
       inner_radius_px: box.draw_size_px * clamp(config.finale.halo_inner_radius_u, 0.01, 0.5),
       outer_radius_px: full_frame_outer_radius_px
@@ -1551,7 +1681,9 @@ export function createRenderer({
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
       const phase_end_alpha = get_phase_end_alpha(spoke.angle);
-      const spoke_alpha = base_alpha * phase_end_alpha * clamp(spoke.alpha ?? 1, 0, 1);
+      const fold_seam_alpha = get_fold_seam_alpha(spoke.angle);
+      const spoke_alpha =
+        base_alpha * phase_end_alpha * fold_seam_alpha * clamp(spoke.alpha ?? 1, 0, 1);
       if (spoke_alpha <= 0) {
         continue;
       }
@@ -1566,10 +1698,10 @@ export function createRenderer({
       const local_halo_end_x = world_halo_end_x - box.center_x_px;
       const local_halo_end_y = world_halo_end_y - box.center_y_px;
 
-      if (outer_width_px > 0) {
+      if (!spoke.seam_overlay_only && outer_width_px > 0) {
         const midpoint_x = (local_start_x + local_halo_end_x) * 0.5;
         const midpoint_y = (local_start_y + local_halo_end_y) * 0.5;
-        const reveal_alpha = get_reveal_local_alpha(midpoint_x, midpoint_y, reveal_state);
+        const reveal_alpha = get_spoke_reveal_alpha(midpoint_x, midpoint_y, reveal_state);
         if (reveal_alpha > 0) {
           runtime.layers.haloThinSpokes.push(
             local_start_x,
@@ -1605,7 +1737,7 @@ export function createRenderer({
         const midpoint_x = (local_segment_start_x + local_segment_end_x) * 0.5;
         const midpoint_y = (local_segment_start_y + local_segment_end_y) * 0.5;
 
-        const reveal_alpha = get_reveal_local_alpha(midpoint_x, midpoint_y, reveal_state);
+        const reveal_alpha = get_spoke_reveal_alpha(midpoint_x, midpoint_y, reveal_state);
         if (reveal_alpha > 0) {
           runtime.layers.haloThickSpokes.push(
             local_segment_start_x,
@@ -1620,7 +1752,13 @@ export function createRenderer({
 
       const dot_templates = spoke.echo_dots;
       const orbit_step_px = spoke.echo_dot_step_px;
-      if (!dot_templates.length || orbit_step_px <= 0 || echo_count <= 0 || spoke.inner_clip_offset_px <= 0) {
+      if (
+        spoke.seam_overlay_only ||
+        !dot_templates.length ||
+        orbit_step_px <= 0 ||
+        echo_count <= 0 ||
+        spoke.inner_clip_offset_px <= 0
+      ) {
         continue;
       }
 
@@ -1731,6 +1869,7 @@ export function createRenderer({
         base_alpha: mascot_state.base_alpha,
         reveal_state
       });
+      push_phase_debug_overlay(field_state.box);
       finalize_layers();
       renderer.render(scene, camera);
       return;
@@ -1765,6 +1904,7 @@ export function createRenderer({
       base_alpha: mascot_state.base_alpha,
       reveal_state
     });
+    push_phase_debug_overlay(runtime.mascot_box);
 
     finalize_layers();
     renderer.render(scene, camera);
@@ -1808,6 +1948,106 @@ export function createRenderer({
       cancelAnimationFrame(runtime.animation_frame_id);
       runtime.animation_frame_id = 0;
     }
+  }
+
+  function push_circle_outline(layer, center_x, center_y, radius_px, width_px, alpha) {
+    if (radius_px <= 0 || alpha <= 0 || width_px <= 0) {
+      return;
+    }
+
+    for (let segment_index = 0; segment_index < DEBUG_MASK_SEGMENT_COUNT; segment_index += 1) {
+      const start_angle = TAU * segment_index / DEBUG_MASK_SEGMENT_COUNT;
+      const end_angle = TAU * (segment_index + 1) / DEBUG_MASK_SEGMENT_COUNT;
+      layer.push(
+        center_x + Math.cos(start_angle) * radius_px,
+        center_y + Math.sin(start_angle) * radius_px,
+        center_x + Math.cos(end_angle) * radius_px,
+        center_y + Math.sin(end_angle) * radius_px,
+        width_px,
+        alpha
+      );
+    }
+  }
+
+  function push_crosshair(layer, center_x, center_y, half_size_px, width_px, alpha) {
+    if (half_size_px <= 0 || alpha <= 0 || width_px <= 0) {
+      return;
+    }
+
+    layer.push(
+      center_x - half_size_px,
+      center_y,
+      center_x + half_size_px,
+      center_y,
+      width_px,
+      alpha
+    );
+    layer.push(
+      center_x,
+      center_y - half_size_px,
+      center_x,
+      center_y + half_size_px,
+      width_px,
+      alpha
+    );
+  }
+
+  function push_phase_debug_overlay(box) {
+    if (!config.spoke_lines.show_debug_masks) {
+      return;
+    }
+
+    const phase_mask = get_phase_mask_geometry({
+      box,
+      center_x_px: config.composition.center_x_px,
+      center_y_px: config.composition.center_y_px
+    });
+    const boundary_width_px = 2;
+    const mask_width_px = 1.5;
+    const crosshair_half_size_px = Math.max(10, phase_mask.center_offset_x_px * 0.16);
+
+    runtime.layers.debugBoundary.push(
+      0,
+      phase_mask.center_y_px,
+      stage_width_px,
+      phase_mask.center_y_px,
+      boundary_width_px,
+      0.9
+    );
+
+    push_circle_outline(
+      runtime.layers.debugMasks,
+      phase_mask.left_center_x_px,
+      phase_mask.center_y_px,
+      phase_mask.radius_px,
+      mask_width_px,
+      0.78
+    );
+    push_circle_outline(
+      runtime.layers.debugMasks,
+      phase_mask.right_center_x_px,
+      phase_mask.center_y_px,
+      phase_mask.radius_px,
+      mask_width_px,
+      0.78
+    );
+
+    push_crosshair(
+      runtime.layers.debugMasks,
+      phase_mask.left_center_x_px,
+      phase_mask.center_y_px,
+      crosshair_half_size_px,
+      mask_width_px,
+      0.92
+    );
+    push_crosshair(
+      runtime.layers.debugMasks,
+      phase_mask.right_center_x_px,
+      phase_mask.center_y_px,
+      crosshair_half_size_px,
+      mask_width_px,
+      0.92
+    );
   }
 
   function toggle_pause() {
