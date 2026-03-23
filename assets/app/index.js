@@ -1,16 +1,21 @@
 import {
   ACTIVE_PRESET_STORAGE_KEY,
+  DEFAULT_OUTPUT_PROFILE_KEY,
   DOCKED_EDITOR_MIN_WIDTH_PX,
   EDITOR_TAB_GROUPS,
   EXPORT_DIRECTORY_DB_NAME,
   EXPORT_DIRECTORY_KEY,
   EXPORT_DIRECTORY_STORE_NAME,
+  OUTPUT_PROFILE_ORDER,
+  OUTPUT_PROFILES,
   PRESET_STORAGE_KEY,
   clamp,
   create_default_config,
   deep_clone,
+  get_output_profile_metrics,
   get_control_help_text,
   get_control_label,
+  get_field_meta,
   get_numeric_control_spec,
   get_object_path_value,
   humanize_key,
@@ -44,11 +49,13 @@ const preset_delete_button = document.querySelector("[data-preset-delete]");
 const preset_tabs = document.querySelector("[data-preset-tabs]");
 const preset_meta = document.querySelector("[data-preset-meta]");
 const preset_panel = document.querySelector("[data-preset-panel]");
+const output_profile_options = document.querySelector("[data-output-profile-options]");
 const config_editor = document.querySelector("[data-config-editor]");
+const text_overlay_canvas = stage.querySelector("[data-text-overlay]");
 
 const config = create_default_config();
 const default_config = deep_clone(config);
-const renderer = createRenderer({ stage, canvas, config });
+const renderer = createRenderer({ stage, canvas, text_overlay_canvas, config });
 
 const state = {
   presets: [],
@@ -58,6 +65,7 @@ const state = {
   export_directory_handle: null,
   is_exporting: false,
   editor_controls: new Map(),
+  output_profile_inputs: new Map(),
   drawer_is_open: false
 };
 
@@ -92,10 +100,13 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.show_debug_masks",
   "spoke_lines.construction_color",
   "spoke_lines.reference_color",
+  "spoke_lines.echo_color",
   "spoke_lines.width_px",
   "spoke_lines.inner_width_px",
   "spoke_lines.phase_start_scale",
   "spoke_lines.echo_count",
+  "spoke_lines.echo_style",
+  "spoke_lines.echo_mix_shape_pct",
   "spoke_lines.echo_width_mult",
   "spoke_lines.echo_wave_count",
   "spoke_lines.echo_opacity_mult"
@@ -143,6 +154,23 @@ function sanitize_file_name(value) {
   return (
     value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "preset"
   );
+}
+
+function replace_object_contents(target, source) {
+  for (const key of Object.keys(target)) {
+    delete target[key];
+  }
+
+  Object.assign(target, deep_clone(source));
+}
+
+function get_preset_export_dimension_folder_name(profile_key = get_current_output_profile_key()) {
+  const profile_metrics = get_output_profile_metrics(profile_key);
+  return `${profile_metrics.width_px}x${profile_metrics.height_px}`;
+}
+
+function escape_regexp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function get_config_value(path_parts) {
@@ -282,6 +310,99 @@ function sync_editor_values() {
   }
 
   refresh_slider_tracks();
+  sync_output_profile_controls();
+}
+
+function get_current_output_profile_key() {
+  const profile_key = typeof config.output_profile_key === "string"
+    ? config.output_profile_key
+    : DEFAULT_OUTPUT_PROFILE_KEY;
+  return OUTPUT_PROFILES[profile_key] ? profile_key : DEFAULT_OUTPUT_PROFILE_KEY;
+}
+
+function sync_output_profile_controls() {
+  const active_key = get_current_output_profile_key();
+  for (const [profile_key, radio_input] of state.output_profile_inputs.entries()) {
+    radio_input.checked = profile_key === active_key;
+  }
+}
+
+async function apply_output_profile(profile_key, { announce = true } = {}) {
+  const next_profile_key = OUTPUT_PROFILES[profile_key] ? profile_key : DEFAULT_OUTPUT_PROFILE_KEY;
+  if (config.output_profile_key === next_profile_key && renderer.getOutputProfileKey() === next_profile_key) {
+    sync_output_profile_controls();
+    return;
+  }
+
+  config.output_profile_key = next_profile_key;
+  const next_metrics = get_output_profile_metrics(next_profile_key);
+  config.composition.center_x_px = next_metrics.center_x_px;
+  config.composition.center_y_px = next_metrics.center_y_px;
+  renderer.setOutputProfile(next_profile_key);
+  sync_editor_values();
+  await renderer.refreshScene({ reload_mascot: true });
+
+  if (announce) {
+    const profile = OUTPUT_PROFILES[next_profile_key];
+    set_preset_meta(
+      `Switched format to ${profile.label} (${profile.width_px} x ${profile.height_px}).`,
+      false
+    );
+  }
+}
+
+function render_output_profile_options() {
+  if (!output_profile_options) {
+    return;
+  }
+
+  state.output_profile_inputs.clear();
+  output_profile_options.innerHTML = "";
+
+  const list = document.createElement("div");
+  list.className = "preset-radio-list";
+  list.setAttribute("role", "radiogroup");
+  list.setAttribute("aria-label", "Output formats");
+
+  for (const profile_key of OUTPUT_PROFILE_ORDER) {
+    const profile = OUTPUT_PROFILES[profile_key];
+    if (!profile) {
+      continue;
+    }
+
+    const row = document.createElement("label");
+    row.className = "preset-radio-row format-radio-row";
+
+    const radio = document.createElement("input");
+    radio.type = "radio";
+    radio.name = "output-profile";
+    radio.value = profile.key;
+    radio.checked = profile.key === get_current_output_profile_key();
+    radio.addEventListener("change", () => {
+      void apply_output_profile(profile.key);
+    });
+
+    const details = document.createElement("div");
+    details.className = "format-radio-details";
+
+    const name = document.createElement("div");
+    name.className = "preset-radio-name";
+    name.textContent = profile.label;
+
+    const meta = document.createElement("div");
+    meta.className = "format-radio-meta";
+    meta.textContent = `${profile.platforms} | ${profile.safe_zone}`;
+
+    details.appendChild(name);
+    details.appendChild(meta);
+
+    row.appendChild(radio);
+    row.appendChild(details);
+    list.appendChild(row);
+    state.output_profile_inputs.set(profile.key, radio);
+  }
+
+  output_profile_options.appendChild(list);
 }
 
 function update_preset_controls() {
@@ -520,6 +641,70 @@ async function get_sequence_output_directory_handle() {
   };
 }
 
+async function get_preset_export_directory_handle() {
+  let directory_handle = await get_export_directory_handle();
+  if (!directory_handle) {
+    set_preset_meta("Choose the project folder or a presets folder for JSON preset export.", false);
+    directory_handle = await request_export_directory_handle();
+  }
+
+  if (!directory_handle) {
+    return null;
+  }
+
+  const presets_directory_handle = directory_handle.name.toLowerCase() === "presets"
+    ? directory_handle
+    : await directory_handle.getDirectoryHandle("presets", { create: true });
+  const dimensions_folder_name = get_preset_export_dimension_folder_name();
+  const dimension_directory_handle = await presets_directory_handle.getDirectoryHandle(
+    dimensions_folder_name,
+    { create: true }
+  );
+
+  const base_path_label = directory_handle.name.toLowerCase() === "presets"
+    ? directory_handle.name
+    : `${directory_handle.name}/${presets_directory_handle.name}`;
+
+  return {
+    directory_handle: dimension_directory_handle,
+    output_path_label: `${base_path_label}/${dimension_directory_handle.name}`
+  };
+}
+
+async function get_next_preset_export_version(directory_handle, preset_slug) {
+  const file_name_pattern = new RegExp(`^v(\\d+)\\.(\\d+)-${escape_regexp(preset_slug)}\\.json$`, "i");
+  let highest_major = 0;
+  let highest_minor = 0;
+
+  for await (const [entry_name, entry_handle] of directory_handle.entries()) {
+    if (entry_handle.kind !== "file") {
+      continue;
+    }
+
+    const match = entry_name.match(file_name_pattern);
+    if (!match) {
+      continue;
+    }
+
+    const major = Number(match[1]);
+    const minor = Number(match[2]);
+    if (!Number.isFinite(major) || !Number.isFinite(minor)) {
+      continue;
+    }
+
+    if (major > highest_major || (major === highest_major && minor > highest_minor)) {
+      highest_major = major;
+      highest_minor = minor;
+    }
+  }
+
+  if (highest_major === 0) {
+    return "v0.1";
+  }
+
+  return `v${highest_major}.${highest_minor + 1}`;
+}
+
 function normalize_preset_entry(entry, fallback_name) {
   if (!is_plain_object(entry)) {
     return null;
@@ -682,6 +867,7 @@ function render_preset_tabs() {
 }
 
 function create_control_input(path_key, value) {
+  const field_meta = get_field_meta(path_key);
   if (typeof value === "number") {
     const numeric_spec = get_numeric_control_spec(path_key, value);
     const field = document.createElement("div");
@@ -762,6 +948,29 @@ function create_control_input(path_key, value) {
     };
   }
 
+  if (field_meta?.options && Array.isArray(field_meta.options)) {
+    const select = document.createElement("select");
+    select.className = "p-form-validation__input is-dense u-no-margin--bottom";
+    select.dataset.configPath = path_key;
+
+    for (const option of field_meta.options) {
+      const option_element = document.createElement("option");
+      option_element.value = option.value;
+      option_element.textContent = option.label;
+      option_element.selected = option.value === value;
+      select.appendChild(option_element);
+    }
+
+    select.addEventListener("change", handle_control_commit);
+    return {
+      element: select,
+      control: {
+        type: "single",
+        input: select
+      }
+    };
+  }
+
   input.type = "text";
   input.className = "p-form-validation__input is-dense u-no-margin--bottom";
   input.value = value;
@@ -802,7 +1011,7 @@ function create_control_row(path_parts, value) {
   }
 
   const label = document.createElement("label");
-  label.className = "p-form__label";
+  label.className = "p-form__label u-no-margin--bottom";
   label.htmlFor = `control-${path_key.replace(/\./g, "-")}`;
   label.textContent = get_control_label(path_key);
 
@@ -844,7 +1053,7 @@ function append_editor_fields(parent, object_value, path_parts) {
       }
 
       const title = document.createElement("h3");
-      title.className = "p-text--small-caps u-no-margin--bottom";
+      title.className = "p-muted-heading u-no-margin--bottom";
       title.textContent = humanize_key(key);
       group.prepend(title);
       parent.appendChild(group);
@@ -945,7 +1154,7 @@ function build_config_editor() {
       }
 
       const title = document.createElement("h2");
-      title.className = "p-heading--5 u-no-margin--bottom";
+      title.className = "p-muted-heading u-no-margin--bottom";
       title.textContent = get_section_label(section_key);
       section.prepend(title);
       form.appendChild(section);
@@ -1051,6 +1260,7 @@ async function apply_preset_by_id(preset_id) {
   state.active_preset_id = preset.id;
   state.selected_preset_id = preset.id;
   replace_config(config, preset.config, default_config);
+  renderer.setOutputProfile(get_current_output_profile_key());
   preset_name_input.value = preset.name;
   sync_editor_values();
   render_preset_tabs();
@@ -1126,22 +1336,30 @@ async function export_current_preset() {
     name: preset_name,
     config: normalize_config_snapshot(config, default_config)
   };
-  const file_name = `${sanitize_file_name(preset_name)}.json`;
+  const preset_slug = sanitize_file_name(preset_name);
 
   try {
-    let directory_handle = await get_export_directory_handle();
-    if (!directory_handle) {
-      directory_handle = await request_export_directory_handle();
-    }
-
-    if (directory_handle) {
-      const file_handle = await directory_handle.getFileHandle(file_name, { create: true });
+    const preset_export_directory = await get_preset_export_directory_handle();
+    if (preset_export_directory) {
+      const version_label = await get_next_preset_export_version(
+        preset_export_directory.directory_handle,
+        preset_slug
+      );
+      const file_name = `${version_label}-${preset_slug}.json`;
+      const file_handle = await preset_export_directory.directory_handle.getFileHandle(
+        file_name,
+        { create: true }
+      );
       await write_json_file(file_handle, payload);
-      set_preset_meta(`Exported "${preset_name}" to ${directory_handle.name}/${file_name}.`, false);
+      set_preset_meta(
+        `Exported "${preset_name}" to ${preset_export_directory.output_path_label}/${file_name}.`,
+        false
+      );
       return;
     }
 
     if (typeof window.showSaveFilePicker === "function") {
+      const file_name = `v0.1-${preset_slug}.json`;
       const file_handle = await window.showSaveFilePicker({
         id: "radial-mascot-preset-file",
         suggestedName: file_name,
@@ -1160,6 +1378,7 @@ async function export_current_preset() {
       return;
     }
 
+    const file_name = `v0.1-${preset_slug}.json`;
     const blob = new Blob([JSON.stringify(payload, null, 2)], {
       type: "application/json"
     });
@@ -1213,6 +1432,7 @@ async function import_presets_from_file(file) {
 
 function reset_to_defaults() {
   replace_config(config, default_config, default_config);
+  renderer.setOutputProfile(get_current_output_profile_key());
   state.active_preset_id = null;
   state.selected_preset_id = null;
   preset_name_input.value = get_next_preset_name();
@@ -1234,7 +1454,7 @@ async function write_current_as_source_default() {
 
   try {
     const payload = await write_source_default_snapshot(normalized_snapshot);
-    replace_config(default_config, normalized_snapshot, default_config);
+    replace_object_contents(default_config, normalized_snapshot);
     clear_legacy_browser_default_config();
     set_preset_meta(
       `Wrote the current config to ${payload.path}. This is now the source default.`,
@@ -1440,6 +1660,7 @@ async function init() {
     preset_name_input.value = get_next_preset_name();
 
     build_config_editor();
+    render_output_profile_options();
     sync_editor_values();
     render_preset_tabs();
     update_editor_panel_mode();
@@ -1452,6 +1673,7 @@ async function init() {
   }
 
   attach_ui_events();
+  renderer.setOutputProfile(get_current_output_profile_key());
   await renderer.refreshScene({ reload_mascot: true });
   if (is_local_editor) {
     set_preset_meta(

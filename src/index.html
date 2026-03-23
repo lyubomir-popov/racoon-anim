@@ -14,7 +14,8 @@
       <div class="p-panel">
         <div class="p-panel__content viewer-panel__content">
           <section class="stage" data-stage aria-label="Animated mascot point field">
-            <canvas aria-hidden="true"></canvas>
+            <canvas data-stage-canvas aria-hidden="true"></canvas>
+            <canvas class="stage__text-overlay" data-text-overlay aria-hidden="true"></canvas>
           </section>
         </div>
       </div>
@@ -51,6 +52,18 @@
                   Presets are temporary browser-stored test states. The source default lives in
                   <code>assets/app/default-config-source.js</code>.
                 </p>
+              </div>
+
+              <div class="output-profile-panel">
+                <div class="preset-section-header">
+                  <h2 class="p-muted-heading u-no-margin--bottom">Output Format</h2>
+                  <p class="p-form-help-text u-no-margin--bottom">
+                    Switching format rebuilds the stage at that exact size and recenters the composition for that canvas.
+                  </p>
+                </div>
+                <div class="preset-selection">
+                  <div class="preset-options" data-output-profile-options></div>
+                </div>
               </div>
 
               <div class="preset-section-header">

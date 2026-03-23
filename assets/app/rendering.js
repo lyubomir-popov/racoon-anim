@@ -18,7 +18,8 @@ import {
   smoothstep,
   radians,
   wrap_positive,
-  compute_frontier_scale
+  compute_frontier_scale,
+  hash_01
 } from "./config-schema.js";
 import { createCircleLayer, createSegmentLayer } from "./three-primitives.js";
 
@@ -37,6 +38,53 @@ const MASCOT_EYE_ORDER = 43;
 const DEBUG_BOUNDARY_COLOR = "#ff4d6d";
 const DEBUG_MASK_COLOR = "#22d3ee";
 const DEBUG_MASK_SEGMENT_COUNT = 96;
+const ECHO_PLUS_SIZE_PX = 9.6;
+const ECHO_TEXT_BASE_FONT_SIZE_PX = 4;
+const UBUNTU_RELEASE_LABELS = Object.freeze([
+  "25.10",
+  "25.04",
+  "24.10",
+  "24.04",
+  "23.10",
+  "23.04",
+  "22.10",
+  "22.04",
+  "21.10",
+  "21.04",
+  "20.10",
+  "20.04",
+  "19.10",
+  "19.04",
+  "18.10",
+  "18.04",
+  "17.10",
+  "17.04",
+  "16.10",
+  "16.04",
+  "15.10",
+  "15.04",
+  "14.10",
+  "14.04",
+  "13.10",
+  "13.04",
+  "12.10",
+  "12.04",
+  "11.10",
+  "11.04",
+  "10.10",
+  "10.04",
+  "9.10",
+  "9.04",
+  "8.10",
+  "8.04",
+  "7.10",
+  "7.04",
+  "6.10",
+  "6.06",
+  "5.10",
+  "5.04",
+  "4.10"
+]);
 
 const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
 const MASCOT_TEXTURE_SCALE = Math.max(
@@ -218,13 +266,15 @@ function get_width_transition_phase_metrics({
 export function createRenderer({
   stage,
   canvas,
+  text_overlay_canvas,
   config,
   output_profile_key = DEFAULT_OUTPUT_PROFILE_KEY
 }) {
-  const stage_metrics = get_output_profile_metrics(output_profile_key);
-  const stage_width_px = stage_metrics.width_px;
-  const stage_height_px = stage_metrics.height_px;
-  const stage_aspect_ratio = stage_metrics.aspect_ratio;
+  let current_output_profile_key = config.output_profile_key || output_profile_key;
+  let stage_metrics = get_output_profile_metrics(current_output_profile_key);
+  let stage_width_px = stage_metrics.width_px;
+  let stage_height_px = stage_metrics.height_px;
+  let stage_aspect_ratio = stage_metrics.aspect_ratio;
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -236,6 +286,13 @@ export function createRenderer({
   renderer.setPixelRatio(get_render_pixel_ratio());
   renderer.setSize(stage_width_px, stage_height_px, false);
   renderer.setClearColor(STAGE_BACKGROUND_COLOR, 1);
+  const text_overlay_context = text_overlay_canvas
+    ? text_overlay_canvas.getContext("2d", {
+      alpha: true,
+      desynchronized: Boolean(config.performance?.desynchronized)
+    })
+    : null;
+  const export_canvas = document.createElement("canvas");
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(
@@ -339,6 +396,15 @@ export function createRenderer({
     layer_capacities: null
   };
 
+  function set_output_profile(next_profile_key) {
+    current_output_profile_key = next_profile_key || DEFAULT_OUTPUT_PROFILE_KEY;
+    stage_metrics = get_output_profile_metrics(current_output_profile_key);
+    stage_width_px = stage_metrics.width_px;
+    stage_height_px = stage_metrics.height_px;
+    stage_aspect_ratio = stage_metrics.aspect_ratio;
+    apply_stage_styles();
+  }
+
   function apply_stage_styles() {
     document.body.style.background = STAGE_BACKGROUND_COLOR;
     stage.style.aspectRatio = `${stage_width_px} / ${stage_height_px}`;
@@ -349,6 +415,41 @@ export function createRenderer({
     stage.style.background = STAGE_BACKGROUND_COLOR;
     stage.style.borderColor = "transparent";
     stage.style.boxShadow = "none";
+  }
+
+  function clear_text_overlay() {
+    if (!text_overlay_context || !text_overlay_canvas) {
+      return;
+    }
+
+    text_overlay_context.save();
+    text_overlay_context.setTransform(1, 0, 0, 1, 0, 0);
+    text_overlay_context.clearRect(0, 0, text_overlay_canvas.width, text_overlay_canvas.height);
+    text_overlay_context.restore();
+  }
+
+  function configure_text_overlay_canvas() {
+    if (!text_overlay_context || !text_overlay_canvas) {
+      return;
+    }
+
+    const pixel_width = Math.max(1, Math.round(stage_width_px * runtime.dpr));
+    const pixel_height = Math.max(1, Math.round(stage_height_px * runtime.dpr));
+    if (
+      text_overlay_canvas.width !== pixel_width ||
+      text_overlay_canvas.height !== pixel_height
+    ) {
+      text_overlay_canvas.width = pixel_width;
+      text_overlay_canvas.height = pixel_height;
+    }
+
+    text_overlay_canvas.style.width = "";
+    text_overlay_canvas.style.height = "";
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.textAlign = "center";
+    text_overlay_context.textBaseline = "middle";
+    text_overlay_context.lineJoin = "miter";
+    text_overlay_context.lineCap = "butt";
   }
 
   function get_mascot_draw_box() {
@@ -517,6 +618,7 @@ export function createRenderer({
       halo_thin_spokes: Math.max(32, max_spoke_count),
       halo_thick_spokes: Math.max(32, max_spoke_count),
       halo_echo_dots: Math.max(512, max_spoke_count * (max_full_frame_orbit_index + 1)),
+      halo_echo_marks: Math.max(1536, max_spoke_count * (max_full_frame_orbit_index + 1) * 3),
       debug_boundary: 1,
       debug_masks: DEBUG_MASK_SEGMENT_COUNT * 2 + 4,
       eyes: 2
@@ -535,6 +637,7 @@ export function createRenderer({
     mascot_group.remove(runtime.layers.haloThinSpokes.mesh);
     mascot_group.remove(runtime.layers.haloThickSpokes.mesh);
     mascot_group.remove(runtime.layers.haloEchoDots.mesh);
+    mascot_group.remove(runtime.layers.haloEchoMarks.mesh);
     mascot_group.remove(runtime.layers.eyes.mesh);
 
     runtime.layers.backgroundSpokes.dispose();
@@ -544,6 +647,7 @@ export function createRenderer({
     runtime.layers.haloThinSpokes.dispose();
     runtime.layers.haloThickSpokes.dispose();
     runtime.layers.haloEchoDots.dispose();
+    runtime.layers.haloEchoMarks.dispose();
     runtime.layers.eyes.dispose();
 
     runtime.layers = null;
@@ -594,6 +698,11 @@ export function createRenderer({
         config.spoke_lines.color,
         HALO_ECHO_ORDER
       ),
+      haloEchoMarks: createSegmentLayer(
+        next_capacities.halo_echo_marks,
+        config.spoke_lines.color,
+        HALO_ECHO_ORDER
+      ),
       eyes: createCircleLayer(next_capacities.eyes, "#ffffff", MASCOT_EYE_ORDER)
     };
 
@@ -604,6 +713,7 @@ export function createRenderer({
     mascot_group.add(runtime.layers.haloThinSpokes.mesh);
     mascot_group.add(runtime.layers.haloThickSpokes.mesh);
     mascot_group.add(runtime.layers.haloEchoDots.mesh);
+    mascot_group.add(runtime.layers.haloEchoMarks.mesh);
     mascot_group.add(runtime.layers.eyes.mesh);
 
     runtime.layer_capacities = next_capacities;
@@ -705,6 +815,7 @@ export function createRenderer({
       );
 
       spoke_specs[spoke_id] = {
+        spoke_pattern_id,
         target_angle,
         fill_u,
         reach_u,
@@ -784,6 +895,8 @@ export function createRenderer({
     for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
       const spoke_spec = spoke_specs[spoke_id];
       spokes[spoke_id] = {
+        source_spoke_id: spoke_id,
+        spoke_pattern_id: spoke_spec.spoke_pattern_id ?? spoke_id,
         angle: spoke_spec.target_angle,
         phase_u: spoke_spec.fill_u,
         start_radius: config.spoke_lines.start_radius_px * geometry_scale,
@@ -1192,6 +1305,8 @@ export function createRenderer({
         config.point_style.min_scale
       );
       const spoke = {
+        source_spoke_id: source_index,
+        spoke_pattern_id,
         angle,
         alpha: 1,
         phase_u: fill_u,
@@ -1278,7 +1393,9 @@ export function createRenderer({
     runtime.layers.haloThinSpokes.clear();
     runtime.layers.haloThickSpokes.clear();
     runtime.layers.haloEchoDots.clear();
+    runtime.layers.haloEchoMarks.clear();
     runtime.layers.eyes.clear();
+    clear_text_overlay();
   }
 
   function finalize_layers() {
@@ -1289,6 +1406,7 @@ export function createRenderer({
     runtime.layers.haloThinSpokes.finalize();
     runtime.layers.haloThickSpokes.finalize();
     runtime.layers.haloEchoDots.finalize();
+    runtime.layers.haloEchoMarks.finalize();
     runtime.layers.eyes.finalize();
   }
 
@@ -1299,7 +1417,8 @@ export function createRenderer({
     runtime.layers.debugMasks.setColor(DEBUG_MASK_COLOR);
     runtime.layers.haloThinSpokes.setColor(config.spoke_lines.reference_color);
     runtime.layers.haloThickSpokes.setColor(config.spoke_lines.color);
-    runtime.layers.haloEchoDots.setColor(config.spoke_lines.color);
+    runtime.layers.haloEchoDots.setColor(get_echo_color());
+    runtime.layers.haloEchoMarks.setColor(get_echo_color());
     runtime.layers.eyes.setColor("#ffffff");
     face_material.color.set(config.mascot.color);
     nose_material.color.set(config.mascot.color);
@@ -1533,6 +1652,158 @@ export function createRenderer({
     return sweep_distance <= sweep_limit ? 1 : 0;
   }
 
+  function get_echo_style() {
+    const echo_style = typeof config.spoke_lines.echo_style === "string"
+      ? config.spoke_lines.echo_style
+      : "dots";
+
+    switch (echo_style) {
+      case "plus":
+      case "triangles":
+      case "mixed":
+      case "ubuntu_releases":
+      case "dots":
+        return echo_style;
+      default:
+        return "dots";
+    }
+  }
+
+  function get_echo_color() {
+    return config.spoke_lines.echo_color || config.spoke_lines.color;
+  }
+
+  function get_echo_marker_variant(echo_style, spoke_seed, echo_index) {
+    if (echo_style === "plus" || echo_style === "triangles" || echo_style === "ubuntu_releases") {
+      return echo_style;
+    }
+
+    if (echo_style !== "mixed") {
+      return "dots";
+    }
+
+    const replace_pct = clamp(config.spoke_lines.echo_mix_shape_pct ?? 0.35, 0, 1);
+    if (hash_01(spoke_seed + 0.137, echo_index + 0.271) >= replace_pct) {
+      return "dots";
+    }
+
+    return hash_01(spoke_seed + 5.173, echo_index + 8.411) < 0.5
+      ? "plus"
+      : "triangles";
+  }
+
+  function push_plus_marker(center_x, center_y, size_px, width_px, alpha) {
+    const half_size = size_px * 0.5;
+    runtime.layers.haloEchoMarks.push(
+      center_x - half_size,
+      center_y,
+      center_x + half_size,
+      center_y,
+      width_px,
+      alpha
+    );
+    runtime.layers.haloEchoMarks.push(
+      center_x,
+      center_y - half_size,
+      center_x,
+      center_y + half_size,
+      width_px,
+      alpha
+    );
+  }
+
+  function push_triangle_marker(center_x, center_y, side_px, width_px, alpha, tip_angle_rad) {
+    const circumradius_px = side_px / Math.sqrt(3);
+    const base_center_offset_px = side_px / (2 * Math.sqrt(3));
+    const dir_x = Math.cos(tip_angle_rad);
+    const dir_y = Math.sin(tip_angle_rad);
+    const perp_x = -dir_y;
+    const perp_y = dir_x;
+    const tip_x = center_x + dir_x * circumradius_px;
+    const tip_y = center_y + dir_y * circumradius_px;
+    const base_center_x = center_x - dir_x * base_center_offset_px;
+    const base_center_y = center_y - dir_y * base_center_offset_px;
+    const left_x = base_center_x + perp_x * side_px * 0.5;
+    const left_y = base_center_y + perp_y * side_px * 0.5;
+    const right_x = base_center_x - perp_x * side_px * 0.5;
+    const right_y = base_center_y - perp_y * side_px * 0.5;
+
+    runtime.layers.haloEchoMarks.push(tip_x, tip_y, left_x, left_y, width_px, alpha);
+    runtime.layers.haloEchoMarks.push(left_x, left_y, right_x, right_y, width_px, alpha);
+    runtime.layers.haloEchoMarks.push(right_x, right_y, tip_x, tip_y, width_px, alpha);
+  }
+
+  function draw_ubuntu_release_overlay({
+    spokes,
+    box,
+    base_alpha,
+    reveal_state
+  }) {
+    if (
+      !text_overlay_context ||
+      !text_overlay_canvas ||
+      !box ||
+      base_alpha <= 0 ||
+      get_echo_style() !== "ubuntu_releases"
+    ) {
+      return;
+    }
+
+    const field_center_x = config.composition.center_x_px;
+    const field_center_y = config.composition.center_y_px;
+    const font_size_px = Math.max(
+      ECHO_TEXT_BASE_FONT_SIZE_PX,
+      Math.round(ECHO_TEXT_BASE_FONT_SIZE_PX * Math.min(stage_width_px, stage_height_px) / 1080)
+    );
+    const label_radius_px = Math.max(
+      0,
+      Math.min(stage_width_px, stage_height_px) * 0.5 - font_size_px
+    );
+    const label_count = UBUNTU_RELEASE_LABELS.length;
+
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.fillStyle = get_echo_color();
+    text_overlay_context.font =
+      `${font_size_px}px "Ubuntu Sans", Ubuntu, "DejaVu Sans", sans-serif`;
+
+    for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
+      const spoke = spokes[spoke_index];
+      if (spoke.seam_overlay_only) {
+        continue;
+      }
+
+      const phase_end_alpha = get_phase_end_alpha(spoke.angle);
+      const fold_seam_alpha = get_fold_seam_alpha(spoke.angle);
+      const spoke_alpha =
+        base_alpha * phase_end_alpha * fold_seam_alpha * clamp(spoke.alpha ?? 1, 0, 1);
+      if (spoke_alpha <= 0) {
+        continue;
+      }
+
+      const world_x = field_center_x + Math.cos(spoke.angle) * label_radius_px;
+      const world_y = field_center_y + Math.sin(spoke.angle) * label_radius_px;
+      const local_x = world_x - box.center_x_px;
+      const local_y = world_y - box.center_y_px;
+      const reveal_alpha = get_reveal_local_alpha(local_x, local_y, reveal_state);
+      if (reveal_alpha <= 0) {
+        continue;
+      }
+
+      const canvas_x = world_x;
+      const canvas_y = stage_height_px - world_y;
+      const label_index = (spoke.source_spoke_id ?? spoke_index) % label_count;
+      const label = UBUNTU_RELEASE_LABELS[label_index];
+      text_overlay_context.save();
+      text_overlay_context.translate(canvas_x, canvas_y);
+      text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha;
+      text_overlay_context.fillText(label, 0, 0);
+      text_overlay_context.restore();
+    }
+
+    text_overlay_context.restore();
+  }
+
   function set_reference_halo_visibility(box, base_alpha, reveal_state) {
     const should_show =
       Boolean(config.spoke_lines.show_reference_halo) &&
@@ -1674,6 +1945,8 @@ export function createRenderer({
     const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
     const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
     const echo_fade_mult = clamp(config.spoke_lines.echo_opacity_mult ?? 1, 0, 1);
+    const echo_style = get_echo_style();
+    const echo_marker_width_px = Math.max(0.5, outer_width_px);
     const ripple_min_scale = 0.45;
     const ripple_max_scale = 1.55;
     const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
@@ -1756,9 +2029,13 @@ export function createRenderer({
         spoke.seam_overlay_only ||
         !dot_templates.length ||
         orbit_step_px <= 0 ||
-        echo_count <= 0 ||
+        (echo_style !== "ubuntu_releases" && echo_count <= 0) ||
         spoke.inner_clip_offset_px <= 0
       ) {
+        continue;
+      }
+
+      if (echo_style === "ubuntu_releases") {
         continue;
       }
 
@@ -1827,6 +2104,32 @@ export function createRenderer({
           continue;
         }
 
+        const echo_marker_variant = get_echo_marker_variant(
+          echo_style,
+          spoke.source_spoke_id ?? spoke_index,
+          echo_index
+        );
+        if (echo_marker_variant === "plus") {
+          const plus_size_px =
+            ECHO_PLUS_SIZE_PX *
+            clamp(dot_radius_px / Math.max(0.0001, template_dot.radius_px), 0.25, 4);
+          push_plus_marker(local_dot_x, local_dot_y, plus_size_px, echo_marker_width_px, dot_alpha);
+          continue;
+        }
+
+        if (echo_marker_variant === "triangles") {
+          const triangle_side_px = Math.max(6.4, dot_radius_px * 3.2);
+          push_triangle_marker(
+            local_dot_x,
+            local_dot_y,
+            triangle_side_px,
+            echo_marker_width_px,
+            dot_alpha,
+            spoke.angle + Math.PI
+          );
+          continue;
+        }
+
         runtime.layers.haloEchoDots.push(
           local_dot_x,
           local_dot_y,
@@ -1836,6 +2139,13 @@ export function createRenderer({
         );
       }
     }
+
+    draw_ubuntu_release_overlay({
+      spokes,
+      box,
+      base_alpha,
+      reveal_state
+    });
   }
 
   function render_scene(time_sec, options = {}) {
@@ -2102,6 +2412,7 @@ export function createRenderer({
     camera.updateProjectionMatrix();
 
     runtime.dpr = get_render_pixel_ratio();
+    configure_text_overlay_canvas();
 
     if (rebuild_scene) {
       build_scene_data();
@@ -2155,7 +2466,34 @@ export function createRenderer({
 
   function canvas_to_blob(type = "image/png") {
     return new Promise((resolve, reject) => {
-      canvas.toBlob((blob) => {
+      const source_canvas = text_overlay_canvas
+        ? (() => {
+          if (
+            export_canvas.width !== canvas.width ||
+            export_canvas.height !== canvas.height
+          ) {
+            export_canvas.width = canvas.width;
+            export_canvas.height = canvas.height;
+          }
+
+          const export_context = export_canvas.getContext("2d", { alpha: false });
+          if (!export_context) {
+            reject(new Error("Export canvas 2D context is unavailable."));
+            return null;
+          }
+
+          export_context.clearRect(0, 0, export_canvas.width, export_canvas.height);
+          export_context.drawImage(canvas, 0, 0);
+          export_context.drawImage(text_overlay_canvas, 0, 0);
+          return export_canvas;
+        })()
+        : canvas;
+
+      if (!source_canvas) {
+        return;
+      }
+
+      source_canvas.toBlob((blob) => {
         if (blob) {
           resolve(blob);
           return;
@@ -2170,6 +2508,9 @@ export function createRenderer({
     applyStageStyles: apply_stage_styles,
     canvasToBlob: canvas_to_blob,
     getCurrentPlaybackTimeSec: get_current_playback_time_sec,
+    getOutputProfileKey() {
+      return current_output_profile_key;
+    },
     getPlaybackEndSec() {
       return runtime.playback_end_sec;
     },
@@ -2178,6 +2519,7 @@ export function createRenderer({
     refreshScene: refresh_scene,
     renderCurrentFrame: render_current_frame,
     renderPlaybackFrame: render_playback_frame,
+    setOutputProfile: set_output_profile,
     startAnimation: start_animation,
     stopAnimation: stop_animation,
     togglePause: toggle_pause,

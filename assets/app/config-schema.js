@@ -1,24 +1,78 @@
 import SOURCE_DEFAULT_CONFIG from "./default-config-source.js";
 
 export const TAU = Math.PI * 2;
+export const OUTPUT_PROFILE_ORDER = Object.freeze([
+  "landscape_1280x720",
+  "instagram_1080x1350",
+  "story_1080x1920",
+  "screen_3840x2160",
+  "tablet_2560x1600",
+  "led_wall_7680x2160"
+]);
 export const OUTPUT_PROFILES = Object.freeze({
-  authoring_full_hd: Object.freeze({
-    key: "authoring_full_hd",
-    label: "Authoring Portrait HD",
+  landscape_1280x720: Object.freeze({
+    key: "landscape_1280x720",
+    label: "1280 x 720 (16:9)",
+    width_px: 1280,
+    height_px: 720,
+    kind: "social_landscape",
+    platforms: "LinkedIn, Twitter, Mastodon",
+    safe_zone: "No safe zone"
+  }),
+  instagram_1080x1350: Object.freeze({
+    key: "instagram_1080x1350",
+    label: "1080 x 1350 (4:5)",
+    width_px: 1080,
+    height_px: 1350,
+    kind: "social_portrait",
+    platforms: "Instagram",
+    safe_zone: "No safe zone"
+  }),
+  story_1080x1920: Object.freeze({
+    key: "story_1080x1920",
+    label: "1080 x 1920 (9:16)",
     width_px: 1080,
     height_px: 1920,
-    kind: "authoring"
+    kind: "story",
+    platforms: "Instagram Story",
+    safe_zone: "Safe zone"
+  }),
+  screen_3840x2160: Object.freeze({
+    key: "screen_3840x2160",
+    label: "3840 x 2160",
+    width_px: 3840,
+    height_px: 2160,
+    kind: "screen",
+    platforms: "Screen",
+    safe_zone: "No safe zone"
+  }),
+  tablet_2560x1600: Object.freeze({
+    key: "tablet_2560x1600",
+    label: "2560 x 1600",
+    width_px: 2560,
+    height_px: 1600,
+    kind: "tablet",
+    platforms: "Tablet",
+    safe_zone: "No safe zone"
   }),
   led_wall_7680x2160: Object.freeze({
     key: "led_wall_7680x2160",
     label: "LED Wall 7680 x 2160",
     width_px: 7680,
     height_px: 2160,
-    kind: "largest_target"
+    kind: "largest_target",
+    platforms: "LED wall",
+    safe_zone: "No safe zone"
   })
 });
-export const DEFAULT_OUTPUT_PROFILE_KEY = "authoring_full_hd";
+export const DEFAULT_OUTPUT_PROFILE_KEY = "story_1080x1920";
 export const LARGEST_OUTPUT_PROFILE_KEY = "led_wall_7680x2160";
+export const MAX_OUTPUT_PROFILE_WIDTH_PX = Math.max(
+  ...Object.values(OUTPUT_PROFILES).map((profile) => profile.width_px)
+);
+export const MAX_OUTPUT_PROFILE_HEIGHT_PX = Math.max(
+  ...Object.values(OUTPUT_PROFILES).map((profile) => profile.height_px)
+);
 
 export function get_output_profile(profile_key = DEFAULT_OUTPUT_PROFILE_KEY) {
   return OUTPUT_PROFILES[profile_key] || OUTPUT_PROFILES[DEFAULT_OUTPUT_PROFILE_KEY];
@@ -68,6 +122,11 @@ export const DOCKED_EDITOR_MIN_WIDTH_PX = 1500;
 
 export const EDITOR_TAB_GROUPS = Object.freeze([
   Object.freeze({
+    key: "field",
+    label: "Field",
+    sections: Object.freeze(["generator_wrangle", "spoke_lines", "screensaver"])
+  }),
+  Object.freeze({
     key: "presets",
     label: "Presets",
     sections: Object.freeze([])
@@ -76,11 +135,6 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
     key: "motion",
     label: "Motion",
     sections: Object.freeze(["head_turn", "blink", "finale"])
-  }),
-  Object.freeze({
-    key: "field",
-    label: "Field",
-    sections: Object.freeze(["generator_wrangle", "spoke_lines", "screensaver"])
   }),
   Object.freeze({
     key: "dots",
@@ -139,13 +193,11 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "composition.center_x_px": {
     hidden: true,
-    locked_value: COMPOSITION_CENTER_X_PX,
-    numeric: { min: 0, max: STAGE_WIDTH_PX, step: 1 }
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "composition.center_y_px": {
     hidden: true,
-    locked_value: COMPOSITION_CENTER_Y_PX,
-    numeric: { min: 0, max: STAGE_HEIGHT_PX, step: 1 }
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
   "composition.radial_scale": {
     hidden: true,
@@ -183,12 +235,15 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: 1, max: 24, step: 1 }
   },
   "generator_wrangle.base_angle_deg": {
+    hidden: true,
     numeric: { min: -180, max: 180, step: 0.1 }
   },
   "generator_wrangle.pattern_offset_spokes": {
+    hidden: true,
     numeric: { min: -180, max: 180, step: 1 }
   },
   "generator_wrangle.anim_start_angle_deg": {
+    hidden: true,
     numeric: { min: -180, max: 180, step: 0.1 }
   },
   "transition_wrangle.duration_sec": {
@@ -293,6 +348,11 @@ export const CONFIG_FIELD_META = Object.freeze({
     hidden: true,
     locked_value: "#ffffff"
   },
+  "spoke_lines.echo_color": {
+    label: "Echo Marker Color",
+    help_text:
+      "Sets the color of the halo echo markers only: circles, plus signs, triangles, mixed replacements, or Ubuntu release labels."
+  },
   "spoke_lines.width_px": {
     label: "Outer Spoke Thickness (px)",
     help_text:
@@ -316,6 +376,24 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text:
       "Adds extra clipped copies of the thick spoke pass to push the pattern outward across the widescreen frame.",
     numeric: { min: 0, max: 24, step: 1 }
+  },
+  "spoke_lines.echo_style": {
+    label: "Echo Marker Style",
+    help_text:
+      "Chooses how the echoed halo markers render: circles, plus signs, outlined triangles, a deterministic mix, or Ubuntu release labels near the canvas edge.",
+    options: Object.freeze([
+      Object.freeze({ value: "dots", label: "Dots" }),
+      Object.freeze({ value: "plus", label: "Plus Signs" }),
+      Object.freeze({ value: "triangles", label: "Outlined Triangles" }),
+      Object.freeze({ value: "mixed", label: "Mixed Shapes" }),
+      Object.freeze({ value: "ubuntu_releases", label: "Ubuntu Releases" })
+    ])
+  },
+  "spoke_lines.echo_mix_shape_pct": {
+    label: "Mixed Shape Replacement",
+    help_text:
+      "For Mixed Shapes, controls what percentage of circle echoes get deterministically replaced by plus signs or outlined triangles.",
+    numeric: { min: 0, max: 1, step: 0.01 }
   },
   "spoke_lines.echo_width_mult": {
     label: "Echo Dot Scale Multiplier",
@@ -435,9 +513,9 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: 1, max: 180, step: 1 }
   },
   "screensaver.phase_boundary_transition_sec": {
-    label: "Phase Boundary Width Ease (sec)",
+    label: "Phase Boundary Transition Time (sec)",
     help_text:
-      "When folded spokes cross the 3PM phase boundary, ease the thick-spoke width and clip handoff over this duration instead of snapping instantly.",
+      "When folded spokes cross the 3PM phase boundary, ease the thick-spoke width and clip handoff over this amount of time instead of snapping instantly. Higher values make the handoff linger longer; lower values make it snap faster.",
     numeric: { min: 0, max: 1.5, step: 0.01 }
   },
   "blink.enabled": {
@@ -486,7 +564,9 @@ export const CONFIG_FIELD_META = Object.freeze({
 });
 
 export function create_default_config() {
-  return deep_clone(SOURCE_DEFAULT_CONFIG);
+  const config = deep_clone(SOURCE_DEFAULT_CONFIG);
+  sync_profile_derived_config(config);
+  return config;
 }
 
 export function clamp(value, min_value, max_value) {
@@ -580,6 +660,20 @@ export function enforce_locked_config_values(target) {
   }
 }
 
+export function sync_profile_derived_config(target) {
+  if (!is_plain_object(target) || !is_plain_object(target.composition)) {
+    return;
+  }
+
+  const profile_key = typeof target.output_profile_key === "string"
+    ? target.output_profile_key
+    : DEFAULT_OUTPUT_PROFILE_KEY;
+  const profile = get_output_profile_metrics(profile_key);
+  target.output_profile_key = profile.key;
+  target.composition.center_x_px = profile.center_x_px;
+  target.composition.center_y_px = profile.center_y_px;
+}
+
 export function is_hex_color_string(value) {
   return typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value);
 }
@@ -634,6 +728,7 @@ export function normalize_config_snapshot(source, default_config) {
   ) {
     snapshot.screensaver.cycle_sec = Number(source.finale.orbit_breath_cycle_sec);
   }
+  sync_profile_derived_config(snapshot);
   snapshot.mascot.face_asset_path = default_config.mascot.face_asset_path;
   snapshot.mascot.halo_asset_path = default_config.mascot.halo_asset_path;
   enforce_locked_config_values(snapshot);

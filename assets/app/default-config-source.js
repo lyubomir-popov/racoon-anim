@@ -1,4 +1,5 @@
 export const SOURCE_DEFAULT_CONFIG = {
+  output_profile_key: "story_1080x1920",
   mascot_fade: {
     enabled: false,
     duration_sec: 3
@@ -68,10 +69,13 @@ export const SOURCE_DEFAULT_CONFIG = {
     construction_color: "#333333",
     reference_color: "#ffffff",
     color: "#ffffff",
+    echo_color: "#ffffff",
     width_px: 1.5,
     inner_width_px: 8,
     phase_start_scale: 0.05,
     echo_count: 16,
+    echo_style: "mixed",
+    echo_mix_shape_pct: 0.35,
     echo_width_mult: 0.88,
     echo_wave_count: 4,
     echo_opacity_mult: 0.68,

@@ -130,10 +130,16 @@ body.editor-docked .stage {
   width: min(calc(100vw - 3rem), calc((100svh - 5.5rem) * 1.7777778));
 }
 
-canvas {
+.stage > canvas {
   display: block;
+  inset: 0;
+  position: absolute;
   height: 100%;
   width: 100%;
+}
+
+.stage__text-overlay {
+  pointer-events: none;
 }
 
 .viewer-actions {
@@ -287,6 +293,12 @@ body.editor-docked .drawer-panel {
   gap: 0.75rem;
 }
 
+.format-radio-details {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
 .preset-radio-row {
   align-items: center;
   border: 1px solid var(--vf-color-border-default);
@@ -303,6 +315,13 @@ body.editor-docked .drawer-panel {
 }
 
 .preset-radio-name {
+  min-width: 0;
+}
+
+.format-radio-meta {
+  color: var(--vf-color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
   min-width: 0;
 }
 
