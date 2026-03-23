@@ -6,15 +6,24 @@ const CENTER_Y = WORLD_HEIGHT * 0.5;
 const SOURCE_SPOKES = 60;
 const INNER_DISK_RADIUS = 148;
 const SPOKE_START_RADIUS = 178;
-const OUTER_RADIUS = 500;
-const DOT_COUNT = 17;
+const HALO_OUTER_RADIUS = 332;
+const FULL_FRAME_OUTER_RADIUS = 620;
+const DOT_COUNT = 24;
 const PIN_LABEL_ANGLE = 0;
 const COLOR_BG = "#242424";
 const COLOR_RING = "#1b1b1b";
 const COLOR_CONSTRUCTION = "#373737";
 const COLOR_VISIBLE = "#f5f2ea";
+const COLOR_THIN = "#dfdbd2";
 const COLOR_GLASS = "#8a8477";
 const COLOR_MUTED = "#b9b2a3";
+const CONSTRUCTION_WIDTH = 1;
+const THIN_WIDTH = 1.5;
+const THICK_WIDTH = 8;
+const ECHO_WIDTH_MULT = 0.88;
+const ECHO_WAVE_COUNT = 4;
+const ECHO_OPACITY_MULT = 0.68;
+const GLASS_MIN_SCALE = 0.2;
 
 const stage_canvas = document.querySelector("[data-stage-canvas]");
 const strip_canvas = document.querySelector("[data-strip-canvas]");
@@ -128,8 +137,8 @@ function sample_glass_field(angle_u) {
   return {
     phase_name: in_upper_phase ? "upper" : "lower",
     phase_progress,
-    width_scale: lerp(0.2, 1, eased_progress),
-    length_scale: lerp(0.2, 1, eased_progress)
+    width_scale: lerp(GLASS_MIN_SCALE, 1, eased_progress),
+    length_scale: lerp(GLASS_MIN_SCALE, 1, eased_progress)
   };
 }
 
@@ -188,10 +197,10 @@ function draw_glass_overlay() {
 
 function draw_clock_labels() {
   const labels = [
-    { text: "3PM seam", angle: 0, radius: OUTER_RADIUS + 72 },
-    { text: "12PM", angle: TAU * 0.25, radius: OUTER_RADIUS + 56 },
-    { text: "9AM", angle: TAU * 0.5, radius: OUTER_RADIUS + 56 },
-    { text: "6PM", angle: TAU * 0.75, radius: OUTER_RADIUS + 56 }
+    { text: "3PM seam", angle: 0, radius: FULL_FRAME_OUTER_RADIUS + 72 },
+    { text: "12PM", angle: TAU * 0.25, radius: FULL_FRAME_OUTER_RADIUS + 56 },
+    { text: "9AM", angle: TAU * 0.5, radius: FULL_FRAME_OUTER_RADIUS + 56 },
+    { text: "6PM", angle: TAU * 0.75, radius: FULL_FRAME_OUTER_RADIUS + 56 }
   ];
 
   stage_context.save();
@@ -211,18 +220,9 @@ function draw_clock_labels() {
 function draw_construction_spokes() {
   stage_context.save();
   stage_context.strokeStyle = COLOR_CONSTRUCTION;
-  stage_context.lineWidth = 1.2;
+  stage_context.lineWidth = CONSTRUCTION_WIDTH;
   stage_context.globalAlpha = 1;
-
-  for (let index = 0; index < SOURCE_SPOKES; index += 1) {
-    const angle = TAU * index / SOURCE_SPOKES;
-    const start = polar_to_cartesian(angle, SPOKE_START_RADIUS);
-    const end = polar_to_cartesian(angle, OUTER_RADIUS + 110);
-    stage_context.beginPath();
-    stage_context.moveTo(start.x, start.y);
-    stage_context.lineTo(end.x, end.y);
-    stage_context.stroke();
-  }
+  stage_context.lineCap = "butt";
 
   stage_context.restore();
 }
@@ -251,28 +251,37 @@ function draw_center_disk() {
 }
 
 function draw_visible_spoke(spoke) {
-  const direction = polar_to_cartesian(spoke.display_angle_rad, 1);
-  const dir_x = direction.x - CENTER_X;
-  const dir_y = direction.y - CENTER_Y;
   const length_scale = spoke.glass.length_scale;
   const width_scale = spoke.glass.width_scale;
-  const thick_end_radius = lerp(SPOKE_START_RADIUS + 42, SPOKE_START_RADIUS + 250, length_scale);
-  const dot_start_radius = thick_end_radius + 20;
+  const construction_end_radius = FULL_FRAME_OUTER_RADIUS + 110;
+  const thick_end_radius = lerp(SPOKE_START_RADIUS + 44, HALO_OUTER_RADIUS, length_scale);
+  const dot_start_radius = HALO_OUTER_RADIUS + 14;
   const line_start = polar_to_cartesian(spoke.display_angle_rad, SPOKE_START_RADIUS);
   const line_end = polar_to_cartesian(spoke.display_angle_rad, thick_end_radius);
+  const thin_end = polar_to_cartesian(spoke.display_angle_rad, HALO_OUTER_RADIUS);
+  const construction_end = polar_to_cartesian(spoke.display_angle_rad, construction_end_radius);
+  const ripple_fade_start = lerp(0.2, 0.85, ECHO_OPACITY_MULT);
 
   stage_context.save();
-  stage_context.strokeStyle = COLOR_VISIBLE;
-  stage_context.lineCap = "round";
-  stage_context.globalAlpha = 0.28;
-  stage_context.lineWidth = 1.5;
+  stage_context.lineCap = "butt";
+  stage_context.strokeStyle = COLOR_CONSTRUCTION;
+  stage_context.globalAlpha = 1;
+  stage_context.lineWidth = CONSTRUCTION_WIDTH;
   stage_context.beginPath();
   stage_context.moveTo(line_start.x, line_start.y);
-  stage_context.lineTo(direction.x + dir_x * OUTER_RADIUS, direction.y + dir_y * OUTER_RADIUS);
+  stage_context.lineTo(construction_end.x, construction_end.y);
+  stage_context.stroke();
+
+  stage_context.strokeStyle = COLOR_THIN;
+  stage_context.lineWidth = THIN_WIDTH;
+  stage_context.beginPath();
+  stage_context.moveTo(line_start.x, line_start.y);
+  stage_context.lineTo(thin_end.x, thin_end.y);
   stage_context.stroke();
 
   stage_context.globalAlpha = 1;
-  stage_context.lineWidth = lerp(2.2, 12.5, width_scale);
+  stage_context.strokeStyle = COLOR_VISIBLE;
+  stage_context.lineWidth = THICK_WIDTH * width_scale;
   stage_context.beginPath();
   stage_context.moveTo(line_start.x, line_start.y);
   stage_context.lineTo(line_end.x, line_end.y);
@@ -280,12 +289,23 @@ function draw_visible_spoke(spoke) {
 
   for (let dot_index = 0; dot_index < DOT_COUNT; dot_index += 1) {
     const orbit_u = dot_index / Math.max(1, DOT_COUNT - 1);
-    const dot_radius = lerp(dot_start_radius, OUTER_RADIUS, orbit_u);
+    const dot_radius = lerp(dot_start_radius, FULL_FRAME_OUTER_RADIUS, orbit_u);
     const point = polar_to_cartesian(spoke.display_angle_rad, dot_radius);
-    const size = lerp(4.6, 1.15, orbit_u) * lerp(0.55, 1.3, width_scale);
+    const ripple_phase = orbit_u * ECHO_WAVE_COUNT * TAU;
+    const ripple_scale = lerp(0.45, 1.55, 0.5 + 0.5 * Math.cos(ripple_phase));
+    const echo_index = Math.max(1, Math.ceil((dot_radius - HALO_OUTER_RADIUS) / 32));
+    const size =
+      lerp(4.6, 1.15, orbit_u) *
+      Math.min(1, Math.pow(ECHO_WIDTH_MULT, echo_index) * ripple_scale) *
+      lerp(0.55, 1.25, width_scale);
+    const alpha = 1 - clamp((orbit_u - ripple_fade_start) / Math.max(0.0001, 1 - ripple_fade_start), 0, 1);
+    if (size <= 0.4 || alpha <= 0) {
+      continue;
+    }
     stage_context.beginPath();
     stage_context.arc(point.x, point.y, size, 0, TAU);
     stage_context.fillStyle = COLOR_VISIBLE;
+    stage_context.globalAlpha = alpha;
     stage_context.fill();
   }
 
