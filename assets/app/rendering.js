@@ -1007,6 +1007,7 @@ export function createRenderer({
       : 0;
     const total_turns = max_spoke_count / Math.max(1, effective_spoke_count);
     const seam_display_u = 0.5;
+    const seam_visibility_band_turns = 1.25 / max_spoke_count;
     const width_transition_duration_sec = get_phase_boundary_transition_sec();
     const last_width_transition_time_sec = runtime.spoke_width_transition_playback_time_sec;
     const width_transition_delta_sec =
@@ -1029,7 +1030,7 @@ export function createRenderer({
     for (let source_index = 0; source_index < max_spoke_count; source_index += 1) {
       const strip_u = source_index / max_spoke_count;
       const wrapped_turn_position = strip_u * total_turns;
-      if (wrapped_turn_position >= 1) {
+      if (wrapped_turn_position >= 1 + seam_visibility_band_turns) {
         continue;
       }
 
@@ -1080,9 +1081,14 @@ export function createRenderer({
         transition.phase_frontier_bias,
         config.point_style.min_scale
       );
+      const seam_visibility_alpha = 1 - smoothstep(
+        1 - seam_visibility_band_turns,
+        1 + seam_visibility_band_turns,
+        wrapped_turn_position
+      );
       const fold_fade_alpha = total_turns <= 1.0001
-        ? 1
-        : 1 - smoothstep(0.75, 1, wrapped_turn_position);
+        ? seam_visibility_alpha
+        : seam_visibility_alpha * (1 - smoothstep(0.75, 1, wrapped_turn_position));
       const spoke = {
         angle,
         alpha: fold_fade_alpha,
@@ -1388,7 +1394,7 @@ export function createRenderer({
     const point_angle = Math.atan2(local_y, local_x);
     const sweep_distance = wrap_positive(reveal_state.start_angle_rad - point_angle, TAU);
     const sweep_limit = TAU * reveal_state.halo_u;
-    const reveal_softness_rad = TAU * 2 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
+    const reveal_softness_rad = TAU * 0.45 / Math.max(1, Number(config.generator_wrangle.spoke_count || 1));
     return 1 - smoothstep(sweep_limit, sweep_limit + reveal_softness_rad, sweep_distance);
   }
 
