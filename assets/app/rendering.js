@@ -173,13 +173,12 @@ export function createRenderer({
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
-    alpha: false,
+    alpha: true,
     powerPreference: "high-performance"
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(get_render_pixel_ratio());
   renderer.setSize(stage_width_px, stage_height_px, false);
-  renderer.setClearColor(STAGE_BACKGROUND_COLOR, 1);
   const text_overlay_context = text_overlay_canvas
     ? text_overlay_canvas.getContext("2d", {
       alpha: true,
@@ -283,6 +282,7 @@ export function createRenderer({
     pause_time_ms: 0,
     animation_start_ms: performance.now(),
     refresh_serial: 0,
+    export_transparent_background: false,
     spoke_width_phase_u_by_source: new Map(),
     spoke_clip_center_x_by_source: new Map(),
     spoke_width_transition_playback_time_sec: null,
@@ -299,16 +299,44 @@ export function createRenderer({
     apply_stage_styles();
   }
 
+  function get_background_color() {
+    return config.composition?.background_color || STAGE_BACKGROUND_COLOR;
+  }
+
+  function get_background_rgba(alpha = 1) {
+    const hex = get_background_color().replace("#", "").trim();
+    const normalized_hex = hex.length === 3
+      ? hex.split("").map((char) => char + char).join("")
+      : hex;
+    if (!/^[0-9a-fA-F]{6}$/.test(normalized_hex)) {
+      return `rgba(38, 38, 38, ${alpha})`;
+    }
+
+    const red = Number.parseInt(normalized_hex.slice(0, 2), 16);
+    const green = Number.parseInt(normalized_hex.slice(2, 4), 16);
+    const blue = Number.parseInt(normalized_hex.slice(4, 6), 16);
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  function apply_renderer_clear_color() {
+    renderer.setClearColor(
+      get_background_color(),
+      runtime.export_transparent_background ? 0 : 1
+    );
+  }
+
   function apply_stage_styles() {
-    document.body.style.background = STAGE_BACKGROUND_COLOR;
+    const background_color = get_background_color();
+    document.body.style.background = background_color;
     stage.style.aspectRatio = `${stage_width_px} / ${stage_height_px}`;
     stage.style.width =
       `min(${stage_width_px}px, calc(100vw - var(--editor-panel-space, 0px) - 3rem), ` +
       `calc((100svh - 5.5rem) * ${stage_aspect_ratio}))`;
     stage.style.borderRadius = "0";
-    stage.style.background = STAGE_BACKGROUND_COLOR;
+    stage.style.background = background_color;
     stage.style.borderColor = "transparent";
     stage.style.boxShadow = "none";
+    apply_renderer_clear_color();
   }
 
   function clear_text_overlay() {
@@ -1056,7 +1084,7 @@ export function createRenderer({
     runtime.layers.eyes.setColor("#ffffff");
     face_material.color.set(config.mascot.color);
     nose_material.color.set(config.mascot.color);
-    nose_cutout_material.color.set(STAGE_BACKGROUND_COLOR);
+    nose_cutout_material.color.set(get_background_color());
     halo_reference_material.color.set(HALO_REFERENCE_COLOR);
   }
 
@@ -1234,7 +1262,11 @@ export function createRenderer({
 
   function get_spoke_width_scale(spoke) {
     const phase_start_scale = clamp(config.spoke_lines.phase_start_scale ?? 1, 0.01, 1);
-    return lerp(phase_start_scale, 1, clamp(spoke.width_phase_u ?? spoke.phase_u ?? 1, 0, 1));
+    const width_phase_u = clamp(spoke.width_phase_u ?? spoke.phase_u ?? 1, 0, 1);
+    const remapped_phase_u = config.spoke_lines.reverse_inner_spoke_thickness_scale
+      ? 1 - width_phase_u
+      : width_phase_u;
+    return lerp(phase_start_scale, 1, remapped_phase_u);
   }
 
   function get_reveal_local_alpha(local_x, local_y, reveal_state) {
@@ -1476,10 +1508,10 @@ export function createRenderer({
       outer_radius_px
     );
 
-    gradient.addColorStop(0, "rgba(38, 38, 38, 0)");
-    gradient.addColorStop(inner_stop, "rgba(38, 38, 38, 0)");
-    gradient.addColorStop(midpoint_stop, "rgba(38, 38, 38, 0.5)");
-    gradient.addColorStop(1, "rgba(38, 38, 38, 1)");
+    gradient.addColorStop(0, get_background_rgba(0));
+    gradient.addColorStop(inner_stop, get_background_rgba(0));
+    gradient.addColorStop(midpoint_stop, get_background_rgba(0.5));
+    gradient.addColorStop(1, get_background_rgba(1));
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
@@ -2172,8 +2204,20 @@ export function createRenderer({
     }
   }
 
-  function canvas_to_blob(type = "image/png") {
-    return new Promise((resolve, reject) => {
+  async function canvas_to_blob(type = "image/png", options = {}) {
+    const transparent_background = Boolean(options.transparent_background);
+    const previous_transparent_background = runtime.export_transparent_background;
+    const should_restore_transparent_flag =
+      previous_transparent_background !== transparent_background;
+
+    try {
+      if (should_restore_transparent_flag) {
+        runtime.export_transparent_background = transparent_background;
+        apply_renderer_clear_color();
+        render_playback_frame(runtime.playback_time_sec);
+      }
+
+      return await new Promise((resolve, reject) => {
       if (
         export_canvas.width !== stage_width_px ||
         export_canvas.height !== stage_height_px
@@ -2182,7 +2226,7 @@ export function createRenderer({
         export_canvas.height = stage_height_px;
       }
 
-      const export_context = export_canvas.getContext("2d", { alpha: false });
+      const export_context = export_canvas.getContext("2d", { alpha: true });
       if (!export_context) {
         reject(new Error("Export canvas 2D context is unavailable."));
         return;
@@ -2214,7 +2258,14 @@ export function createRenderer({
 
         reject(new Error("Canvas export failed."));
       }, type);
-    });
+      });
+    } finally {
+      if (should_restore_transparent_flag) {
+        runtime.export_transparent_background = previous_transparent_background;
+        apply_renderer_clear_color();
+        render_playback_frame(runtime.playback_time_sec);
+      }
+    }
   }
 
   return {

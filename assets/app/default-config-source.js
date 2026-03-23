@@ -18,6 +18,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   "composition": {
     "center_x_px": 540,
     "center_y_px": 960,
+    "background_color": "#161616",
     "radial_scale": 1,
     "global_rotation_deg": 0
   },
@@ -70,9 +71,10 @@ export const SOURCE_DEFAULT_CONFIG = {
     "reference_color": "#666666",
     "color": "#ffffff",
     "echo_color": "#444444",
-    "width_px": 1.5,
+    "width_px": 3,
     "inner_width_px": 8,
     "phase_start_scale": 0.05,
+    "reverse_inner_spoke_thickness_scale": false,
     "echo_count": 16,
     "echo_style": "mixed",
     "echo_shape_seed": 1,
@@ -137,7 +139,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "choke": 0.5
   },
   "export_settings": {
-    "frame_rate": 24
+    "frame_rate": 24,
+    "transparent_background": false
   }
 };
 

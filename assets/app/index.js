@@ -40,6 +40,9 @@ const drawer_close_button = document.querySelector("[data-drawer-close]");
 const replay_button = document.querySelector("[data-replay-button]");
 const export_frame_button = document.querySelector("[data-export-frame-button]");
 const export_sequence_button = document.querySelector("[data-export-sequence-button]");
+const export_transparent_background_checkbox = document.querySelector(
+  "[data-export-transparent-background]"
+);
 const set_defaults_button = document.querySelector("[data-set-defaults-button]");
 const reset_button = document.querySelector("[data-reset-button]");
 const preset_name_input = document.querySelector("[data-preset-name]");
@@ -78,6 +81,7 @@ const is_local_editor = url_search_params.has("tune");
 const LEGACY_BROWSER_DEFAULT_CONFIG_KEY = "radial-mascot-browser-default-config-v1";
 
 const RENDER_ONLY_CONTROL_PATHS = new Set([
+  "composition.background_color",
   "head_turn.peak_angle_deg",
   "head_turn.reverse_angle_deg",
   "head_turn.overshoot_angle_deg",
@@ -110,6 +114,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.width_px",
   "spoke_lines.inner_width_px",
   "spoke_lines.phase_start_scale",
+  "spoke_lines.reverse_inner_spoke_thickness_scale",
   "spoke_lines.echo_count",
   "spoke_lines.echo_style",
   "spoke_lines.echo_mix_shape_pct",
@@ -119,6 +124,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
 ]);
 
 const SECTION_LABELS = Object.freeze({
+  composition: "Stage",
   head_turn: "Head Turn",
   blink: "Blink",
   finale: "Finale",
@@ -130,6 +136,15 @@ const SECTION_LABELS = Object.freeze({
   vignette: "Vignette",
   mascot: "Mascot Size"
 });
+
+const COLOR_CONTROL_PATHS = Object.freeze([
+  "composition.background_color",
+  "spoke_lines.construction_color",
+  "spoke_lines.reference_color",
+  "spoke_lines.echo_color",
+  "mascot.color"
+]);
+const COLOR_CONTROL_PATH_SET = new Set(COLOR_CONTROL_PATHS);
 
 function get_section_label(section_key) {
   return SECTION_LABELS[section_key] || humanize_key(section_key);
@@ -341,6 +356,7 @@ function sync_editor_values() {
 
   refresh_slider_tracks();
   sync_output_profile_controls();
+  sync_export_controls();
 }
 
 function get_current_output_profile_key() {
@@ -355,6 +371,16 @@ function sync_output_profile_controls() {
   for (const [profile_key, radio_input] of state.output_profile_inputs.entries()) {
     radio_input.checked = profile_key === active_key;
   }
+}
+
+function sync_export_controls() {
+  if (!export_transparent_background_checkbox) {
+    return;
+  }
+
+  export_transparent_background_checkbox.checked = Boolean(
+    config.export_settings?.transparent_background
+  );
 }
 
 async function apply_output_profile(profile_key, { announce = true } = {}) {
@@ -1064,9 +1090,15 @@ function create_control_input(path_key, value) {
   };
 }
 
-function create_control_row(path_parts, value) {
+function create_control_row(path_parts, value, options = {}) {
   const path_key = path_parts.join(".");
   if (is_control_hidden(path_key)) {
+    return null;
+  }
+  if (options.allowed_paths && !options.allowed_paths.has(path_key)) {
+    return null;
+  }
+  if (options.excluded_paths && options.excluded_paths.has(path_key)) {
     return null;
   }
 
@@ -1119,7 +1151,7 @@ function create_control_row(path_parts, value) {
   return row;
 }
 
-function append_editor_fields(parent, object_value, path_parts) {
+function append_editor_fields(parent, object_value, path_parts, options = {}) {
   let appended_count = 0;
   for (const [key, value] of Object.entries(object_value)) {
     const next_path = path_parts.concat(key);
@@ -1127,7 +1159,7 @@ function append_editor_fields(parent, object_value, path_parts) {
       const group = document.createElement("div");
       group.className = "config-group";
 
-      const group_count = append_editor_fields(group, value, next_path);
+      const group_count = append_editor_fields(group, value, next_path, options);
       if (group_count === 0) {
         continue;
       }
@@ -1141,7 +1173,7 @@ function append_editor_fields(parent, object_value, path_parts) {
       continue;
     }
 
-    const row = create_control_row(next_path, value);
+    const row = create_control_row(next_path, value, options);
     if (!row) {
       continue;
     }
@@ -1151,6 +1183,35 @@ function append_editor_fields(parent, object_value, path_parts) {
   }
 
   return appended_count;
+}
+
+function build_curated_control_section(title_text, path_keys) {
+  const section = document.createElement("div");
+  section.className = "config-section";
+
+  let field_count = 0;
+  for (const path_key of path_keys) {
+    const value = get_config_value(path_key.split("."));
+    const row = create_control_row(path_key.split("."), value, {
+      allowed_paths: COLOR_CONTROL_PATH_SET
+    });
+    if (!row) {
+      continue;
+    }
+
+    section.appendChild(row);
+    field_count += 1;
+  }
+
+  if (field_count === 0) {
+    return null;
+  }
+
+  const title = document.createElement("h2");
+  title.className = "p-muted-heading u-no-margin--bottom";
+  title.textContent = title_text;
+  section.prepend(title);
+  return section;
 }
 
 function build_config_editor() {
@@ -1219,6 +1280,16 @@ function build_config_editor() {
       continue;
     }
 
+    if (group.key === "colors") {
+      const color_section = build_curated_control_section("Colors", COLOR_CONTROL_PATHS);
+      if (color_section) {
+        form.appendChild(color_section);
+      }
+      panel.appendChild(form);
+      panels.appendChild(panel);
+      continue;
+    }
+
     for (const section_key of group.sections) {
       const section_value = config[section_key];
       if (!is_plain_object(section_value)) {
@@ -1228,7 +1299,9 @@ function build_config_editor() {
       const section = document.createElement("div");
       section.className = "config-section";
 
-      const field_count = append_editor_fields(section, section_value, [section_key]);
+      const field_count = append_editor_fields(section, section_value, [section_key], {
+        excluded_paths: COLOR_CONTROL_PATH_SET
+      });
       if (field_count === 0) {
         continue;
       }
@@ -1631,7 +1704,9 @@ async function export_png_sequence() {
       const playback_time_sec = frame_index / frame_rate;
       renderer.renderPlaybackFrame(playback_time_sec);
 
-      const blob = await renderer.canvasToBlob("image/png");
+      const blob = await renderer.canvasToBlob("image/png", {
+        transparent_background: Boolean(config.export_settings?.transparent_background)
+      });
       const file_handle = await output_selection.directory_handle.getFileHandle(
         `frame-${String(frame_index + 1).padStart(4, "0")}.png`,
         { create: true }
@@ -1702,7 +1777,9 @@ async function export_current_frame_png() {
       export_sequence_button.disabled = true;
     }
 
-    const blob = await renderer.canvasToBlob("image/png");
+    const blob = await renderer.canvasToBlob("image/png", {
+      transparent_background: Boolean(config.export_settings?.transparent_background)
+    });
     const output_selection = await get_sequence_output_directory_handle();
     if (output_selection) {
       const file_name = await get_next_png_export_file_name(
@@ -1786,6 +1863,11 @@ function attach_ui_events() {
 
   export_sequence_button.addEventListener("click", () => {
     void export_png_sequence();
+  });
+
+  export_transparent_background_checkbox?.addEventListener("change", () => {
+    config.export_settings.transparent_background =
+      export_transparent_background_checkbox.checked;
   });
 
   stage.addEventListener("click", handle_stage_click);

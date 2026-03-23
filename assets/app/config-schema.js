@@ -125,7 +125,12 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
   Object.freeze({
     key: "field",
     label: "Field",
-    sections: Object.freeze(["generator_wrangle", "mascot"])
+    sections: Object.freeze(["composition", "generator_wrangle", "mascot"])
+  }),
+  Object.freeze({
+    key: "colors",
+    label: "Colors",
+    sections: Object.freeze([])
   }),
   Object.freeze({
     key: "halo",
@@ -204,6 +209,9 @@ export const CONFIG_FIELD_META = Object.freeze({
   "composition.center_y_px": {
     hidden: true,
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "composition.background_color": {
+    label: "Background Color"
   },
   "composition.radial_scale": {
     hidden: true,
@@ -376,6 +384,11 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text:
       "Only affects the thick echoed spoke pass. Lower values start each phase thinner and ramp back up to the base thick-spoke width by the phase end.",
     numeric: { min: 0.05, max: 1, step: 0.01 }
+  },
+  "spoke_lines.reverse_inner_spoke_thickness_scale": {
+    label: "Reverse Inner Spoke Thickness Scale",
+    help_text:
+      "Flips the thick inner-spoke width ramp so the phase-start scaling is applied in reverse. Useful for A/B testing the phase thickness mapping."
   },
   "spoke_lines.echo_count": {
     label: "Echo Count",
@@ -596,6 +609,10 @@ export const CONFIG_FIELD_META = Object.freeze({
     hidden: true,
     locked_value: 24,
     numeric: { min: 1, max: 60, step: 1 }
+  },
+  "export_settings.transparent_background": {
+    label: "Transparent PNG Background",
+    help_text: "Applies to Export Frame and Export PNG Seq only. The editor preview stays opaque."
   }
 });
 
