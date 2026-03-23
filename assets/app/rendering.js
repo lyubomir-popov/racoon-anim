@@ -1673,7 +1673,7 @@ export function createRenderer({
     return config.spoke_lines.echo_color || config.spoke_lines.color;
   }
 
-  function get_echo_marker_variant(echo_style, spoke_seed, echo_index) {
+  function get_echo_marker_variant(echo_style, spoke_seed, marker_seed) {
     if (echo_style === "plus" || echo_style === "triangles" || echo_style === "ubuntu_releases") {
       return echo_style;
     }
@@ -1683,11 +1683,11 @@ export function createRenderer({
     }
 
     const replace_pct = clamp(config.spoke_lines.echo_mix_shape_pct ?? 0.35, 0, 1);
-    if (hash_01(spoke_seed + 0.137, echo_index + 0.271) >= replace_pct) {
+    if (hash_01(spoke_seed + 0.137, marker_seed + 0.271) >= replace_pct) {
       return "dots";
     }
 
-    return hash_01(spoke_seed + 5.173, echo_index + 8.411) < 0.5
+    return hash_01(spoke_seed + 5.173, marker_seed + 8.411) < 0.5
       ? "plus"
       : "triangles";
   }
@@ -2104,10 +2104,13 @@ export function createRenderer({
           continue;
         }
 
+        // Marker shape choice must stay stable across reveal/post-finale handoffs.
+        // Seed it from source spoke identity plus radial orbit index, not from
+        // the current clip-derived echo rank, which can shift when mask geometry changes.
         const echo_marker_variant = get_echo_marker_variant(
           echo_style,
           spoke.source_spoke_id ?? spoke_index,
-          echo_index
+          orbit_index
         );
         if (echo_marker_variant === "plus") {
           const plus_size_px =
