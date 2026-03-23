@@ -612,13 +612,16 @@ async function get_export_directory_handle() {
   return saved_handle;
 }
 
-async function request_export_directory_handle() {
+async function request_export_directory_handle({
+  picker_id = "radial-mascot-presets",
+  persist = true
+} = {}) {
   if (typeof window.showDirectoryPicker !== "function") {
     return null;
   }
 
   const directory_handle = await window.showDirectoryPicker({
-    id: "radial-mascot-presets",
+    id: picker_id,
     mode: "readwrite",
     startIn: "documents"
   });
@@ -627,8 +630,10 @@ async function request_export_directory_handle() {
     return null;
   }
 
-  state.export_directory_handle = directory_handle;
-  await persist_export_directory_handle(directory_handle);
+  if (persist) {
+    state.export_directory_handle = directory_handle;
+    await persist_export_directory_handle(directory_handle);
+  }
   return directory_handle;
 }
 
@@ -645,25 +650,34 @@ async function write_blob_file(file_handle, blob) {
 }
 
 async function get_sequence_output_directory_handle() {
-  let directory_handle = await get_export_directory_handle();
-  if (!directory_handle) {
-    set_preset_meta("Choose the project folder or its output folder for PNG export.", false);
-    directory_handle = await request_export_directory_handle();
-  }
+  set_preset_meta("Choose the project folder or its output folder for this PNG export.", false);
+  const directory_handle = await request_export_directory_handle({
+    picker_id: "radial-mascot-png-export",
+    persist: false
+  });
 
   if (!directory_handle) {
     return null;
   }
 
-  const output_directory_handle = directory_handle.name.toLowerCase() === "output"
+  const dimensions_folder_name = get_preset_export_dimension_folder_name();
+  const directory_name = directory_handle.name.toLowerCase();
+
+  if (directory_name === dimensions_folder_name.toLowerCase()) {
+    return {
+      directory_handle,
+      output_path_label: directory_handle.name
+    };
+  }
+
+  const output_directory_handle = directory_name === "output"
     ? directory_handle
     : await directory_handle.getDirectoryHandle("output", { create: true });
-  const dimensions_folder_name = get_preset_export_dimension_folder_name();
   const dimension_directory_handle = await output_directory_handle.getDirectoryHandle(
     dimensions_folder_name,
     { create: true }
   );
-  const base_path_label = directory_handle.name.toLowerCase() === "output"
+  const base_path_label = directory_name === "output"
     ? directory_handle.name
     : `${directory_handle.name}/${output_directory_handle.name}`;
 
