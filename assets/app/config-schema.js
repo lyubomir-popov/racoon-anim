@@ -394,6 +394,12 @@ export const CONFIG_FIELD_META = Object.freeze({
       Object.freeze({ value: "ubuntu_releases", label: "Ubuntu Releases" })
     ])
   },
+  "spoke_lines.echo_shape_seed": {
+    label: "Echo Shape Seed",
+    help_text:
+      "Controls the deterministic random layout for Mixed Shapes. Change this to get a different repeatable arrangement without depending on reveal or breathing state.",
+    numeric: { min: 0, max: 9999, step: 1 }
+  },
   "spoke_lines.echo_mix_shape_pct": {
     label: "Mixed Shape Replacement",
     help_text:

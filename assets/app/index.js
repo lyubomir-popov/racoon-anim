@@ -105,6 +105,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.construction_color",
   "spoke_lines.reference_color",
   "spoke_lines.echo_color",
+  "spoke_lines.echo_shape_seed",
   "spoke_lines.width_px",
   "spoke_lines.inner_width_px",
   "spoke_lines.phase_start_scale",

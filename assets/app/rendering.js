@@ -1680,6 +1680,10 @@ export function createRenderer({
     return config.spoke_lines.echo_color || config.spoke_lines.color;
   }
 
+  function get_echo_shape_seed() {
+    return Math.trunc(Number(config.spoke_lines.echo_shape_seed ?? 1)) || 0;
+  }
+
   function get_echo_marker_variant(echo_style, spoke_seed, marker_seed) {
     if (echo_style === "plus" || echo_style === "triangles" || echo_style === "ubuntu_releases") {
       return echo_style;
@@ -1690,11 +1694,12 @@ export function createRenderer({
     }
 
     const replace_pct = clamp(config.spoke_lines.echo_mix_shape_pct ?? 0.35, 0, 1);
-    if (hash_01(spoke_seed + 0.137, marker_seed + 0.271) >= replace_pct) {
+    const shape_seed = get_echo_shape_seed();
+    if (hash_01(shape_seed + spoke_seed + 0.137, marker_seed + 0.271) >= replace_pct) {
       return "dots";
     }
 
-    return hash_01(spoke_seed + 5.173, marker_seed + 8.411) < 0.5
+    return hash_01(shape_seed + spoke_seed + 5.173, marker_seed + 8.411) < 0.5
       ? "plus"
       : "triangles";
   }
