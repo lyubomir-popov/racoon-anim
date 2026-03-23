@@ -113,11 +113,12 @@ export const MASCOT_NOSE_PATH_DATA =
 export const HALO_REFERENCE_COLOR = "#30d158";
 export const HALO_REFERENCE_OPACITY = 0.5;
 
-export const PRESET_STORAGE_KEY = "radial-mascot-presets-v1";
-export const ACTIVE_PRESET_STORAGE_KEY = "radial-mascot-active-preset-v1";
-export const EXPORT_DIRECTORY_DB_NAME = "radial-mascot-local-editor";
+export const STORAGE_NAMESPACE = "radial-mascot-clean-port-v1";
+export const PRESET_STORAGE_KEY = `${STORAGE_NAMESPACE}-presets`;
+export const ACTIVE_PRESET_STORAGE_KEY = `${STORAGE_NAMESPACE}-active-preset`;
+export const EXPORT_DIRECTORY_DB_NAME = `${STORAGE_NAMESPACE}-local-editor`;
 export const EXPORT_DIRECTORY_STORE_NAME = "handles";
-export const EXPORT_DIRECTORY_KEY = "preset-export-directory";
+export const EXPORT_DIRECTORY_KEY = `${STORAGE_NAMESPACE}-preset-export-directory`;
 export const DOCKED_EDITOR_MIN_WIDTH_PX = 1500;
 
 export const EDITOR_TAB_GROUPS = Object.freeze([
