@@ -39,6 +39,7 @@ const DEBUG_BOUNDARY_COLOR = "#ff4d6d";
 const DEBUG_MASK_COLOR = "#22d3ee";
 const DEBUG_MASK_SEGMENT_COUNT = 96;
 const ECHO_PLUS_SIZE_PX = 9.6;
+const ECHO_MARKER_HALO_GAP_PX = 16;
 const ECHO_TEXT_BASE_FONT_SIZE_PX = 4;
 const UBUNTU_RELEASE_LABELS = Object.freeze([
   "25.10",
@@ -1804,6 +1805,48 @@ export function createRenderer({
     text_overlay_context.restore();
   }
 
+  function draw_vignette_overlay() {
+    if (
+      !text_overlay_context ||
+      !text_overlay_canvas ||
+      !config.vignette?.enabled
+    ) {
+      return;
+    }
+
+    const clear_radius_px = Math.max(0, Number(config.vignette.radius_px || 0));
+    const feather_px = Math.max(0, Number(config.vignette.feather_px || 0));
+    if (clear_radius_px <= 0 && feather_px <= 0) {
+      return;
+    }
+
+    const center_x_px =
+      config.composition.center_x_px + Number(config.vignette.offset_x_px || 0);
+    const center_y_px =
+      config.composition.center_y_px + Number(config.vignette.offset_y_px || 0);
+    const outer_radius_px = Math.max(clear_radius_px + feather_px, clear_radius_px + 1);
+    const safe_outer_radius_px = Math.max(1, outer_radius_px);
+    const inner_stop = clamp(clear_radius_px / safe_outer_radius_px, 0, 1);
+    const gradient = text_overlay_context.createRadialGradient(
+      center_x_px,
+      center_y_px,
+      clear_radius_px,
+      center_x_px,
+      center_y_px,
+      outer_radius_px
+    );
+
+    gradient.addColorStop(0, "rgba(38, 38, 38, 0)");
+    gradient.addColorStop(inner_stop, "rgba(38, 38, 38, 0)");
+    gradient.addColorStop(1, STAGE_BACKGROUND_COLOR);
+
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.fillStyle = gradient;
+    text_overlay_context.fillRect(0, 0, stage_width_px, stage_height_px);
+    text_overlay_context.restore();
+  }
+
   function set_reference_halo_visibility(box, base_alpha, reveal_state) {
     const should_show =
       Boolean(config.spoke_lines.show_reference_halo) &&
@@ -2127,7 +2170,10 @@ export function createRenderer({
             triangle_side_px / Math.sqrt(3) + echo_marker_width_px * 0.5;
         }
 
-        if (dot_radius - marker_outer_extent_px <= halo_outer_radius_px + 0.01) {
+        if (
+          dot_radius - marker_outer_extent_px <=
+          halo_outer_radius_px + ECHO_MARKER_HALO_GAP_PX + 0.01
+        ) {
           continue;
         }
 
@@ -2236,6 +2282,7 @@ export function createRenderer({
 
     finalize_layers();
     renderer.render(scene, camera);
+    draw_vignette_overlay();
   }
 
   function render_playback_frame(playback_time_sec) {

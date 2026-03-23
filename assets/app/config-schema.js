@@ -124,7 +124,17 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
   Object.freeze({
     key: "field",
     label: "Field",
-    sections: Object.freeze(["generator_wrangle", "spoke_lines", "screensaver"])
+    sections: Object.freeze(["generator_wrangle", "mascot"])
+  }),
+  Object.freeze({
+    key: "halo",
+    label: "Halo",
+    sections: Object.freeze(["spoke_lines", "screensaver"])
+  }),
+  Object.freeze({
+    key: "vignette",
+    label: "Vignette",
+    sections: Object.freeze(["vignette"])
   }),
   Object.freeze({
     key: "presets",
@@ -140,11 +150,6 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
     key: "dots",
     label: "Dots",
     sections: Object.freeze(["transition_wrangle", "point_style"])
-  }),
-  Object.freeze({
-    key: "mascot",
-    label: "Mascot",
-    sections: Object.freeze(["mascot"])
   })
 ]);
 
@@ -517,6 +522,33 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text:
       "When folded spokes cross the 3PM phase boundary, ease the thick-spoke width and clip handoff over this amount of time instead of snapping instantly. Higher values make the handoff linger longer; lower values make it snap faster.",
     numeric: { min: 0, max: 1.5, step: 0.01 }
+  },
+  "vignette.enabled": {
+    label: "Show Vignette"
+  },
+  "vignette.offset_x_px": {
+    label: "Center Offset X (px)",
+    help_text:
+      "Moves the circular vignette left or right relative to the composition center so you can clear space for overlaid text.",
+    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "vignette.offset_y_px": {
+    label: "Center Offset Y (px)",
+    help_text:
+      "Moves the circular vignette up or down relative to the composition center so you can clear space for overlaid text.",
+    numeric: { min: -MAX_OUTPUT_PROFILE_HEIGHT_PX, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "vignette.radius_px": {
+    label: "Clear Radius (px)",
+    help_text:
+      "The fully clear inner radius before the vignette starts fading the scene toward the background color.",
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "vignette.feather_px": {
+    label: "Feather (px)",
+    help_text:
+      "How wide the circular fade band is before the overlay reaches the full background color.",
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
   "blink.enabled": {
     hidden: true,

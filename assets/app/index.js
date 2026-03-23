@@ -95,6 +95,11 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "screensaver.pulse_spokes",
   "screensaver.min_spoke_count",
   "screensaver.phase_boundary_transition_sec",
+  "vignette.enabled",
+  "vignette.offset_x_px",
+  "vignette.offset_y_px",
+  "vignette.radius_px",
+  "vignette.feather_px",
   "sneeze.nose_bob_up_px",
   "spoke_lines.show_reference_halo",
   "spoke_lines.show_debug_masks",
@@ -121,7 +126,8 @@ const SECTION_LABELS = Object.freeze({
   point_style: "Dot Style",
   spoke_lines: "Halo Spokes",
   screensaver: "Screensaver Loop",
-  mascot: "Mascot"
+  vignette: "Vignette",
+  mascot: "Mascot Size"
 });
 
 function get_section_label(section_key) {
@@ -1311,6 +1317,26 @@ function build_preset_payload(name, snapshot) {
 function save_preset() {
   collapse_state_presets();
   const preset_name = get_requested_preset_name();
+  const target_preset_id = state.selected_preset_id || state.active_preset_id;
+  const target_preset_index = target_preset_id
+    ? state.presets.findIndex((entry) => entry.id === target_preset_id)
+    : -1;
+
+  if (target_preset_index >= 0) {
+    const target_preset = state.presets[target_preset_index];
+    target_preset.name = preset_name;
+    target_preset.config = normalize_config_snapshot(config, default_config);
+    state.presets.splice(target_preset_index, 1);
+    state.presets.push(target_preset);
+    state.active_preset_id = target_preset.id;
+    state.selected_preset_id = target_preset.id;
+    preset_name_input.value = target_preset.name;
+    render_preset_tabs();
+    save_presets_to_storage();
+    set_preset_meta(`Updated "${target_preset.name}".`, false);
+    return;
+  }
+
   const existing_preset = find_preset_by_name(preset_name);
 
   if (existing_preset) {

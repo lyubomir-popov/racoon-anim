@@ -69,7 +69,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     construction_color: "#333333",
     reference_color: "#ffffff",
     color: "#ffffff",
-    echo_color: "#ffffff",
+    echo_color: "#444444",
     width_px: 1.5,
     inner_width_px: 8,
     phase_start_scale: 0.05,
@@ -128,6 +128,13 @@ export const SOURCE_DEFAULT_CONFIG = {
     pulse_spokes: true,
     min_spoke_count: 24,
     phase_boundary_transition_sec: 0.12
+  },
+  vignette: {
+    enabled: false,
+    offset_x_px: 0,
+    offset_y_px: 0,
+    radius_px: 420,
+    feather_px: 220
   },
   export_settings: {
     frame_rate: 24
