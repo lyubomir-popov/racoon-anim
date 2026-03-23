@@ -4,9 +4,9 @@ export const TAU = Math.PI * 2;
 export const OUTPUT_PROFILES = Object.freeze({
   authoring_full_hd: Object.freeze({
     key: "authoring_full_hd",
-    label: "Authoring Full HD",
-    width_px: 1920,
-    height_px: 1080,
+    label: "Authoring Portrait HD",
+    width_px: 1080,
+    height_px: 1920,
     kind: "authoring"
   }),
   led_wall_7680x2160: Object.freeze({

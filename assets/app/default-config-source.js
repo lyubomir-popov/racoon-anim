@@ -15,8 +15,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     overshoot_frac: 0.75
   },
   composition: {
-    center_x_px: 960,
-    center_y_px: 540,
+    center_x_px: 540,
+    center_y_px: 960,
     radial_scale: 1,
     global_rotation_deg: 0
   },
