@@ -218,6 +218,29 @@ async function write_source_default_snapshot(snapshot) {
   return payload;
 }
 
+async function read_source_default_snapshot() {
+  let response;
+  try {
+    response = await fetch(`/__authoring/source-default-config?ts=${Date.now()}`, {
+      cache: "no-store"
+    });
+  } catch {
+    return deep_clone(default_config);
+  }
+
+  if (!response.ok) {
+    return deep_clone(default_config);
+  }
+
+  const payload = await response.json().catch(() => null);
+  if (!payload?.ok || !is_plain_object(payload.config)) {
+    return deep_clone(default_config);
+  }
+
+  const source_default_base = create_default_config();
+  return normalize_config_snapshot(payload.config, source_default_base);
+}
+
 function set_active_editor_tab(next_tab_key) {
   state.active_editor_tab_key = next_tab_key;
 
@@ -625,19 +648,21 @@ async function get_sequence_output_directory_handle() {
     return null;
   }
 
-  if (directory_handle.name.toLowerCase() === "output") {
-    return {
-      directory_handle,
-      output_path_label: directory_handle.name
-    };
-  }
+  const output_directory_handle = directory_handle.name.toLowerCase() === "output"
+    ? directory_handle
+    : await directory_handle.getDirectoryHandle("output", { create: true });
+  const dimensions_folder_name = get_preset_export_dimension_folder_name();
+  const dimension_directory_handle = await output_directory_handle.getDirectoryHandle(
+    dimensions_folder_name,
+    { create: true }
+  );
+  const base_path_label = directory_handle.name.toLowerCase() === "output"
+    ? directory_handle.name
+    : `${directory_handle.name}/${output_directory_handle.name}`;
 
-  const output_directory_handle = await directory_handle.getDirectoryHandle("output", {
-    create: true
-  });
   return {
-    directory_handle: output_directory_handle,
-    output_path_label: `${directory_handle.name}/${output_directory_handle.name}`
+    directory_handle: dimension_directory_handle,
+    output_path_label: `${base_path_label}/${dimension_directory_handle.name}`
   };
 }
 
@@ -1430,8 +1455,10 @@ async function import_presets_from_file(file) {
   );
 }
 
-function reset_to_defaults() {
-  replace_config(config, default_config, default_config);
+async function reset_to_defaults() {
+  const source_snapshot = await read_source_default_snapshot();
+  replace_object_contents(default_config, source_snapshot);
+  replace_object_contents(config, source_snapshot);
   renderer.setOutputProfile(get_current_output_profile_key());
   state.active_preset_id = null;
   state.selected_preset_id = null;
@@ -1454,7 +1481,10 @@ async function write_current_as_source_default() {
 
   try {
     const payload = await write_source_default_snapshot(normalized_snapshot);
-    replace_object_contents(default_config, normalized_snapshot);
+    const written_snapshot = is_plain_object(payload?.config)
+      ? normalize_config_snapshot(payload.config, create_default_config())
+      : normalized_snapshot;
+    replace_object_contents(default_config, written_snapshot);
     clear_legacy_browser_default_config();
     set_preset_meta(
       `Wrote the current config to ${payload.path}. This is now the source default.`,

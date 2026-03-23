@@ -2112,16 +2112,31 @@ export function createRenderer({
           spoke.source_spoke_id ?? spoke_index,
           orbit_index
         );
+        let marker_outer_extent_px = dot_radius_px;
+        let plus_size_px = 0;
+        let triangle_side_px = 0;
+
         if (echo_marker_variant === "plus") {
-          const plus_size_px =
+          plus_size_px =
             ECHO_PLUS_SIZE_PX *
             clamp(dot_radius_px / Math.max(0.0001, template_dot.radius_px), 0.25, 4);
+          marker_outer_extent_px = plus_size_px * 0.5 + echo_marker_width_px * 0.5;
+        } else if (echo_marker_variant === "triangles") {
+          triangle_side_px = Math.max(6.4, dot_radius_px * 3.2);
+          marker_outer_extent_px =
+            triangle_side_px / Math.sqrt(3) + echo_marker_width_px * 0.5;
+        }
+
+        if (dot_radius - marker_outer_extent_px <= halo_outer_radius_px + 0.01) {
+          continue;
+        }
+
+        if (echo_marker_variant === "plus") {
           push_plus_marker(local_dot_x, local_dot_y, plus_size_px, echo_marker_width_px, dot_alpha);
           continue;
         }
 
         if (echo_marker_variant === "triangles") {
-          const triangle_side_px = Math.max(6.4, dot_radius_px * 3.2);
           push_triangle_marker(
             local_dot_x,
             local_dot_y,
@@ -2469,28 +2484,33 @@ export function createRenderer({
 
   function canvas_to_blob(type = "image/png") {
     return new Promise((resolve, reject) => {
-      const source_canvas = text_overlay_canvas
-        ? (() => {
-          if (
-            export_canvas.width !== canvas.width ||
-            export_canvas.height !== canvas.height
-          ) {
-            export_canvas.width = canvas.width;
-            export_canvas.height = canvas.height;
-          }
+      if (
+        export_canvas.width !== stage_width_px ||
+        export_canvas.height !== stage_height_px
+      ) {
+        export_canvas.width = stage_width_px;
+        export_canvas.height = stage_height_px;
+      }
 
-          const export_context = export_canvas.getContext("2d", { alpha: false });
-          if (!export_context) {
-            reject(new Error("Export canvas 2D context is unavailable."));
-            return null;
-          }
+      const export_context = export_canvas.getContext("2d", { alpha: false });
+      if (!export_context) {
+        reject(new Error("Export canvas 2D context is unavailable."));
+        return;
+      }
 
-          export_context.clearRect(0, 0, export_canvas.width, export_canvas.height);
-          export_context.drawImage(canvas, 0, 0);
-          export_context.drawImage(text_overlay_canvas, 0, 0);
-          return export_canvas;
-        })()
-        : canvas;
+      export_context.clearRect(0, 0, export_canvas.width, export_canvas.height);
+      export_context.drawImage(canvas, 0, 0, export_canvas.width, export_canvas.height);
+      if (text_overlay_canvas) {
+        export_context.drawImage(
+          text_overlay_canvas,
+          0,
+          0,
+          export_canvas.width,
+          export_canvas.height
+        );
+      }
+
+      const source_canvas = export_canvas;
 
       if (!source_canvas) {
         return;

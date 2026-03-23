@@ -2,7 +2,7 @@ import { exec } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { compile_styles_to_string } from "./styles.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -180,9 +180,31 @@ function write_source_default_config(snapshot) {
   fs.writeFileSync(source_default_config_path, module_source);
 }
 
+async function read_source_default_config() {
+  const module_url = `${pathToFileURL(source_default_config_path).href}?ts=${Date.now()}`;
+  const source_default_module = await import(module_url);
+  return source_default_module.SOURCE_DEFAULT_CONFIG || source_default_module.default;
+}
+
 const server = http.createServer(async (request, response) => {
   const request_url = request.url || "/";
   const request_path = request_url.split("?")[0];
+
+  if (request_path === "/__authoring/source-default-config" && request.method === "GET") {
+    try {
+      const source_default_config = await read_source_default_config();
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({
+        ok: true,
+        config: source_default_config
+      }));
+      return;
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error.message }));
+      return;
+    }
+  }
 
   if (request_path === "/__authoring/source-default-config" && request.method === "POST") {
     try {
@@ -200,7 +222,8 @@ const server = http.createServer(async (request, response) => {
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({
         ok: true,
-        path: "assets/app/default-config-source.js"
+        path: "assets/app/default-config-source.js",
+        config: next_config
       }));
       return;
     } catch (error) {
