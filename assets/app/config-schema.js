@@ -1,3 +1,5 @@
+import SOURCE_DEFAULT_CONFIG from "./default-config-source.js";
+
 export const TAU = Math.PI * 2;
 export const OUTPUT_PROFILES = Object.freeze({
   authoring_full_hd: Object.freeze({
@@ -59,7 +61,6 @@ export const HALO_REFERENCE_OPACITY = 0.5;
 
 export const PRESET_STORAGE_KEY = "radial-mascot-presets-v1";
 export const ACTIVE_PRESET_STORAGE_KEY = "radial-mascot-active-preset-v1";
-export const BROWSER_DEFAULT_CONFIG_KEY = "radial-mascot-browser-default-config-v1";
 export const EXPORT_DIRECTORY_DB_NAME = "radial-mascot-local-editor";
 export const EXPORT_DIRECTORY_STORE_NAME = "handles";
 export const EXPORT_DIRECTORY_KEY = "preset-export-directory";
@@ -408,6 +409,12 @@ export const CONFIG_FIELD_META = Object.freeze({
       "Sets the full post-finale inhale/exhale cycle for the looping screensaver motion. Set to 0 to keep the final frame static.",
     numeric: { min: 0, max: 60, step: 0.1 }
   },
+  "screensaver.ramp_in_sec": {
+    label: "Breath Ramp In (sec)",
+    help_text:
+      "Blends from the held finale pose into the looping breath so the first cycle does not start abruptly.",
+    numeric: { min: 0, max: 60, step: 0.1 }
+  },
   "screensaver.pulse_orbits": {
     label: "Pulse Orbits",
     help_text:
@@ -468,134 +475,7 @@ export const CONFIG_FIELD_META = Object.freeze({
 });
 
 export function create_default_config() {
-  return {
-    mascot_fade: {
-      enabled: false,
-      duration_sec: 3
-    },
-    head_turn: {
-      enabled: true,
-      duration_sec: 0.333,
-      peak_angle_deg: -30,
-      reverse_angle_deg: 30,
-      overshoot_angle_deg: -3,
-      peak_frac: 0.25,
-      reverse_frac: 0.56,
-      dot_overlap_sec: 1,
-      overshoot_frac: 0.75
-    },
-    composition: {
-      center_x_px: COMPOSITION_CENTER_X_PX,
-      center_y_px: COMPOSITION_CENTER_Y_PX,
-      radial_scale: 1,
-      global_rotation_deg: 0
-    },
-    generator_wrangle: {
-      inner_radius: 0.26,
-      outer_radius: 0.513,
-      num_orbits: 12,
-      spoke_count: 60,
-      phase_count: 2,
-      min_active_orbits: 3,
-      base_angle_deg: 0,
-      pattern_offset_spokes: 1,
-      anim_start_angle_deg: 0
-    },
-    transition_wrangle: {
-      duration_sec: 1,
-      spins: 3,
-      emit_frac: 0.05,
-      alpha_ramp_duration_sec: 0.14,
-      animate_orbit_count: true,
-      orbit_count_start_frac: 0,
-      orbit_count_end_frac: 1,
-      capture_start_frac: 0.25,
-      orbit_stagger_frac: 1,
-      speed_mult_per_orbit: 0.85,
-      inner_faster: true,
-      spawn_angle_offset_deg: 0,
-      occlusion_arc_deg: 0,
-      hide_invisible_by_pscale: true,
-      base_pscale: 0.74,
-      orbital_frontier_amount: -1,
-      orbital_frontier_width_u: 1,
-      orbital_frontier_bias: 0.676,
-      phase_frontier_amount: 0.655,
-      phase_frontier_width_u: 0.57,
-      phase_frontier_bias: 1
-    },
-    point_style: {
-      color: "#ffffff",
-      alpha: 1,
-      base_pscale_px_per_unit: 4.0,
-      min_scale: 0.3,
-      min_diameter_px: 1.1
-    },
-    spoke_lines: {
-      enabled: true,
-      show_reference_halo: false,
-      construction_color: "#333333",
-      reference_color: "#ffffff",
-      color: "#ffffff",
-      width_px: 1.5,
-      inner_width_px: 8,
-      phase_start_scale: 0.05,
-      echo_count: 16,
-      echo_width_mult: 0.88,
-      echo_wave_count: 4,
-      echo_opacity_mult: 0.68,
-      start_radius_px: 150,
-      end_radius_extra_px: 0
-    },
-    mascot: {
-      enabled: true,
-      face_asset_path: "./assets/racoon-mascot-face.svg",
-      halo_asset_path: "./assets/racoon-mascot-halo.svg",
-      base_width_px: 600,
-      scale: 1,
-      offset_x_px: 0,
-      offset_y_px: 0,
-      color: "#ffffff",
-      opacity: 1
-    },
-    finale: {
-      enabled: true,
-      delay_after_dots_sec: 0.1,
-      duration_sec: 0.75,
-      halo_inner_radius_u: 0.255,
-      start_angle_deg: 0,
-      mask_angle_offset_deg: 1.5
-    },
-    sneeze: {
-      enabled: true,
-      nose_bob_up_px: 1.5
-    },
-    blink: {
-      enabled: true,
-      start_delay_sec: 0.04,
-      duration_sec: 0.12,
-      close_frac: 0.42,
-      hold_closed_frac: 0.12,
-      eye_scale_y_closed: 0.08
-    },
-    interactivity: {
-      replay_on_stage_click: true,
-      sneeze_on_mascot_click: true
-    },
-    performance: {
-      max_device_pixel_ratio: 4,
-      desynchronized: true
-    },
-    screensaver: {
-      cycle_sec: 6,
-      pulse_orbits: true,
-      pulse_spokes: false,
-      min_spoke_count: 24
-    },
-    export_settings: {
-      frame_rate: 24
-    }
-  };
+  return deep_clone(SOURCE_DEFAULT_CONFIG);
 }
 
 export function clamp(value, min_value, max_value) {

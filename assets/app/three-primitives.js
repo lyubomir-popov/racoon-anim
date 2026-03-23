@@ -2,6 +2,24 @@ import * as THREE from "../../three/build/three.module.js";
 
 const SHARED_QUAD_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 
+function set_uniform_color(color, color_value) {
+  if (typeof color_value === "string" && /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color_value)) {
+    const normalized_hex = color_value.slice(1);
+    const expanded_hex = normalized_hex.length === 3
+      ? normalized_hex.split("").map((component) => component + component).join("")
+      : normalized_hex;
+
+    color.setRGB(
+      parseInt(expanded_hex.slice(0, 2), 16) / 255,
+      parseInt(expanded_hex.slice(2, 4), 16) / 255,
+      parseInt(expanded_hex.slice(4, 6), 16) / 255
+    );
+    return;
+  }
+
+  color.set(color_value);
+}
+
 function create_instanced_quad_geometry() {
   const geometry = new THREE.InstancedBufferGeometry();
   geometry.index = SHARED_QUAD_GEOMETRY.index;
@@ -20,11 +38,12 @@ function create_shader_material({
     depthTest: false,
     depthWrite: false,
     uniforms: {
-      u_color: { value: new THREE.Color(color_hex) }
+      u_color: { value: new THREE.Color() }
     },
     vertexShader: vertex_shader,
     fragmentShader: fragment_shader
   });
+  set_uniform_color(material.uniforms.u_color.value, color_hex);
   material.toneMapped = false;
   return material;
 }
@@ -121,7 +140,7 @@ export function createCircleLayer(capacity, color_hex, render_order = 0) {
   }
 
   function set_color(color_value) {
-    material.uniforms.u_color.value.set(color_value);
+    set_uniform_color(material.uniforms.u_color.value, color_value);
   }
 
   function dispose() {
@@ -239,7 +258,7 @@ export function createSegmentLayer(capacity, color_hex, render_order = 0) {
   }
 
   function set_color(color_value) {
-    material.uniforms.u_color.value.set(color_value);
+    set_uniform_color(material.uniforms.u_color.value, color_value);
   }
 
   function dispose() {

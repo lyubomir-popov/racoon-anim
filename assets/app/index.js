@@ -1,6 +1,5 @@
 import {
   ACTIVE_PRESET_STORAGE_KEY,
-  BROWSER_DEFAULT_CONFIG_KEY,
   DOCKED_EDITOR_MIN_WIDTH_PX,
   EDITOR_TAB_GROUPS,
   EXPORT_DIRECTORY_DB_NAME,
@@ -57,7 +56,6 @@ const state = {
   selected_preset_id: null,
   active_editor_tab_key: null,
   export_directory_handle: null,
-  browser_default_config: null,
   is_exporting: false,
   editor_controls: new Map(),
   drawer_is_open: false
@@ -68,6 +66,7 @@ const is_webkit_slider_engine =
   !/\bFirefox\b/i.test(navigator.userAgent);
 const url_search_params = new URLSearchParams(location.search);
 const is_local_editor = url_search_params.has("tune");
+const LEGACY_BROWSER_DEFAULT_CONFIG_KEY = "radial-mascot-browser-default-config-v1";
 
 const RENDER_ONLY_CONTROL_PATHS = new Set([
   "head_turn.peak_angle_deg",
@@ -83,6 +82,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "finale.start_angle_deg",
   "finale.mask_angle_offset_deg",
   "screensaver.cycle_sec",
+  "screensaver.ramp_in_sec",
   "screensaver.pulse_orbits",
   "screensaver.pulse_spokes",
   "screensaver.min_spoke_count",
@@ -151,31 +151,12 @@ function set_config_value(path_parts, next_value) {
   set_object_path_value(config, path_parts.join("."), next_value);
 }
 
-function get_active_default_config() {
-  return state.browser_default_config || default_config;
-}
-
-function load_browser_default_config() {
+function clear_legacy_browser_default_config() {
   try {
-    const raw_snapshot = window.localStorage.getItem(BROWSER_DEFAULT_CONFIG_KEY);
-    if (!raw_snapshot) {
-      return null;
-    }
-    return normalize_config_snapshot(JSON.parse(raw_snapshot), default_config);
+    window.localStorage.removeItem(LEGACY_BROWSER_DEFAULT_CONFIG_KEY);
   } catch (error) {
     console.error(error);
-    window.localStorage.removeItem(BROWSER_DEFAULT_CONFIG_KEY);
-    return null;
   }
-}
-
-function save_browser_default_config(snapshot) {
-  const normalized_snapshot = normalize_config_snapshot(snapshot, default_config);
-  window.localStorage.setItem(
-    BROWSER_DEFAULT_CONFIG_KEY,
-    JSON.stringify(normalized_snapshot)
-  );
-  state.browser_default_config = normalized_snapshot;
 }
 
 function set_active_editor_tab(next_tab_key) {
@@ -306,11 +287,7 @@ function save_presets_to_storage() {
   try {
     collapse_state_presets();
     window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(state.presets));
-    if (state.active_preset_id) {
-      window.localStorage.setItem(ACTIVE_PRESET_STORAGE_KEY, state.active_preset_id);
-    } else {
-      window.localStorage.removeItem(ACTIVE_PRESET_STORAGE_KEY);
-    }
+    window.localStorage.removeItem(ACTIVE_PRESET_STORAGE_KEY);
   } catch (error) {
     console.error(error);
     set_preset_meta("Preset storage is not available in this browser.", true);
@@ -605,17 +582,8 @@ function load_presets_from_storage() {
     }
 
     state.presets = collapse_presets_by_name(normalized_presets);
-
-    const saved_active_id = window.localStorage.getItem(ACTIVE_PRESET_STORAGE_KEY);
-    if (saved_active_id && state.presets.some((preset) => preset.id === saved_active_id)) {
-      state.active_preset_id = saved_active_id;
-    } else if (saved_active_id) {
-      const saved_active_preset = normalized_presets.find((preset) => preset.id === saved_active_id);
-      state.active_preset_id = saved_active_preset
-        ? find_preset_by_name(saved_active_preset.name, state.presets)?.id || null
-        : null;
-    }
-    state.selected_preset_id = state.active_preset_id || state.presets[0]?.id || null;
+    window.localStorage.removeItem(ACTIVE_PRESET_STORAGE_KEY);
+    state.selected_preset_id = state.presets[0]?.id || null;
 
     if (state.presets.length !== normalized_presets.length) {
       save_presets_to_storage();
@@ -1213,21 +1181,16 @@ async function import_presets_from_file(file) {
 }
 
 function reset_to_defaults() {
-  replace_config(config, get_active_default_config(), default_config);
+  replace_config(config, default_config, default_config);
   state.active_preset_id = null;
-  state.selected_preset_id = state.presets[0]?.id || null;
+  state.selected_preset_id = null;
   preset_name_input.value = get_next_preset_name();
   sync_editor_values();
   render_preset_tabs();
   save_presets_to_storage();
   return renderer.refreshScene({ reload_mascot: true })
     .then(() => {
-      set_preset_meta(
-        state.browser_default_config
-          ? "Reset to your saved browser default config."
-          : "Reset to the factory default config.",
-        false
-      );
+      set_preset_meta("Loaded the source default config.", false);
     })
     .catch((error) => {
       console.error(error);
@@ -1236,9 +1199,9 @@ function reset_to_defaults() {
 }
 
 function set_current_as_browser_default() {
-  save_browser_default_config(config);
+  clear_legacy_browser_default_config();
   set_preset_meta(
-    "Saved the current config as your browser default. Reset Defaults will return to it.",
+    "Browser-default overrides are disabled in this clean port. Source defaults drive the app.",
     false
   );
 }
@@ -1417,20 +1380,11 @@ function attach_ui_events() {
 async function init() {
   if (is_local_editor) {
     state.export_directory_handle = await load_export_directory_handle();
-    state.browser_default_config = load_browser_default_config();
+    clear_legacy_browser_default_config();
     load_presets_from_storage();
-    if (state.active_preset_id) {
-      const active_preset = state.presets.find((preset) => preset.id === state.active_preset_id);
-      if (active_preset) {
-        replace_config(config, active_preset.config, default_config);
-        preset_name_input.value = active_preset.name;
-      }
-    } else if (state.browser_default_config) {
-      replace_config(config, state.browser_default_config, default_config);
-      preset_name_input.value = get_next_preset_name();
-    } else {
-      preset_name_input.value = get_next_preset_name();
-    }
+    state.active_preset_id = null;
+    state.selected_preset_id = state.presets[0]?.id || null;
+    preset_name_input.value = get_next_preset_name();
 
     build_config_editor();
     sync_editor_values();

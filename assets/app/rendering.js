@@ -10,14 +10,15 @@ import {
   HALO_REFERENCE_OPACITY,
   HALO_REFERENCE_COLOR,
   DEFAULT_OUTPUT_PROFILE_KEY,
+  DEFAULT_OUTPUT_PROFILE,
+  LARGEST_OUTPUT_PROFILE,
   clamp,
   get_output_profile_metrics,
   lerp,
   smoothstep,
   radians,
   wrap_positive,
-  compute_frontier_scale,
-  compute_phase_frontier_dist_u
+  compute_frontier_scale
 } from "./config-schema.js";
 import { createCircleLayer, createSegmentLayer } from "./three-primitives.js";
 
@@ -33,6 +34,10 @@ const MASCOT_NOSE_CUTOUT_ORDER = 42;
 const MASCOT_EYE_ORDER = 43;
 
 const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
+const MASCOT_TEXTURE_SCALE = Math.max(
+  2,
+  LARGEST_OUTPUT_PROFILE.width_px / DEFAULT_OUTPUT_PROFILE.width_px
+);
 
 function capacities_match(current_capacities, next_capacities) {
   if (!current_capacities) {
@@ -45,22 +50,105 @@ function capacities_match(current_capacities, next_capacities) {
 }
 
 function create_nose_texture() {
+  const nose_canvas_size_px = Math.ceil(MASCOT_VIEWBOX_SIZE * MASCOT_TEXTURE_SCALE);
   const nose_canvas = document.createElement("canvas");
-  nose_canvas.width = MASCOT_VIEWBOX_SIZE;
-  nose_canvas.height = MASCOT_VIEWBOX_SIZE;
+  nose_canvas.width = nose_canvas_size_px;
+  nose_canvas.height = nose_canvas_size_px;
   const nose_context = nose_canvas.getContext("2d", { alpha: true });
   if (!nose_context) {
     throw new Error("Nose texture 2D context is unavailable.");
   }
 
+  const scale = nose_canvas_size_px / MASCOT_VIEWBOX_SIZE;
   nose_context.clearRect(0, 0, nose_canvas.width, nose_canvas.height);
+  nose_context.scale(scale, scale);
   nose_context.fillStyle = "#ffffff";
   nose_context.fill(MASCOT_NOSE_PATH);
 
   const nose_texture = new THREE.CanvasTexture(nose_canvas);
   nose_texture.colorSpace = THREE.SRGBColorSpace;
+  nose_texture.generateMipmaps = true;
+  nose_texture.minFilter = THREE.LinearMipmapLinearFilter;
+  nose_texture.magFilter = THREE.LinearFilter;
   nose_texture.needsUpdate = true;
   return nose_texture;
+}
+
+function load_image_element(image_url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.addEventListener("load", () => {
+      resolve(image);
+    });
+    image.addEventListener("error", () => {
+      reject(new Error(`Failed to load image: ${image_url}`));
+    });
+    image.src = image_url;
+  });
+}
+
+function normalize_svg_markup(svg_markup) {
+  if (/\swidth\s*=/.test(svg_markup) && /\sheight\s*=/.test(svg_markup)) {
+    return svg_markup;
+  }
+
+  return svg_markup.replace(
+    /<svg\b/,
+    `<svg width="${MASCOT_VIEWBOX_SIZE}" height="${MASCOT_VIEWBOX_SIZE}" preserveAspectRatio="xMidYMid meet"`
+  );
+}
+
+function get_display_phase_metrics({
+  angle_rad,
+  base_angle_rad,
+  slot_count,
+  phase_count,
+  spoke_pattern_id,
+  center_x_px,
+  phase_mask_center_offset_x_px
+}) {
+  if (phase_count !== 2) {
+    const segment_id = Math.min(
+      phase_count - 1,
+      Math.floor(spoke_pattern_id * phase_count / slot_count)
+    );
+    const segment_start = Math.floor(segment_id * slot_count / phase_count);
+    const segment_end = Math.floor((segment_id + 1) * slot_count / phase_count) - 1;
+    const segment_length = Math.max(1, segment_end - segment_start + 1);
+    const segment_index = spoke_pattern_id - segment_start;
+    const fill_u = segment_length <= 1 ? 1 : segment_index / (segment_length - 1);
+    return {
+      fill_u,
+      phase_frontier_u: fill_u,
+      phase_mask_center_x_px:
+        segment_id === 0
+          ? center_x_px - phase_mask_center_offset_x_px
+          : center_x_px + phase_mask_center_offset_x_px
+    };
+  }
+
+  const display_u = wrap_positive(angle_rad - base_angle_rad, TAU) / TAU;
+  const seam_threshold_u = 1 / (Math.max(1, slot_count) * 3);
+  if (display_u < seam_threshold_u || display_u > 1 - seam_threshold_u) {
+    return {
+      fill_u: 1,
+      phase_frontier_u: 1,
+      phase_mask_center_x_px: center_x_px + phase_mask_center_offset_x_px
+    };
+  }
+
+  const is_upper_phase = display_u <= 0.5;
+  const fill_u = is_upper_phase
+    ? display_u / 0.5
+    : (display_u - 0.5) / 0.5;
+  return {
+    fill_u,
+    phase_frontier_u: fill_u,
+    phase_mask_center_x_px: is_upper_phase
+      ? center_x_px - phase_mask_center_offset_x_px
+      : center_x_px + phase_mask_center_offset_x_px
+  };
 }
 
 export function createRenderer({
@@ -81,7 +169,7 @@ export function createRenderer({
     powerPreference: "high-performance"
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.setPixelRatio(1);
+  renderer.setPixelRatio(get_render_pixel_ratio());
   renderer.setSize(stage_width_px, stage_height_px, false);
   renderer.setClearColor(STAGE_BACKGROUND_COLOR, 1);
 
@@ -215,6 +303,21 @@ export function createRenderer({
     }
   }
 
+  function get_render_pixel_ratio() {
+    const max_dpr = Math.max(1, Number(config.performance?.max_device_pixel_ratio || 1));
+    return clamp(window.devicePixelRatio || 1, 1, max_dpr);
+  }
+
+  function configure_texture(texture) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.generateMipmaps = true;
+    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    texture.needsUpdate = true;
+    return texture;
+  }
+
   function clear_mascot_textures() {
     dispose_texture(runtime.mascot_face_texture);
     dispose_texture(runtime.mascot_halo_texture);
@@ -226,14 +329,50 @@ export function createRenderer({
     halo_reference_material.needsUpdate = true;
   }
 
-  function load_texture(texture_url) {
+  function get_mascot_texture_size_px() {
+    const requested_size_px = Math.ceil(
+      Math.max(1024, config.mascot.base_width_px * config.mascot.scale * MASCOT_TEXTURE_SCALE)
+    );
+    return Math.min(renderer.capabilities.maxTextureSize, requested_size_px);
+  }
+
+  async function load_svg_texture(texture_url, texture_size_px) {
+    const response = await fetch(texture_url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch texture: ${texture_url}`);
+    }
+
+    const svg_markup = normalize_svg_markup(await response.text());
+    const svg_blob = new Blob([svg_markup], {
+      type: "image/svg+xml;charset=utf-8"
+    });
+    const svg_object_url = URL.createObjectURL(svg_blob);
+
+    try {
+      const image = await load_image_element(svg_object_url);
+      const raster_canvas = document.createElement("canvas");
+      raster_canvas.width = texture_size_px;
+      raster_canvas.height = texture_size_px;
+      const raster_context = raster_canvas.getContext("2d", { alpha: true });
+      if (!raster_context) {
+        throw new Error("Mascot texture 2D context is unavailable.");
+      }
+
+      raster_context.imageSmoothingEnabled = true;
+      raster_context.clearRect(0, 0, texture_size_px, texture_size_px);
+      raster_context.drawImage(image, 0, 0, texture_size_px, texture_size_px);
+      return configure_texture(new THREE.CanvasTexture(raster_canvas));
+    } finally {
+      URL.revokeObjectURL(svg_object_url);
+    }
+  }
+
+  function load_bitmap_texture(texture_url) {
     return new Promise((resolve, reject) => {
       texture_loader.load(
         texture_url,
         (texture) => {
-          texture.colorSpace = THREE.SRGBColorSpace;
-          texture.needsUpdate = true;
-          resolve(texture);
+          resolve(configure_texture(texture));
         },
         undefined,
         () => {
@@ -243,10 +382,19 @@ export function createRenderer({
     });
   }
 
+  function load_texture(texture_url, texture_size_px) {
+    if (texture_url.toLowerCase().endsWith(".svg")) {
+      return load_svg_texture(texture_url, texture_size_px);
+    }
+
+    return load_bitmap_texture(texture_url);
+  }
+
   async function load_mascot_textures() {
+    const texture_size_px = get_mascot_texture_size_px();
     const [face_texture, halo_texture] = await Promise.all([
-      load_texture(get_mascot_asset_url(config.mascot.face_asset_path)),
-      load_texture(get_mascot_asset_url(config.mascot.halo_asset_path))
+      load_texture(get_mascot_asset_url(config.mascot.face_asset_path), texture_size_px),
+      load_texture(get_mascot_asset_url(config.mascot.halo_asset_path), texture_size_px)
     ]);
 
     clear_mascot_textures();
@@ -436,17 +584,17 @@ export function createRenderer({
         spoke_id - generator.pattern_offset_spokes,
         generator.spoke_count
       );
-
-      const segment_id = Math.min(
-        generator.phase_count - 1,
-        Math.floor(spoke_pattern_id * generator.phase_count / generator.spoke_count)
-      );
-      const segment_start = Math.floor(segment_id * generator.spoke_count / generator.phase_count);
-      const segment_end =
-        Math.floor((segment_id + 1) * generator.spoke_count / generator.phase_count) - 1;
-      const segment_length = Math.max(1, segment_end - segment_start + 1);
-      const segment_index = spoke_pattern_id - segment_start;
-      const fill_u = segment_length <= 1 ? 1 : segment_index / (segment_length - 1);
+      const target_angle = base_angle_rad + TAU * spoke_id / generator.spoke_count;
+      const phase_metrics = get_display_phase_metrics({
+        angle_rad: target_angle,
+        base_angle_rad,
+        slot_count: generator.spoke_count,
+        phase_count: generator.phase_count,
+        spoke_pattern_id,
+        center_x_px,
+        phase_mask_center_offset_x_px
+      });
+      const fill_u = phase_metrics.fill_u;
       const continuous_active_orbits = clamp(
         generator.min_active_orbits +
           fill_u * (generator.num_orbits - generator.min_active_orbits),
@@ -457,20 +605,12 @@ export function createRenderer({
         ? 1
         : (continuous_active_orbits - 1) / (generator.num_orbits - 1);
       const phase_frontier_scale = compute_frontier_scale(
-        compute_phase_frontier_dist_u(
-          spoke_pattern_id,
-          generator.spoke_count,
-          generator.phase_count
-        ),
+        phase_metrics.phase_frontier_u,
         transition.phase_frontier_amount,
         transition.phase_frontier_width_u,
         transition.phase_frontier_bias,
         config.point_style.min_scale
       );
-      const target_angle = base_angle_rad - TAU * spoke_id / generator.spoke_count;
-      const phase_mask_center_x_px = segment_id === 0
-        ? center_x_px - phase_mask_center_offset_x_px
-        : center_x_px + phase_mask_center_offset_x_px;
 
       spoke_specs[spoke_id] = {
         target_angle,
@@ -478,7 +618,7 @@ export function createRenderer({
         reach_u,
         fill_end_radius: inner_radius + radius_span * reach_u,
         phase_frontier_scale,
-        phase_mask_center_x_px,
+        phase_mask_center_x_px: phase_metrics.phase_mask_center_x_px,
         phase_mask_center_y_px: center_y_px,
         phase_mask_radius_px
       };
@@ -551,8 +691,6 @@ export function createRenderer({
 
     for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
       const spoke_spec = spoke_specs[spoke_id];
-      const is_upper_half = Math.sin(spoke_spec.target_angle) < 0;
-
       spokes[spoke_id] = {
         angle: spoke_spec.target_angle,
         phase_u: spoke_spec.fill_u,
@@ -562,9 +700,7 @@ export function createRenderer({
         echo_dot_step_px: generator.num_orbits <= 1 ? 0 : radius_span / (generator.num_orbits - 1),
         echo_dots: [],
         inner_clip_offset_px: phase_mask_center_offset_x_px,
-        inner_clip_center_x_px: is_upper_half
-          ? center_x_px - phase_mask_center_offset_x_px
-          : center_x_px + phase_mask_center_offset_x_px,
+        inner_clip_center_x_px: spoke_spec.phase_mask_center_x_px,
         inner_clip_center_y_px: center_y_px,
         inner_clip_radius_px: phase_mask_radius_px
       };
@@ -753,8 +889,15 @@ export function createRenderer({
       return 1;
     }
 
-    const cycle_phase = TAU * (playback_time_sec - runtime.playback_end_sec) / cycle_sec;
-    return 0.5 + 0.5 * Math.cos(cycle_phase);
+    const loop_time_sec = playback_time_sec - runtime.playback_end_sec;
+    const cycle_phase = TAU * loop_time_sec / cycle_sec;
+    const raw_pulse_u = 0.5 + 0.5 * Math.cos(cycle_phase);
+    const ramp_in_sec = Math.max(0, Number(config.screensaver?.ramp_in_sec || 0));
+    if (ramp_in_sec <= 0) {
+      return raw_pulse_u;
+    }
+
+    return lerp(1, raw_pulse_u, smoothstep(0, ramp_in_sec, loop_time_sec));
   }
 
   function has_post_finale_field_motion() {
@@ -845,38 +988,43 @@ export function createRenderer({
     const base_angle_rad = radians(generator.base_angle_deg) + rotation_rad;
     const effective_spoke_count = Math.max(1, compute_effective_spoke_count(playback_time_sec));
     const effective_orbit_count = Math.max(1, compute_effective_orbit_count(playback_time_sec));
+    const max_spoke_count = Math.max(1, Math.round(generator.spoke_count || 1));
     const orbit_step_px =
       effective_orbit_count <= 1 || radius_span_px <= 0
         ? radius_span_px
         : radius_span_px / Math.max(0.0001, effective_orbit_count - 1);
-    const spoke_slots = Math.max(1, Math.ceil(effective_spoke_count));
     const full_frame_outer_radius_px = get_full_frame_spoke_outer_radius(center_x_px, center_y_px);
     const halo_outer_radius_px = mascot_box ? mascot_box.draw_size_px * 0.5 : outer_radius_px;
     const max_central_orbit_index = orbit_step_px > 0
       ? Math.max(0, Math.ceil(radius_span_px / orbit_step_px))
       : 0;
+    const total_turns = max_spoke_count / Math.max(1, effective_spoke_count);
     const points = [];
     const spokes = [];
 
-    for (let spoke_id = 0; spoke_id < spoke_slots; spoke_id += 1) {
-      const spoke_alpha = smoothstep(0, 1, clamp(effective_spoke_count - spoke_id, 0, 1));
-      if (spoke_alpha <= 0) {
+    for (let source_index = 0; source_index < max_spoke_count; source_index += 1) {
+      const strip_u = source_index / max_spoke_count;
+      const wrapped_turn_position = strip_u * total_turns;
+      if (wrapped_turn_position >= 1) {
         continue;
       }
 
+      const display_u = wrapped_turn_position - Math.floor(wrapped_turn_position);
+      const angle = base_angle_rad + TAU * display_u;
       const spoke_pattern_id = wrap_positive(
-        spoke_id - generator.pattern_offset_spokes,
-        spoke_slots
+        source_index - generator.pattern_offset_spokes,
+        max_spoke_count
       );
-      const segment_id = Math.min(
-        generator.phase_count - 1,
-        Math.floor(spoke_pattern_id * generator.phase_count / spoke_slots)
-      );
-      const segment_start = Math.floor(segment_id * spoke_slots / generator.phase_count);
-      const segment_end = Math.floor((segment_id + 1) * spoke_slots / generator.phase_count) - 1;
-      const segment_length = Math.max(1, segment_end - segment_start + 1);
-      const segment_index = spoke_pattern_id - segment_start;
-      const fill_u = segment_length <= 1 ? 1 : segment_index / (segment_length - 1);
+      const phase_metrics = get_display_phase_metrics({
+        angle_rad: angle,
+        base_angle_rad,
+        slot_count: max_spoke_count,
+        phase_count: generator.phase_count,
+        spoke_pattern_id,
+        center_x_px,
+        phase_mask_center_offset_x_px
+      });
+      const fill_u = phase_metrics.fill_u;
       const continuous_active_orbits = clamp(
         generator.min_active_orbits +
           fill_u * (effective_orbit_count - generator.min_active_orbits),
@@ -892,23 +1040,15 @@ export function createRenderer({
         );
       const fill_end_radius_px = inner_radius_px + radius_span_px * reach_u;
       const phase_frontier_scale = compute_frontier_scale(
-        compute_phase_frontier_dist_u(
-          spoke_pattern_id,
-          spoke_slots,
-          generator.phase_count
-        ),
+        phase_metrics.phase_frontier_u,
         transition.phase_frontier_amount,
         transition.phase_frontier_width_u,
         transition.phase_frontier_bias,
         config.point_style.min_scale
       );
-      const angle = base_angle_rad - TAU * spoke_id / spoke_slots;
-      const phase_mask_center_x_px = segment_id === 0
-        ? center_x_px - phase_mask_center_offset_x_px
-        : center_x_px + phase_mask_center_offset_x_px;
       const spoke = {
         angle,
-        alpha: spoke_alpha,
+        alpha: 1,
         phase_u: fill_u,
         start_radius: config.spoke_lines.start_radius_px * geometry_scale,
         end_radius: outer_radius_px + config.spoke_lines.end_radius_extra_px * geometry_scale,
@@ -916,7 +1056,7 @@ export function createRenderer({
         echo_dot_step_px: orbit_step_px,
         echo_dots: [],
         inner_clip_offset_px: phase_mask_center_offset_x_px,
-        inner_clip_center_x_px: phase_mask_center_x_px,
+        inner_clip_center_x_px: phase_metrics.phase_mask_center_x_px,
         inner_clip_center_y_px: center_y_px,
         inner_clip_radius_px: phase_mask_radius_px
       };
@@ -945,7 +1085,7 @@ export function createRenderer({
         );
         const dot_radius_px = dot_diameter_px * 0.5;
         const phase_mask_distance_px = Math.hypot(
-          point_x - phase_mask_center_x_px,
+          point_x - phase_metrics.phase_mask_center_x_px,
           point_y - center_y_px
         );
         const fits_within_spoke = use_reference_phase_masks
@@ -963,7 +1103,7 @@ export function createRenderer({
           x: point_x,
           y: point_y,
           radius_px: dot_radius_px,
-          alpha: spoke_alpha
+          alpha: 1
         });
       }
 
@@ -1258,7 +1398,7 @@ export function createRenderer({
     nose_mesh.scale.set(box.draw_size_px, box.draw_size_px, 1);
     nose_material.opacity = base_alpha;
 
-    nose_cutout_mesh.visible = nose_bob_px > 0.01;
+    nose_cutout_mesh.visible = true;
     nose_cutout_mesh.position.set(0, nose_bob_px, 0);
     nose_cutout_mesh.scale.set(box.draw_size_px, box.draw_size_px, 1);
     nose_cutout_material.opacity = base_alpha;
@@ -1266,7 +1406,7 @@ export function createRenderer({
     for (let eye_index = 0; eye_index < MASCOT_EYE_SPECS.length; eye_index += 1) {
       const eye = MASCOT_EYE_SPECS[eye_index];
       const local_center_x = box.draw_size_px * (eye.cx / MASCOT_VIEWBOX_SIZE - 0.5);
-      const local_center_y = box.draw_size_px * (eye.cy / MASCOT_VIEWBOX_SIZE - 0.5);
+      const local_center_y = box.draw_size_px * (0.5 - eye.cy / MASCOT_VIEWBOX_SIZE);
       const radius_x_px = box.draw_size_px * (eye.radius / MASCOT_VIEWBOX_SIZE);
       const radius_y_px = Math.max(0.75, radius_x_px * eye_scale_y);
 
@@ -1297,7 +1437,7 @@ export function createRenderer({
     }
 
     const pattern_angle_offset_rad =
-      -TAU * (config.generator_wrangle.pattern_offset_spokes || 0) /
+      TAU * (config.generator_wrangle.pattern_offset_spokes || 0) /
       Math.max(1, config.generator_wrangle.spoke_count || 1);
 
     return {
@@ -1616,7 +1756,7 @@ export function createRenderer({
   }
 
   function resize_canvas(playback_time_sec = runtime.playback_time_sec, rebuild_scene = true) {
-    renderer.setPixelRatio(1);
+    renderer.setPixelRatio(get_render_pixel_ratio());
     renderer.setSize(stage_width_px, stage_height_px, false);
     renderer.setViewport(0, 0, stage_width_px, stage_height_px);
     camera.left = 0;
@@ -1625,7 +1765,7 @@ export function createRenderer({
     camera.bottom = 0;
     camera.updateProjectionMatrix();
 
-    runtime.dpr = 1;
+    runtime.dpr = get_render_pixel_ratio();
 
     if (rebuild_scene) {
       build_scene_data();
