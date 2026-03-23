@@ -1040,7 +1040,7 @@ export function createRenderer({
     return 1 - smoothstep(hold_end_frac, 1, blink_u);
   }
 
-  function compute_blink_amount(playback_time_sec) {
+  function compute_timed_sneeze_amount(playback_time_sec) {
     if (
       !config.blink.enabled ||
       playback_time_sec < runtime.blink_start_sec ||
@@ -1056,6 +1056,55 @@ export function createRenderer({
       1
     );
     return compute_blink_curve(blink_u);
+  }
+
+  function compute_loop_sneeze_amount(playback_time_sec) {
+    if (
+      !config.sneeze.enabled ||
+      !config.blink.enabled ||
+      playback_time_sec <= runtime.playback_end_sec ||
+      !has_post_finale_field_motion()
+    ) {
+      return 0;
+    }
+
+    const cycle_sec = get_screensaver_cycle_sec();
+    if (cycle_sec <= 0) {
+      return 0;
+    }
+
+    const sneeze_duration_sec = Math.max(0.0001, Number(config.blink.duration_sec || 0));
+    const event_spacing_sec = cycle_sec * 0.5;
+    if (event_spacing_sec <= 0) {
+      return 0;
+    }
+
+    const loop_time_sec = playback_time_sec - runtime.playback_end_sec;
+    const nearest_event_index = Math.round(loop_time_sec / event_spacing_sec);
+    const nearest_event_time_sec = nearest_event_index * event_spacing_sec;
+    const event_offset_sec = loop_time_sec - nearest_event_time_sec;
+    const half_duration_sec = sneeze_duration_sec * 0.5;
+    if (Math.abs(event_offset_sec) > half_duration_sec) {
+      return 0;
+    }
+
+    const sneeze_u = clamp(
+      (event_offset_sec + half_duration_sec) / sneeze_duration_sec,
+      0,
+      1
+    );
+    return compute_blink_curve(sneeze_u);
+  }
+
+  function compute_sneeze_amount(playback_time_sec, force_final) {
+    if (force_final) {
+      return compute_loop_sneeze_amount(playback_time_sec);
+    }
+
+    return Math.max(
+      compute_timed_sneeze_amount(playback_time_sec),
+      compute_loop_sneeze_amount(playback_time_sec)
+    );
   }
 
   function compute_head_turn_eye_squint_amount(playback_time_sec) {
@@ -1914,11 +1963,11 @@ export function createRenderer({
       };
     }
 
-    const blink_amount = force_final ? 0 : compute_blink_amount(playback_time_sec);
+    const sneeze_amount = compute_sneeze_amount(playback_time_sec, force_final);
     const head_turn_eye_amount = force_final
       ? 0
       : compute_head_turn_eye_squint_amount(playback_time_sec);
-    const combined_eye_amount = Math.max(blink_amount, head_turn_eye_amount);
+    const combined_eye_amount = Math.max(sneeze_amount, head_turn_eye_amount);
     const nose_bob_px = config.sneeze.enabled
       ? config.sneeze.nose_bob_up_px * combined_eye_amount
       : 0;
@@ -2458,11 +2507,12 @@ export function createRenderer({
     }
   }
 
-  function start_animation() {
+  function start_animation(playback_time_sec = 0) {
     runtime.is_paused = false;
     stop_animation();
     reset_spoke_width_transition_state();
-    runtime.animation_start_ms = performance.now();
+    runtime.playback_time_sec = Math.max(0, playback_time_sec);
+    runtime.animation_start_ms = performance.now() - runtime.playback_time_sec * 1000;
     runtime.animation_frame_id = requestAnimationFrame((frame_now_ms) => {
       render_current_frame(frame_now_ms, false);
     });
@@ -2604,6 +2654,7 @@ export function createRenderer({
     refreshScene: refresh_scene,
     renderCurrentFrame: render_current_frame,
     renderPlaybackFrame: render_playback_frame,
+    isAnimating: () => runtime.animation_frame_id !== 0,
     setOutputProfile: set_output_profile,
     startAnimation: start_animation,
     stopAnimation: stop_animation,

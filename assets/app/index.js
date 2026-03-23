@@ -38,6 +38,7 @@ const drawer_toggle_button = document.querySelector("[data-drawer-toggle]");
 const drawer_backdrop = document.querySelector("[data-drawer-backdrop]");
 const drawer_close_button = document.querySelector("[data-drawer-close]");
 const replay_button = document.querySelector("[data-replay-button]");
+const export_frame_button = document.querySelector("[data-export-frame-button]");
 const export_sequence_button = document.querySelector("[data-export-sequence-button]");
 const set_defaults_button = document.querySelector("[data-set-defaults-button]");
 const reset_button = document.querySelector("[data-reset-button]");
@@ -734,6 +735,40 @@ async function get_next_preset_export_version(directory_handle, preset_slug) {
   }
 
   return `v${highest_major}.${highest_minor + 1}`;
+}
+
+async function get_next_png_export_file_name(directory_handle, base_name) {
+  const file_name_pattern = new RegExp(`^${escape_regexp(base_name)}(?:-v(\\d+))?\\.png$`, "i");
+  let highest_version = 0;
+  let found_base_file = false;
+
+  for await (const [entry_name, entry_handle] of directory_handle.entries()) {
+    if (entry_handle.kind !== "file") {
+      continue;
+    }
+
+    const match = entry_name.match(file_name_pattern);
+    if (!match) {
+      continue;
+    }
+
+    if (typeof match[1] === "undefined") {
+      found_base_file = true;
+      highest_version = Math.max(highest_version, 1);
+      continue;
+    }
+
+    const version = Number(match[1]);
+    if (Number.isFinite(version)) {
+      highest_version = Math.max(highest_version, version);
+    }
+  }
+
+  if (!found_base_file && highest_version === 0) {
+    return `${base_name}.png`;
+  }
+
+  return `${base_name}-v${highest_version + 1}.png`;
 }
 
 function normalize_preset_entry(entry, fallback_name) {
@@ -1544,11 +1579,15 @@ async function export_png_sequence() {
   }
 
   const export_button_label = export_sequence_button ? export_sequence_button.textContent : "";
+  const export_frame_button_label = export_frame_button ? export_frame_button.textContent : "";
 
   try {
     state.is_exporting = true;
     renderer.stopAnimation();
 
+    if (export_frame_button) {
+      export_frame_button.disabled = true;
+    }
     if (export_sequence_button) {
       export_sequence_button.disabled = true;
       export_sequence_button.textContent = "Exporting...";
@@ -1611,11 +1650,110 @@ async function export_png_sequence() {
     }
   } finally {
     state.is_exporting = false;
+    if (export_frame_button) {
+      export_frame_button.disabled = false;
+      export_frame_button.textContent = export_frame_button_label || "Export Frame";
+    }
     if (export_sequence_button) {
       export_sequence_button.disabled = false;
       export_sequence_button.textContent = export_button_label || "Export PNG Seq";
     }
     renderer.startAnimation();
+  }
+}
+
+async function export_current_frame_png() {
+  if (state.is_exporting) {
+    return;
+  }
+
+  const export_frame_button_label = export_frame_button ? export_frame_button.textContent : "";
+  const export_sequence_button_label = export_sequence_button ? export_sequence_button.textContent : "";
+  const playback_time_sec = renderer.getCurrentPlaybackTimeSec();
+  const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
+  const frame_number = Math.max(1, Math.floor(playback_time_sec * frame_rate) + 1);
+  const frame_label = `frame-${String(frame_number).padStart(4, "0")}`;
+  const was_animating = renderer.isAnimating();
+
+  try {
+    state.is_exporting = true;
+    renderer.stopAnimation();
+    renderer.renderPlaybackFrame(playback_time_sec);
+
+    if (export_frame_button) {
+      export_frame_button.disabled = true;
+      export_frame_button.textContent = "Exporting...";
+    }
+    if (export_sequence_button) {
+      export_sequence_button.disabled = true;
+    }
+
+    const blob = await renderer.canvasToBlob("image/png");
+    const output_selection = await get_sequence_output_directory_handle();
+    if (output_selection) {
+      const file_name = await get_next_png_export_file_name(
+        output_selection.directory_handle,
+        frame_label
+      );
+      const file_handle = await output_selection.directory_handle.getFileHandle(file_name, {
+        create: true
+      });
+      await write_blob_file(file_handle, blob);
+      set_preset_meta(
+        `Exported current frame to ${output_selection.output_path_label}/${file_name}.`,
+        false
+      );
+      return;
+    }
+
+    if (typeof window.showSaveFilePicker === "function") {
+      const file_name = `${frame_label}.png`;
+      const file_handle = await window.showSaveFilePicker({
+        id: "radial-mascot-export-frame-file",
+        suggestedName: file_name,
+        startIn: "pictures",
+        types: [
+          {
+            description: "PNG image",
+            accept: {
+              "image/png": [".png"]
+            }
+          }
+        ]
+      });
+      await write_blob_file(file_handle, blob);
+      set_preset_meta(`Exported current frame as ${file_name}.`, false);
+      return;
+    }
+
+    const file_name = `${frame_label}.png`;
+    const object_url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = object_url;
+    link.download = file_name;
+    link.click();
+    URL.revokeObjectURL(object_url);
+    set_preset_meta(`Exported current frame as ${file_name}.`, false);
+  } catch (error) {
+    if (!is_abort_error(error)) {
+      console.error(error);
+      set_preset_meta(`Frame export failed: ${error.message}`, true);
+    }
+  } finally {
+    state.is_exporting = false;
+    if (export_frame_button) {
+      export_frame_button.disabled = false;
+      export_frame_button.textContent = export_frame_button_label || "Export Frame";
+    }
+    if (export_sequence_button) {
+      export_sequence_button.disabled = false;
+      export_sequence_button.textContent = export_sequence_button_label || "Export PNG Seq";
+    }
+
+    renderer.renderPlaybackFrame(playback_time_sec);
+    if (was_animating) {
+      renderer.startAnimation(playback_time_sec);
+    }
   }
 }
 
@@ -1626,6 +1764,10 @@ function handle_stage_click() {
 function attach_ui_events() {
   replay_button.addEventListener("click", () => {
     renderer.startAnimation();
+  });
+
+  export_frame_button.addEventListener("click", () => {
+    void export_current_frame_png();
   });
 
   export_sequence_button.addEventListener("click", () => {

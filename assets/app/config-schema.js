@@ -483,12 +483,15 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: 0, max: 6, step: 0.01 }
   },
   "finale.halo_inner_radius_u": {
+    hidden: true,
     numeric: { min: 0, max: 0.5, step: 0.005 }
   },
   "finale.start_angle_deg": {
+    hidden: true,
     numeric: { min: -180, max: 180, step: 0.1 }
   },
   "finale.mask_angle_offset_deg": {
+    hidden: true,
     numeric: { min: -12, max: 12, step: 0.1 }
   },
   "sneeze.enabled": {

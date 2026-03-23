@@ -96,7 +96,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "finale": {
     "enabled": true,
-    "delay_after_dots_sec": 0.1,
+    "delay_after_dots_sec": 0,
     "duration_sec": 0.75,
     "halo_inner_radius_u": 0.255,
     "start_angle_deg": 0,
@@ -124,10 +124,10 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "screensaver": {
     "cycle_sec": 60,
-    "ramp_in_sec": 6,
+    "ramp_in_sec": 2,
     "pulse_orbits": true,
     "pulse_spokes": true,
-    "min_spoke_count": 24,
+    "min_spoke_count": 8,
     "phase_boundary_transition_sec": 0.12
   },
   "vignette": {
