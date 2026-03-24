@@ -30,46 +30,61 @@ That writes a deployable static site to `dist/`.
 
 ## Overlay Workflow
 
-There are two independent selectors in the editor:
+There are now two levels of tuning in the editor:
 
-- `Output Format`
-  This changes the canvas size and default export frame rate.
-- `Overlay Content Format`
-  This changes which CSV schema is active and which text-block layout controls you are editing.
+- `Output`
+  This is where you choose the active screen size and export from it.
+- `Presets`
+  This is where you edit the global shared settings that should stay consistent across every screen size.
 
-### What is currently format-specific
+### What switches with Output Format
 
-The following settings are currently stored per **overlay content format**:
+Changing `Output Format` now swaps in the local settings stored for that screen size. In practice, this means the following can differ per output size:
 
-- `Active Format CSV Path`
-- text-block placement for the active format:
-  - `x`
-  - `y`
-  - `max width`
-
-So if you switch `Overlay Content Format` from `Social Media Post - Generic` to `Speaker Highlight`, adjust the text-block controls, and switch back, each format keeps its own text layout.
-
-### What is currently shared
-
-The following settings are still shared across output sizes unless you save separate presets:
-
+- composition scale
+- mascot size and offsets
 - grid rows / columns
 - baseline step
 - margins
 - safe-area inset values
 - logo placement
+- text block `x / y / max width`
 - text style sizes and line heights
-- vignette settings
+- vignette values
+- export frame rate
 
-That means if you switch from `1080x1920` to `1280x720`, the previous safe-area values may look too large or too small for the new canvas until you retune them.
+So if you tune `1080x1920`, switch to `1280x720`, and then switch back, each format keeps its own local layout.
+
+### What stays global
+
+The following settings are currently shared across every output size:
+
+- stage / safe-area / spoke / label / mascot colors
+- summit heading text
+- logo asset path
+- active overlay content format
+
+These are edited in the `Presets` tab.
+
+### Overlay content formats
+
+`Overlay Content Format` is still independent from `Output Format`.
+
+It changes:
+
+- which CSV schema is active
+- which text-block sub-tabs you see in the overlay editor
+
+Each output size keeps separate text-block layout for each content format. So `Speaker Highlight` at `1080x1920` can have different placement from `Speaker Highlight` at `3840x2160`.
 
 ### Recommended operator workflow
 
-1. Choose the `Output Format`.
-2. Choose the `Overlay Content Format`.
-3. Tune the overlay for that combination.
-4. Save a preset for that deliverable.
-5. If you want those values to become the repo defaults, use `Write Source Default`.
+1. Open `Output` and choose the screen size.
+2. Open `Overlay` and choose the content format.
+3. Tune the local layout for that screen size.
+4. Open `Presets` and adjust any global shared colors/brand settings if needed.
+5. Save a temporary preset if you want a full-project snapshot.
+6. If you want the current state to become the tracked repo default, use `Write Source Default`.
 
 ### Generic social layout
 
@@ -77,7 +92,6 @@ For `Social Media Post - Generic`, the overlay tab is organized as:
 
 - `Text Styles`
   - `A-head`
-  - `B-head`
   - `Paragraph`
 - `Text Blocks`
   - `A-head`

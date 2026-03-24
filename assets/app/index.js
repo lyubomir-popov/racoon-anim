@@ -26,6 +26,7 @@ import {
   normalize_config_snapshot,
   replace_config,
   set_object_path_value,
+  sync_profile_derived_config,
   sync_overlay_content_format_runtime_fields,
   write_overlay_runtime_fields_to_active_format,
   wrap_positive
@@ -62,7 +63,11 @@ const config_editor = document.querySelector("[data-config-editor]");
 const text_overlay_canvas = stage.querySelector("[data-text-overlay]");
 
 const config = create_default_config();
+initialize_profile_preset_architecture(config);
+apply_selected_profile_runtime(config);
 const default_config = deep_clone(config);
+initialize_profile_preset_architecture(default_config);
+apply_selected_profile_runtime(default_config);
 const renderer = createRenderer({ stage, canvas, text_overlay_canvas, config });
 
 const state = {
@@ -225,6 +230,27 @@ const COLOR_CONTROL_PATHS = Object.freeze([
   "mascot.color"
 ]);
 const COLOR_CONTROL_PATH_SET = new Set(COLOR_CONTROL_PATHS);
+const GLOBAL_BRAND_CONTROL_PATHS = Object.freeze([
+  "overlay_text.title_text",
+  "overlay_logo.asset_path"
+]);
+const GLOBAL_SHARED_PATHS = Object.freeze([
+  ...COLOR_CONTROL_PATHS,
+  ...GLOBAL_BRAND_CONTROL_PATHS,
+  "overlay_text.content_format"
+]);
+const GLOBAL_SHARED_PATH_SET = new Set(GLOBAL_SHARED_PATHS);
+const GLOBAL_PRESET_CONTROL_PATHS = Object.freeze([
+  ...GLOBAL_BRAND_CONTROL_PATHS,
+  ...COLOR_CONTROL_PATHS
+]);
+const GLOBAL_PRESET_CONTROL_PATH_SET = new Set(GLOBAL_PRESET_CONTROL_PATHS);
+const GLOBAL_SHARED_CONFIG_KEY = "global_shared_config";
+const OUTPUT_PROFILE_CONFIGS_KEY = "output_profile_configs";
+const INTERNAL_CONFIG_BUCKET_KEYS = new Set([
+  GLOBAL_SHARED_CONFIG_KEY,
+  OUTPUT_PROFILE_CONFIGS_KEY
+]);
 
 const OVERLAY_CONTENT_CONTROL_ROWS = Object.freeze([
   Object.freeze({ path: "overlay_text.content_format" }),
@@ -335,6 +361,145 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
 
 function get_section_label(section_key) {
   return SECTION_LABELS[section_key] || humanize_key(section_key);
+}
+
+function get_profile_key_from_target(target) {
+  const profile_key = typeof target?.output_profile_key === "string"
+    ? target.output_profile_key
+    : DEFAULT_OUTPUT_PROFILE_KEY;
+  return OUTPUT_PROFILES[profile_key] ? profile_key : DEFAULT_OUTPUT_PROFILE_KEY;
+}
+
+function set_bucket_path_value(target, path_key, next_value) {
+  const path_parts = path_key.split(".");
+  let cursor = target;
+  for (let index = 0; index < path_parts.length - 1; index += 1) {
+    const path_part = path_parts[index];
+    if (!is_plain_object(cursor[path_part])) {
+      cursor[path_part] = {};
+    }
+    cursor = cursor[path_part];
+  }
+  cursor[path_parts[path_parts.length - 1]] = next_value;
+}
+
+function clone_runtime_config_without_buckets(source) {
+  const snapshot = deep_clone(source);
+  for (const bucket_key of INTERNAL_CONFIG_BUCKET_KEYS) {
+    delete snapshot[bucket_key];
+  }
+  return snapshot;
+}
+
+function seed_profile_local_snapshot(source, profile_key) {
+  const snapshot = clone_runtime_config_without_buckets(source);
+  snapshot.output_profile_key = profile_key;
+  sync_profile_derived_config(snapshot);
+  const profile = OUTPUT_PROFILES[profile_key];
+  if (profile && Number.isFinite(profile.default_frame_rate)) {
+    snapshot.export_settings.frame_rate = Math.max(1, Math.round(profile.default_frame_rate));
+  }
+  return snapshot;
+}
+
+function ensure_global_shared_paths(target) {
+  if (!is_plain_object(target[GLOBAL_SHARED_CONFIG_KEY])) {
+    target[GLOBAL_SHARED_CONFIG_KEY] = {};
+  }
+
+  for (const path_key of GLOBAL_SHARED_PATHS) {
+    const path_parts = path_key.split(".");
+    let current_value;
+    let existing_value;
+    try {
+      current_value = get_object_path_value(target, path_parts);
+    } catch {
+      continue;
+    }
+    try {
+      existing_value = get_object_path_value(target[GLOBAL_SHARED_CONFIG_KEY], path_parts);
+    } catch {
+      existing_value = undefined;
+    }
+    if (typeof existing_value === "undefined") {
+      set_bucket_path_value(target[GLOBAL_SHARED_CONFIG_KEY], path_key, deep_clone(current_value));
+    }
+  }
+}
+
+function initialize_profile_preset_architecture(target) {
+  ensure_global_shared_paths(target);
+
+  if (!is_plain_object(target[OUTPUT_PROFILE_CONFIGS_KEY])) {
+    target[OUTPUT_PROFILE_CONFIGS_KEY] = {};
+  }
+
+  for (const profile_key of OUTPUT_PROFILE_ORDER) {
+    if (!is_plain_object(target[OUTPUT_PROFILE_CONFIGS_KEY][profile_key])) {
+      target[OUTPUT_PROFILE_CONFIGS_KEY][profile_key] = seed_profile_local_snapshot(target, profile_key);
+    }
+  }
+}
+
+function apply_global_shared_values(snapshot, target) {
+  for (const path_key of GLOBAL_SHARED_PATHS) {
+    const path_parts = path_key.split(".");
+    try {
+      const value = get_object_path_value(target[GLOBAL_SHARED_CONFIG_KEY], path_parts);
+      if (typeof value !== "undefined") {
+        set_object_path_value(snapshot, path_key, deep_clone(value));
+      }
+    } catch {
+      // ignore missing global value paths
+    }
+  }
+}
+
+function replace_runtime_visible_config(target, next_snapshot) {
+  for (const key of Object.keys(target)) {
+    if (!INTERNAL_CONFIG_BUCKET_KEYS.has(key)) {
+      delete target[key];
+    }
+  }
+
+  for (const [key, value] of Object.entries(next_snapshot)) {
+    if (!INTERNAL_CONFIG_BUCKET_KEYS.has(key)) {
+      target[key] = value;
+    }
+  }
+}
+
+function persist_current_profile_runtime(target) {
+  initialize_profile_preset_architecture(target);
+  const profile_key = get_profile_key_from_target(target);
+  target[OUTPUT_PROFILE_CONFIGS_KEY][profile_key] = clone_runtime_config_without_buckets(target);
+}
+
+function write_global_shared_value(target, path_key, next_value) {
+  initialize_profile_preset_architecture(target);
+  set_bucket_path_value(target[GLOBAL_SHARED_CONFIG_KEY], path_key, deep_clone(next_value));
+}
+
+function apply_selected_profile_runtime(target) {
+  initialize_profile_preset_architecture(target);
+  const profile_key = get_profile_key_from_target(target);
+  const local_snapshot = clone_runtime_config_without_buckets(
+    target[OUTPUT_PROFILE_CONFIGS_KEY][profile_key]
+  );
+  apply_global_shared_values(local_snapshot, target);
+  local_snapshot.output_profile_key = profile_key;
+  sync_profile_derived_config(local_snapshot);
+  sync_overlay_content_format_runtime_fields(local_snapshot);
+  replace_runtime_visible_config(target, local_snapshot);
+  target[GLOBAL_SHARED_CONFIG_KEY] = target[GLOBAL_SHARED_CONFIG_KEY];
+  target[OUTPUT_PROFILE_CONFIGS_KEY] = target[OUTPUT_PROFILE_CONFIGS_KEY];
+}
+
+function create_profile_architecture_base() {
+  const base = create_default_config();
+  initialize_profile_preset_architecture(base);
+  apply_selected_profile_runtime(base);
+  return base;
 }
 
 function set_preset_meta(message, is_error = false) {
@@ -556,7 +721,7 @@ async function read_source_default_snapshot() {
     return deep_clone(default_config);
   }
 
-  const source_default_base = create_default_config();
+  const source_default_base = create_profile_architecture_base();
   return normalize_config_snapshot(payload.config, source_default_base);
 }
 
@@ -665,8 +830,22 @@ function get_current_output_profile_key() {
 
 function sync_output_profile_controls() {
   const active_key = get_current_output_profile_key();
-  for (const [profile_key, radio_input] of state.output_profile_inputs.entries()) {
-    radio_input.checked = profile_key === active_key;
+  const active_profile = OUTPUT_PROFILES[active_key];
+  for (const [profile_key, control] of state.output_profile_inputs.entries()) {
+    const is_active = profile_key === active_key;
+    if ("checked" in control) {
+      control.checked = is_active;
+    }
+    control.setAttribute("aria-selected", String(is_active));
+    control.setAttribute("tabindex", is_active ? "0" : "-1");
+    control.classList.toggle("is-active", is_active);
+  }
+
+  const meta = output_profile_options?.querySelector("[data-output-profile-meta]");
+  if (meta && active_profile) {
+    meta.textContent =
+      `${active_profile.label} | ${active_profile.platforms} | ${active_profile.safe_zone} | ` +
+      `${Math.max(1, Math.round(config.export_settings.frame_rate || active_profile.default_frame_rate || 24))} fps`;
   }
 }
 
@@ -682,19 +861,18 @@ function sync_export_controls() {
 
 async function apply_output_profile(profile_key, { announce = true } = {}) {
   const next_profile_key = OUTPUT_PROFILES[profile_key] ? profile_key : DEFAULT_OUTPUT_PROFILE_KEY;
-  if (config.output_profile_key === next_profile_key && renderer.getOutputProfileKey() === next_profile_key) {
+  if (
+    config.output_profile_key === next_profile_key &&
+    renderer.getOutputProfileKey() === next_profile_key
+  ) {
     sync_output_profile_controls();
     return;
   }
 
+  persist_current_profile_runtime(config);
   config.output_profile_key = next_profile_key;
+  apply_selected_profile_runtime(config);
   const profile = OUTPUT_PROFILES[next_profile_key];
-  if (Number.isFinite(profile?.default_frame_rate)) {
-    config.export_settings.frame_rate = Math.max(1, Math.round(profile.default_frame_rate));
-  }
-  const next_metrics = get_output_profile_metrics(next_profile_key);
-  config.composition.center_x_px = next_metrics.center_x_px;
-  config.composition.center_y_px = next_metrics.center_y_px;
   renderer.setOutputProfile(next_profile_key);
   rebuild_config_editor();
   await renderer.refreshScene({ reload_mascot: true });
@@ -715,10 +893,27 @@ function render_output_profile_options() {
   state.output_profile_inputs.clear();
   output_profile_options.innerHTML = "";
 
+  const tabs = document.createElement("div");
+  tabs.className = "p-tabs output-profile-tabs";
+
   const list = document.createElement("div");
-  list.className = "preset-radio-list";
-  list.setAttribute("role", "radiogroup");
+  list.className = "p-tabs__list";
+  list.setAttribute("role", "tablist");
   list.setAttribute("aria-label", "Output formats");
+
+  const focus_adjacent_output_profile = (current_key, direction) => {
+    const current_index = OUTPUT_PROFILE_ORDER.findIndex((entry) => entry === current_key);
+    if (current_index === -1) {
+      return;
+    }
+
+    const next_index = wrap_positive(current_index + direction, OUTPUT_PROFILE_ORDER.length);
+    const next_profile_key = OUTPUT_PROFILE_ORDER[next_index];
+    const next_control = state.output_profile_inputs.get(next_profile_key);
+    if (next_control) {
+      next_control.focus();
+    }
+  };
 
   for (const profile_key of OUTPUT_PROFILE_ORDER) {
     const profile = OUTPUT_PROFILES[profile_key];
@@ -726,39 +921,45 @@ function render_output_profile_options() {
       continue;
     }
 
-    const row = document.createElement("label");
-    row.className = "preset-radio-row format-radio-row";
+    const item = document.createElement("div");
+    item.className = "p-tabs__item";
 
-    const radio = document.createElement("input");
-    radio.type = "radio";
-    radio.name = "output-profile";
-    radio.value = profile.key;
-    radio.checked = profile.key === get_current_output_profile_key();
-    radio.addEventListener("change", () => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "p-tabs__link";
+    button.dataset.outputProfileTab = profile.key;
+    button.setAttribute("role", "tab");
+    button.textContent = profile.label;
+    button.setAttribute("aria-selected", String(profile.key === get_current_output_profile_key()));
+    button.addEventListener("click", () => {
       void apply_output_profile(profile.key);
     });
+    button.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        focus_adjacent_output_profile(profile.key, 1);
+      }
 
-    const details = document.createElement("div");
-    details.className = "format-radio-details";
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        focus_adjacent_output_profile(profile.key, -1);
+      }
+    });
 
-    const name = document.createElement("div");
-    name.className = "preset-radio-name";
-    name.textContent = profile.label;
-
-    const meta = document.createElement("div");
-    meta.className = "format-radio-meta";
-    meta.textContent = `${profile.platforms} | ${profile.safe_zone}`;
-
-    details.appendChild(name);
-    details.appendChild(meta);
-
-    row.appendChild(radio);
-    row.appendChild(details);
-    list.appendChild(row);
-    state.output_profile_inputs.set(profile.key, radio);
+    item.appendChild(button);
+    list.appendChild(item);
+    state.output_profile_inputs.set(profile.key, button);
   }
 
-  output_profile_options.appendChild(list);
+  tabs.appendChild(list);
+  output_profile_options.appendChild(tabs);
+
+  const meta = document.createElement("p");
+  meta.className = "p-form-help-text output-profile-meta u-no-margin--bottom";
+  meta.dataset.outputProfileMeta = "";
+  output_profile_options.appendChild(meta);
+
+  sync_output_profile_controls();
 }
 
 function update_preset_controls() {
@@ -1675,6 +1876,27 @@ function build_overlay_form(panel, form) {
   panel.appendChild(form);
 }
 
+function build_global_presets_form(panel, form) {
+  const intro = document.createElement("p");
+  intro.className = "p-form-help-text u-no-margin--bottom";
+  intro.textContent =
+    "These settings are shared across every output format. Switch to Output to tune size-specific layout, scale, and export values.";
+  form.appendChild(intro);
+
+  const brand_section = build_control_rows_section(
+    "Brand",
+    GLOBAL_BRAND_CONTROL_PATHS.map((path) => ({ path }))
+  );
+  if (brand_section) {
+    form.appendChild(brand_section);
+  }
+
+  const color_section = build_curated_control_section("Colors", COLOR_CONTROL_PATHS);
+  if (color_section) {
+    form.appendChild(color_section);
+  }
+}
+
 function build_config_editor() {
   config_editor.innerHTML = "";
   state.editor_controls = new Map();
@@ -1734,18 +1956,15 @@ function build_config_editor() {
       event.preventDefault();
     });
 
-    if (group.key === "presets" && preset_panel) {
+    if (group.key === "output" && preset_panel) {
       preset_panel.hidden = false;
       panel.appendChild(preset_panel);
       panels.appendChild(panel);
       continue;
     }
 
-    if (group.key === "colors") {
-      const color_section = build_curated_control_section("Colors", COLOR_CONTROL_PATHS);
-      if (color_section) {
-        form.appendChild(color_section);
-      }
+    if (group.key === "presets") {
+      build_global_presets_form(panel, form);
       panel.appendChild(form);
       panels.appendChild(panel);
       continue;
@@ -1839,10 +2058,17 @@ async function handle_control_commit(event) {
 
   set_config_value(path_parts, next_value);
   if (path_key === "overlay_text.content_format") {
+    write_global_shared_value(config, path_key, next_value);
     sync_overlay_content_format_runtime_fields(config);
-  } else if (ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS.has(path_key)) {
-    write_overlay_runtime_fields_to_active_format(config);
+  } else {
+    if (GLOBAL_SHARED_PATH_SET.has(path_key)) {
+      write_global_shared_value(config, path_key, next_value);
+    }
+    if (ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS.has(path_key)) {
+      write_overlay_runtime_fields_to_active_format(config);
+    }
   }
+  persist_current_profile_runtime(config);
   const should_rebuild_editor =
     path_key === "overlay_text.content_format" || control_visibility_depends_on(path_key);
   const control = state.editor_controls.get(path_key);
@@ -1896,6 +2122,8 @@ async function apply_preset_by_id(preset_id) {
   state.active_preset_id = preset.id;
   state.selected_preset_id = preset.id;
   replace_config(config, preset.config, default_config);
+  initialize_profile_preset_architecture(config);
+  apply_selected_profile_runtime(config);
   renderer.setOutputProfile(get_current_output_profile_key());
   preset_name_input.value = preset.name;
   rebuild_config_editor();
@@ -2090,6 +2318,10 @@ async function reset_to_defaults() {
   const source_snapshot = await read_source_default_snapshot();
   replace_object_contents(default_config, source_snapshot);
   replace_object_contents(config, source_snapshot);
+  initialize_profile_preset_architecture(default_config);
+  apply_selected_profile_runtime(default_config);
+  initialize_profile_preset_architecture(config);
+  apply_selected_profile_runtime(config);
   renderer.setOutputProfile(get_current_output_profile_key());
   state.active_preset_id = null;
   state.selected_preset_id = null;
@@ -2108,14 +2340,17 @@ async function reset_to_defaults() {
 }
 
 async function write_current_as_source_default() {
+  persist_current_profile_runtime(config);
   const normalized_snapshot = normalize_config_snapshot(config, default_config);
 
   try {
     const payload = await write_source_default_snapshot(normalized_snapshot);
     const written_snapshot = is_plain_object(payload?.config)
-      ? normalize_config_snapshot(payload.config, create_default_config())
+      ? normalize_config_snapshot(payload.config, create_profile_architecture_base())
       : normalized_snapshot;
     replace_object_contents(default_config, written_snapshot);
+    initialize_profile_preset_architecture(default_config);
+    apply_selected_profile_runtime(default_config);
     rebuild_config_editor();
     clear_legacy_browser_default_config();
     set_preset_meta(
@@ -2450,6 +2685,7 @@ function attach_ui_events() {
   export_transparent_background_checkbox?.addEventListener("change", () => {
     config.export_settings.transparent_background =
       export_transparent_background_checkbox.checked;
+    persist_current_profile_runtime(config);
   });
 
   stage.addEventListener("click", handle_stage_click);

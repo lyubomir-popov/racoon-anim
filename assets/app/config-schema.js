@@ -208,14 +208,19 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
     sections: Object.freeze(["layout_grid", "overlay_logo", "overlay_text"])
   }),
   Object.freeze({
+    key: "output",
+    label: "Output",
+    sections: Object.freeze([])
+  }),
+  Object.freeze({
+    key: "presets",
+    label: "Presets",
+    sections: Object.freeze([])
+  }),
+  Object.freeze({
     key: "field",
     label: "Field",
     sections: Object.freeze(["composition", "generator_wrangle", "mascot"])
-  }),
-  Object.freeze({
-    key: "colors",
-    label: "Colors",
-    sections: Object.freeze([])
   }),
   Object.freeze({
     key: "halo",
@@ -226,11 +231,6 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
     key: "vignette",
     label: "Vignette",
     sections: Object.freeze(["vignette"])
-  }),
-  Object.freeze({
-    key: "presets",
-    label: "Presets",
-    sections: Object.freeze([])
   }),
   Object.freeze({
     key: "motion",

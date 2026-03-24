@@ -297,6 +297,30 @@ body.editor-docked .drawer-panel {
   width: 100%;
 }
 
+.output-profile-tabs .p-tabs__list {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  margin-bottom: 0.5rem;
+}
+
+.output-profile-tabs .p-tabs__item {
+  margin: 0;
+  min-width: 0;
+}
+
+.output-profile-tabs .p-tabs__link {
+  display: flex;
+  justify-content: center;
+  min-height: 2.5rem;
+  text-align: center;
+  width: 100%;
+}
+
+.output-profile-meta {
+  margin: 0;
+}
+
 .overlay-subtabs__panel {
   display: grid;
   gap: 0.5rem;
