@@ -139,7 +139,7 @@ def build_ffmpeg_command(
     "-framerate",
     str(fps),
     "-i",
-    str(first_frame.parent / "frame-%04d.png"),
+    str(first_frame.parent / f"frame-%0{len(first_frame.stem.split('-')[1])}d.png"),
     "-c:v",
     "libx264",
     "-preset",
