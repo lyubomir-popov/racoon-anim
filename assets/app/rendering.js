@@ -685,6 +685,25 @@ export function createRenderer({
     return grid.column_keyline_positions_px[safe_index - 1] ?? grid.content_left_px;
   }
 
+  function get_overlay_text_max_width_px(keyline_index, column_span) {
+    const grid = get_layout_grid_metrics();
+    const safe_index = clamp(
+      Math.round(Number.isFinite(Number(keyline_index)) ? Number(keyline_index) : 1),
+      1,
+      Math.max(1, grid.column_count)
+    );
+    const max_available_span = Math.max(1, grid.column_count - safe_index + 1);
+    const safe_span = clamp(
+      Math.round(Number.isFinite(Number(column_span)) ? Number(column_span) : 1),
+      1,
+      max_available_span
+    );
+    return Math.max(
+      0,
+      safe_span * grid.column_width_px + Math.max(0, safe_span - 1) * grid.column_gutter_px
+    );
+  }
+
   function get_overlay_text_color() {
     return config.overlay_text?.color || "#ffffff";
   }
@@ -2431,7 +2450,7 @@ export function createRenderer({
     text,
     keyline_index,
     y_baselines,
-    max_width_px,
+    column_span,
     font,
     line_height_px
   }) {
@@ -2442,6 +2461,7 @@ export function createRenderer({
 
     const baseline_step_px = get_baseline_step_px();
     const grid = get_layout_grid_metrics();
+    const max_width_px = get_overlay_text_max_width_px(keyline_index, column_span);
     const wrapped_lines = wrap_overlay_text_lines(safe_text, max_width_px, font);
     if (!wrapped_lines.length) {
       return;
@@ -2513,7 +2533,7 @@ export function createRenderer({
       text: content.main_heading,
       keyline_index: config.overlay_text.main_heading_keyline_index,
       y_baselines: config.overlay_text.main_heading_y_baselines,
-      max_width_px: Math.max(0, Number(config.overlay_text.main_heading_max_width_px ?? 0)),
+      column_span: config.overlay_text.main_heading_column_span,
       font: title_font,
       line_height_px: title_line_height_px
     });
@@ -2521,7 +2541,7 @@ export function createRenderer({
       text: content.text_1,
       keyline_index: config.overlay_text.text_1_keyline_index,
       y_baselines: config.overlay_text.text_1_y_baselines,
-      max_width_px: Math.max(0, Number(config.overlay_text.text_1_max_width_px ?? 0)),
+      column_span: config.overlay_text.text_1_column_span,
       font: b_head_font,
       line_height_px: b_head_line_height_px
     });
@@ -2529,7 +2549,7 @@ export function createRenderer({
       text: content.text_2,
       keyline_index: config.overlay_text.text_2_keyline_index,
       y_baselines: config.overlay_text.text_2_y_baselines,
-      max_width_px: Math.max(0, Number(config.overlay_text.text_2_max_width_px ?? 0)),
+      column_span: config.overlay_text.text_2_column_span,
       font: paragraph_font,
       line_height_px: paragraph_line_height_px
     });
@@ -2537,7 +2557,7 @@ export function createRenderer({
       text: content.text_3,
       keyline_index: config.overlay_text.text_3_keyline_index,
       y_baselines: config.overlay_text.text_3_y_baselines,
-      max_width_px: Math.max(0, Number(config.overlay_text.text_3_max_width_px ?? 0)),
+      column_span: config.overlay_text.text_3_column_span,
       font: paragraph_font,
       line_height_px: paragraph_line_height_px
     });

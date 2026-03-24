@@ -159,16 +159,16 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "overlay_text.subtitle_text",
   "overlay_text.main_heading_x_px",
   "overlay_text.main_heading_y_baselines",
-  "overlay_text.main_heading_max_width_px",
+  "overlay_text.main_heading_column_span",
   "overlay_text.text_1_x_px",
   "overlay_text.text_1_y_baselines",
-  "overlay_text.text_1_max_width_px",
+  "overlay_text.text_1_column_span",
   "overlay_text.text_2_x_px",
   "overlay_text.text_2_y_baselines",
-  "overlay_text.text_2_max_width_px",
+  "overlay_text.text_2_column_span",
   "overlay_text.text_3_x_px",
   "overlay_text.text_3_y_baselines",
-  "overlay_text.text_3_max_width_px",
+  "overlay_text.text_3_column_span",
   "overlay_text.title_font_size_px",
   "overlay_text.title_line_height_px",
   "overlay_text.title_font_weight",
@@ -195,13 +195,13 @@ const ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS = new Set([
   "overlay_text.content_csv_path",
   "overlay_text.text_1_x_px",
   "overlay_text.text_1_y_baselines",
-  "overlay_text.text_1_max_width_px",
+  "overlay_text.text_1_column_span",
   "overlay_text.text_2_x_px",
   "overlay_text.text_2_y_baselines",
-  "overlay_text.text_2_max_width_px",
+  "overlay_text.text_2_column_span",
   "overlay_text.text_3_x_px",
   "overlay_text.text_3_y_baselines",
-  "overlay_text.text_3_max_width_px"
+  "overlay_text.text_3_column_span"
 ]);
 
 const SECTION_LABELS = Object.freeze({
@@ -362,7 +362,7 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
             Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.main_heading_max_width_px", label: "Max Width (px)" })
+        Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span (Columns)" })
       ])
     }),
     Object.freeze({
@@ -375,7 +375,7 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
             Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.text_3_max_width_px", label: "Max Width (px)" })
+        Object.freeze({ path: "overlay_text.text_3_column_span", label: "Span (Columns)" })
       ])
     }),
     Object.freeze({
@@ -388,14 +388,14 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
             Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Line 1 Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.text_1_max_width_px", label: "Line 1 Max Width (px)" }),
+        Object.freeze({ path: "overlay_text.text_1_column_span", label: "Line 1 Span (Columns)" }),
         Object.freeze({
           columns: Object.freeze([
             Object.freeze({ path: "overlay_text.text_2_keyline_index", label: "Line 2 Column" }),
             Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Line 2 Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.text_2_max_width_px", label: "Line 2 Max Width (px)" })
+        Object.freeze({ path: "overlay_text.text_2_column_span", label: "Line 2 Span (Columns)" })
       ])
     })
   ]),
@@ -410,7 +410,7 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
             Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.main_heading_max_width_px", label: "Max Width (px)" })
+        Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span (Columns)" })
       ])
     }),
     Object.freeze({
@@ -423,7 +423,7 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
             Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.text_1_max_width_px", label: "Max Width (px)" })
+        Object.freeze({ path: "overlay_text.text_1_column_span", label: "Span (Columns)" })
       ])
     }),
     Object.freeze({
@@ -436,14 +436,14 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
             Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Paragraph 1 Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.text_2_max_width_px", label: "Paragraph 1 Max Width (px)" }),
+        Object.freeze({ path: "overlay_text.text_2_column_span", label: "Paragraph 1 Span (Columns)" }),
         Object.freeze({
           columns: Object.freeze([
             Object.freeze({ path: "overlay_text.text_3_keyline_index", label: "Paragraph 2 Column" }),
             Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Paragraph 2 Y (Baselines)" })
           ])
         }),
-        Object.freeze({ path: "overlay_text.text_3_max_width_px", label: "Paragraph 2 Max Width (px)" })
+        Object.freeze({ path: "overlay_text.text_3_column_span", label: "Paragraph 2 Span (Columns)" })
       ])
     })
   ])
@@ -1586,7 +1586,7 @@ function create_control_input(path_key, value, options = {}) {
   const number_input_only = Boolean(options.number_input_only);
   if (typeof value === "number") {
     let numeric_spec = get_numeric_control_spec(path_key, value);
-    if (path_key.endsWith("_keyline_index")) {
+    if (path_key.endsWith("_keyline_index") || path_key.endsWith("_column_span")) {
       const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 1)));
       numeric_spec = { min: 1, max: column_count, step: 1 };
     }
@@ -2249,7 +2249,7 @@ function parse_control_value(input, current_value, path_key) {
       return undefined;
     }
 
-    if (path_key.endsWith("_keyline_index")) {
+    if (path_key.endsWith("_keyline_index") || path_key.endsWith("_column_span")) {
       const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 1)));
       return clamp(Math.round(next_value), 1, column_count);
     }

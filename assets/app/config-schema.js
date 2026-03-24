@@ -147,13 +147,13 @@ const OVERLAY_FORMAT_RUNTIME_MAPPING = Object.freeze([
   Object.freeze(["content_csv_path", "csv_path"]),
   Object.freeze(["text_1_keyline_index", "text_1_keyline_index"]),
   Object.freeze(["text_1_y_baselines", "text_1_y_baselines"]),
-  Object.freeze(["text_1_max_width_px", "text_1_max_width_px"]),
+  Object.freeze(["text_1_column_span", "text_1_column_span"]),
   Object.freeze(["text_2_keyline_index", "text_2_keyline_index"]),
   Object.freeze(["text_2_y_baselines", "text_2_y_baselines"]),
-  Object.freeze(["text_2_max_width_px", "text_2_max_width_px"]),
+  Object.freeze(["text_2_column_span", "text_2_column_span"]),
   Object.freeze(["text_3_keyline_index", "text_3_keyline_index"]),
   Object.freeze(["text_3_y_baselines", "text_3_y_baselines"]),
-  Object.freeze(["text_3_max_width_px", "text_3_max_width_px"])
+  Object.freeze(["text_3_column_span", "text_3_column_span"])
 ]);
 
 function compute_overlay_layout_metrics_for_target(target) {
@@ -203,23 +203,48 @@ function derive_keyline_index_from_legacy_x(target, legacy_x_px) {
   );
 }
 
+function derive_column_span_from_legacy_width(target, legacy_width_px) {
+  const width_px = Number(legacy_width_px);
+  if (!Number.isFinite(width_px)) {
+    return 1;
+  }
+
+  const metrics = compute_overlay_layout_metrics_for_target(target);
+  const denominator = metrics.keyline_step_px;
+  if (!Number.isFinite(denominator) || denominator <= 0) {
+    return 1;
+  }
+
+  const baseline_step_px = Math.max(1, Math.round(Number(target?.layout_grid?.baseline_step_px ?? 8)));
+  const column_gutter_px =
+    Math.max(0, Math.round(Number(target?.layout_grid?.column_gutter_baselines ?? 0))) * baseline_step_px;
+  const raw_span = (width_px + column_gutter_px) / denominator;
+  return clamp(Math.round(raw_span), 1, metrics.column_count);
+}
+
 function ensure_overlay_text_keyline_defaults(target) {
   if (!is_plain_object(target?.overlay_text)) {
     return;
   }
 
   const runtime_specs = [
-    ["main_heading_keyline_index", "main_heading_x_px"],
-    ["text_1_keyline_index", "text_1_x_px"],
-    ["text_2_keyline_index", "text_2_x_px"],
-    ["text_3_keyline_index", "text_3_x_px"]
+    ["main_heading_keyline_index", "main_heading_x_px", "main_heading_column_span", "main_heading_max_width_px"],
+    ["text_1_keyline_index", "text_1_x_px", "text_1_column_span", "text_1_max_width_px"],
+    ["text_2_keyline_index", "text_2_x_px", "text_2_column_span", "text_2_max_width_px"],
+    ["text_3_keyline_index", "text_3_x_px", "text_3_column_span", "text_3_max_width_px"]
   ];
 
-  for (const [keyline_key, legacy_key] of runtime_specs) {
+  for (const [keyline_key, legacy_key, span_key, legacy_width_key] of runtime_specs) {
     if (!Number.isFinite(Number(target.overlay_text[keyline_key]))) {
       target.overlay_text[keyline_key] = derive_keyline_index_from_legacy_x(
         target,
         target.overlay_text[legacy_key]
+      );
+    }
+    if (!Number.isFinite(Number(target.overlay_text[span_key]))) {
+      target.overlay_text[span_key] = derive_column_span_from_legacy_width(
+        target,
+        target.overlay_text[legacy_width_key]
       );
     }
   }
@@ -229,20 +254,26 @@ function ensure_overlay_text_keyline_defaults(target) {
   }
 
   const bucket_specs = [
-    ["text_1_keyline_index", "text_1_x_px"],
-    ["text_2_keyline_index", "text_2_x_px"],
-    ["text_3_keyline_index", "text_3_x_px"]
+    ["text_1_keyline_index", "text_1_x_px", "text_1_column_span", "text_1_max_width_px"],
+    ["text_2_keyline_index", "text_2_x_px", "text_2_column_span", "text_2_max_width_px"],
+    ["text_3_keyline_index", "text_3_x_px", "text_3_column_span", "text_3_max_width_px"]
   ];
 
   for (const format_bucket of Object.values(target.overlay_content_formats)) {
     if (!is_plain_object(format_bucket)) {
       continue;
     }
-    for (const [keyline_key, legacy_key] of bucket_specs) {
+    for (const [keyline_key, legacy_key, span_key, legacy_width_key] of bucket_specs) {
       if (!Number.isFinite(Number(format_bucket[keyline_key]))) {
         format_bucket[keyline_key] = derive_keyline_index_from_legacy_x(
           target,
           format_bucket[legacy_key]
+        );
+      }
+      if (!Number.isFinite(Number(format_bucket[span_key]))) {
+        format_bucket[span_key] = derive_column_span_from_legacy_width(
+          target,
+          format_bucket[legacy_width_key]
         );
       }
     }
@@ -561,6 +592,11 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text: "Aligns the A-head to a grid keyline based on the current column layout.",
     numeric: { min: 1, max: 24, step: 1 }
   },
+  "overlay_text.main_heading_column_span": {
+    label: "Span (Columns)",
+    help_text: "How many grid columns the A-head can occupy before wrapping.",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
   "overlay_text.main_heading_y_baselines": {
     label: "A-head Y (Baselines)",
     help_text:
@@ -568,9 +604,7 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.main_heading_max_width_px": {
-    label: "A-head Max Width (px)",
-    help_text:
-      "Maximum width used for wrapping the A-head.",
+    hidden: true,
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.text_1_x_px": {
@@ -582,12 +616,17 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text: "Aligns the B-head to a grid keyline based on the current column layout.",
     numeric: { min: 1, max: 24, step: 1 }
   },
+  "overlay_text.text_1_column_span": {
+    label: "Span (Columns)",
+    help_text: "How many grid columns the B-head can occupy before wrapping.",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
   "overlay_text.text_1_y_baselines": {
     label: "B-head Y (Baselines)",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.text_1_max_width_px": {
-    label: "B-head Max Width (px)",
+    hidden: true,
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.text_2_x_px": {
@@ -599,12 +638,17 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text: "Aligns paragraph text to a grid keyline based on the current column layout.",
     numeric: { min: 1, max: 24, step: 1 }
   },
+  "overlay_text.text_2_column_span": {
+    label: "Span (Columns)",
+    help_text: "How many grid columns Paragraph 1 can occupy before wrapping.",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
   "overlay_text.text_2_y_baselines": {
     label: "Paragraph 1 Y (Baselines)",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.text_2_max_width_px": {
-    label: "Paragraph 1 Max Width (px)",
+    hidden: true,
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.text_3_x_px": {
@@ -616,12 +660,17 @@ export const CONFIG_FIELD_META = Object.freeze({
     help_text: "Aligns paragraph text to a grid keyline based on the current column layout.",
     numeric: { min: 1, max: 24, step: 1 }
   },
+  "overlay_text.text_3_column_span": {
+    label: "Span (Columns)",
+    help_text: "How many grid columns Paragraph 2 can occupy before wrapping.",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
   "overlay_text.text_3_y_baselines": {
     label: "Paragraph 2 Y (Baselines)",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.text_3_max_width_px": {
-    label: "Paragraph 2 Max Width (px)",
+    hidden: true,
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.title_font_size_px": {
@@ -1481,6 +1530,42 @@ export function normalize_config_snapshot(source, default_config) {
         source.overlay_text.text_3_x_px
       );
     }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.main_heading_column_span)) &&
+      Number.isFinite(Number(source?.overlay_text?.main_heading_max_width_px))
+    ) {
+      snapshot.overlay_text.main_heading_column_span = derive_column_span_from_legacy_width(
+        snapshot,
+        source.overlay_text.main_heading_max_width_px
+      );
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.text_1_column_span)) &&
+      Number.isFinite(Number(source?.overlay_text?.text_1_max_width_px))
+    ) {
+      snapshot.overlay_text.text_1_column_span = derive_column_span_from_legacy_width(
+        snapshot,
+        source.overlay_text.text_1_max_width_px
+      );
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.text_2_column_span)) &&
+      Number.isFinite(Number(source?.overlay_text?.text_2_max_width_px))
+    ) {
+      snapshot.overlay_text.text_2_column_span = derive_column_span_from_legacy_width(
+        snapshot,
+        source.overlay_text.text_2_max_width_px
+      );
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.text_3_column_span)) &&
+      Number.isFinite(Number(source?.overlay_text?.text_3_max_width_px))
+    ) {
+      snapshot.overlay_text.text_3_column_span = derive_column_span_from_legacy_width(
+        snapshot,
+        source.overlay_text.text_3_max_width_px
+      );
+    }
   }
   if (is_plain_object(snapshot.overlay_content_formats) && !is_plain_object(source?.overlay_content_formats)) {
     const generic_social = get_overlay_format_bucket(snapshot, "generic_social");
@@ -1505,6 +1590,21 @@ export function normalize_config_snapshot(source, default_config) {
           snapshot_bucket[keyline_key] = derive_keyline_index_from_legacy_x(
             snapshot,
             source_bucket[legacy_key]
+          );
+        }
+      }
+      for (const [span_key, legacy_width_key] of [
+        ["text_1_column_span", "text_1_max_width_px"],
+        ["text_2_column_span", "text_2_max_width_px"],
+        ["text_3_column_span", "text_3_max_width_px"]
+      ]) {
+        if (
+          !Number.isFinite(Number(source_bucket[span_key])) &&
+          Number.isFinite(Number(source_bucket[legacy_width_key]))
+        ) {
+          snapshot_bucket[span_key] = derive_column_span_from_legacy_width(
+            snapshot,
+            source_bucket[legacy_width_key]
           );
         }
       }
