@@ -1767,9 +1767,11 @@ export function createRenderer({
       3,
       Number(config.spoke_text?.font_size_px ?? ECHO_TEXT_BASE_FONT_SIZE_PX)
     );
+    const responsive_stage_scale = Math.max(0.01, Math.min(stage_width_px, stage_height_px) / 1080);
+    const composition_scale = Math.max(0.01, Number(config.composition?.scale || 1));
     return Math.max(
-      base_font_size_px,
-      Math.round(base_font_size_px * Math.min(stage_width_px, stage_height_px) / 1080)
+      3,
+      Math.round(base_font_size_px * responsive_stage_scale * composition_scale)
     );
   }
 
@@ -1820,7 +1822,7 @@ export function createRenderer({
         spoke.inner_clip_center_y_px,
         spoke.inner_clip_radius_px,
         spoke.start_radius,
-        full_frame_outer_radius_px
+        halo_outer_radius_px
       )
       : null;
     const thick_segment_end_radius = thick_segment
@@ -2556,7 +2558,7 @@ export function createRenderer({
         spoke.inner_clip_center_y_px,
         spoke.inner_clip_radius_px,
         spoke.start_radius,
-        full_frame_outer_radius_px
+        halo_outer_radius_px
       );
 
       if (segment) {
@@ -2978,10 +2980,17 @@ export function createRenderer({
       return;
     }
 
+    const geometry_scale = get_halo_geometry_scale(box);
+    const halo_outer_radius_px =
+      COMPOSITION_SIZE_PX *
+      Number(config.composition?.radial_scale || 1) *
+      Number(config.generator_wrangle?.outer_radius || 0) *
+      geometry_scale;
     const phase_mask = get_phase_mask_geometry({
       box,
       center_x_px: config.composition.center_x_px,
-      center_y_px: config.composition.center_y_px
+      center_y_px: config.composition.center_y_px,
+      outer_radius_px: halo_outer_radius_px
     });
     const boundary_width_px = 2;
     const mask_width_px = 1.5;

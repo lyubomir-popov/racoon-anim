@@ -60,10 +60,17 @@ export function get_display_phase_metrics({
 export function get_phase_mask_geometry({
   box,
   center_x_px,
-  center_y_px
+  center_y_px,
+  outer_radius_px = 0
 }) {
   const geometry_scale = box ? box.draw_size_px / MASCOT_VIEWBOX_SIZE : 1;
-  const radius_px = 250 * geometry_scale;
+  const legacy_radius_px = 250 * geometry_scale;
+  const halo_clear_radius_px = Math.max(
+    0,
+    Number(outer_radius_px || 0),
+    box ? box.draw_size_px * 0.5 : 0
+  );
+  const radius_px = Math.max(legacy_radius_px, halo_clear_radius_px + 4 * geometry_scale);
   const center_offset_x_px = 50 * geometry_scale;
   return {
     radius_px,
@@ -143,7 +150,8 @@ function create_field_base({
   const phase_mask = get_phase_mask_geometry({
     box: mascot_box,
     center_x_px,
-    center_y_px
+    center_y_px,
+    outer_radius_px
   });
 
   return {
