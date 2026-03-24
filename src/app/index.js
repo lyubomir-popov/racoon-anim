@@ -14,6 +14,7 @@ import {
   deep_clone,
   control_visibility_depends_on,
   get_output_profile_metrics,
+  get_output_profile_safe_area,
   get_control_help_text,
   get_control_label,
   get_overlay_content_format_spec,
@@ -391,6 +392,14 @@ function seed_profile_local_snapshot(source, profile_key) {
   const profile = OUTPUT_PROFILES[profile_key];
   if (profile && Number.isFinite(profile.default_frame_rate)) {
     snapshot.export_settings.frame_rate = Math.max(1, Math.round(profile.default_frame_rate));
+  }
+  // Seed profile-native safe-area defaults for this output format.
+  const sa = get_output_profile_safe_area(profile_key);
+  if (is_plain_object(snapshot.layout_grid)) {
+    snapshot.layout_grid.safe_top_px = sa.top;
+    snapshot.layout_grid.safe_right_px = sa.right;
+    snapshot.layout_grid.safe_bottom_px = sa.bottom;
+    snapshot.layout_grid.safe_left_px = sa.left;
   }
   return snapshot;
 }

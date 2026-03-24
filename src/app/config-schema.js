@@ -17,7 +17,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     default_frame_rate: 24,
     kind: "social_landscape",
     platforms: "Twitter/X, Mastodon, LinkedIn",
-    safe_zone: "N/A"
+    safe_area: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 })
   }),
   instagram_1080x1350: Object.freeze({
     key: "instagram_1080x1350",
@@ -27,7 +27,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     default_frame_rate: 30,
     kind: "social_portrait",
     platforms: "Instagram",
-    safe_zone: "N/A"
+    safe_area: Object.freeze({ top: 24, right: 24, bottom: 24, left: 24 })
   }),
   story_1080x1920: Object.freeze({
     key: "story_1080x1920",
@@ -37,7 +37,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     default_frame_rate: 30,
     kind: "story",
     platforms: "Instagram Story",
-    safe_zone: "Safe zone"
+    safe_area: Object.freeze({ top: 250, right: 65, bottom: 250, left: 65 })
   }),
   screen_3840x2160: Object.freeze({
     key: "screen_3840x2160",
@@ -47,7 +47,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     default_frame_rate: 24,
     kind: "screen",
     platforms: "Screen",
-    safe_zone: "No safe zone"
+    safe_area: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 })
   }),
   tablet_2560x1600: Object.freeze({
     key: "tablet_2560x1600",
@@ -57,7 +57,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     default_frame_rate: 24,
     kind: "tablet",
     platforms: "Tablet",
-    safe_zone: "No safe zone"
+    safe_area: Object.freeze({ top: 0, right: 0, bottom: 0, left: 0 })
   }),
 });
 export const DEFAULT_OUTPUT_PROFILE_KEY = "story_1080x1920";
@@ -85,6 +85,19 @@ export function get_output_profile_metrics(profile_or_key = DEFAULT_OUTPUT_PROFI
     aspect_ratio: width_px / height_px,
     center_x_px: width_px * 0.5,
     center_y_px: height_px * 0.5
+  });
+}
+
+export function get_output_profile_safe_area(profile_or_key = DEFAULT_OUTPUT_PROFILE_KEY) {
+  const profile = typeof profile_or_key === "string"
+    ? get_output_profile(profile_or_key)
+    : profile_or_key;
+  const sa = profile?.safe_area;
+  return Object.freeze({
+    top: (sa?.top != null && Number.isFinite(Number(sa.top))) ? Number(sa.top) : 0,
+    right: (sa?.right != null && Number.isFinite(Number(sa.right))) ? Number(sa.right) : 0,
+    bottom: (sa?.bottom != null && Number.isFinite(Number(sa.bottom))) ? Number(sa.bottom) : 0,
+    left: (sa?.left != null && Number.isFinite(Number(sa.left))) ? Number(sa.left) : 0
   });
 }
 
@@ -1471,6 +1484,24 @@ export function sync_profile_derived_config(target) {
     : DEFAULT_OUTPUT_PROFILE_KEY;
   const profile = get_output_profile_metrics(profile_key);
   target.output_profile_key = profile.key;
+
+  // Seed safe-area insets from the profile definition when the layout_grid
+  // block exists but has no explicitly-saved values (normalize-on-load path).
+  if (is_plain_object(target.layout_grid)) {
+    const sa = get_output_profile_safe_area(profile_key);
+    if (!Number.isFinite(Number(target.layout_grid.safe_top_px))) {
+      target.layout_grid.safe_top_px = sa.top;
+    }
+    if (!Number.isFinite(Number(target.layout_grid.safe_right_px))) {
+      target.layout_grid.safe_right_px = sa.right;
+    }
+    if (!Number.isFinite(Number(target.layout_grid.safe_bottom_px))) {
+      target.layout_grid.safe_bottom_px = sa.bottom;
+    }
+    if (!Number.isFinite(Number(target.layout_grid.safe_left_px))) {
+      target.layout_grid.safe_left_px = sa.left;
+    }
+  }
 }
 
 export function is_hex_color_string(value) {
