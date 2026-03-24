@@ -988,23 +988,23 @@ export const SOURCE_DEFAULT_CONFIG = {
         "radial_u": 0.6
       },
       "layout_grid": {
-        "show_baseline_grid": false,
-        "baseline_step_px": 8,
+        "show_baseline_grid": true,
+        "baseline_step_px": 16,
         "show_composition_grid": true,
         "row_count": 4,
-        "column_count": 4,
-        "margin_top_baselines": 0,
+        "column_count": 16,
+        "margin_top_baselines": 6,
         "margin_bottom_baselines": 9,
         "margin_side_baselines": 0,
-        "margin_left_baselines": 0,
-        "margin_right_baselines": 0,
-        "row_gutter_baselines": 4,
-        "column_gutter_baselines": 4,
+        "margin_left_baselines": 4,
+        "margin_right_baselines": 4,
+        "row_gutter_baselines": 3,
+        "column_gutter_baselines": 3,
         "fit_within_safe_area": true,
-        "safe_top_px": 250,
-        "safe_right_px": 65,
-        "safe_bottom_px": 250,
-        "safe_left_px": 65,
+        "safe_top_px": 24,
+        "safe_right_px": 24,
+        "safe_bottom_px": 24,
+        "safe_left_px": 24,
         "safe_area_fill_color": "#161616",
         "safe_area_fill_above_animation": false
       },
@@ -1022,7 +1022,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 12,
+        "main_heading_y_baselines": 11,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1033,18 +1033,18 @@ export const SOURCE_DEFAULT_CONFIG = {
         "text_3_x_px": 490,
         "text_3_y_baselines": 46,
         "text_3_max_width_px": 458,
-        "title_font_size_px": 63,
-        "title_line_height_px": 64,
+        "title_font_size_px": 110,
+        "title_line_height_px": 112,
         "b_head_font_size_px": 32,
         "b_head_line_height_px": 36,
         "paragraph_font_size_px": 32,
         "paragraph_line_height_px": 36,
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
-        "title_font_weight": 400,
+        "title_font_weight": 200,
         "b_head_font_weight": 400,
-        "main_heading_keyline_index": 2,
-        "main_heading_column_span": 1,
+        "main_heading_keyline_index": 4,
+        "main_heading_column_span": 8,
         "text_1_keyline_index": 2,
         "text_1_column_span": 1,
         "text_2_keyline_index": 2,
@@ -1067,21 +1067,21 @@ export const SOURCE_DEFAULT_CONFIG = {
           "fields": {
             "body_intro": {
               "style": "b_head",
-              "keyline_index": 2,
-              "column_span": 1,
-              "y_baselines": 163
+              "keyline_index": 6,
+              "column_span": 2,
+              "y_baselines": 8
             },
             "detail_primary": {
               "style": "paragraph",
-              "keyline_index": 2,
-              "column_span": 1,
-              "y_baselines": 168
+              "keyline_index": 4,
+              "column_span": 2,
+              "y_baselines": 38
             },
             "detail_secondary": {
               "style": "paragraph",
-              "keyline_index": 2,
+              "keyline_index": 4,
               "column_span": 1,
-              "y_baselines": 46
+              "y_baselines": 42
             }
           }
         },
@@ -1122,7 +1122,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "face_asset_path": "./assets/racoon-mascot-face.svg",
         "halo_asset_path": "./assets/racoon-mascot-halo.svg",
-        "base_width_px": 600,
+        "base_width_px": 852,
         "scale": 1,
         "offset_x_px": 0,
         "offset_y_px": 0,
@@ -1168,9 +1168,9 @@ export const SOURCE_DEFAULT_CONFIG = {
       "vignette": {
         "enabled": true,
         "apply_outside_safe_area": true,
-        "radius_px": 595,
-        "feather_px": 787,
-        "choke": 0.62,
+        "radius_px": 1998,
+        "feather_px": 2160,
+        "choke": 0.82,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1
@@ -1759,7 +1759,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       }
     }
   },
-  "output_profile_key": "instagram_1080x1350",
+  "output_profile_key": "screen_3840x2160",
   "mascot_fade": {
     "enabled": false,
     "duration_sec": 3
@@ -1776,8 +1776,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "overshoot_frac": 0.75
   },
   "composition": {
-    "center_x_px": 540,
-    "center_y_px": 675,
+    "center_x_px": 1920,
+    "center_y_px": 1080,
     "background_color": "#202020",
     "scale": 0.75,
     "radial_scale": 1,
@@ -1856,17 +1856,17 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "layout_grid": {
     "show_baseline_grid": true,
-    "baseline_step_px": 8,
+    "baseline_step_px": 16,
     "show_composition_grid": true,
     "row_count": 4,
-    "column_count": 4,
-    "margin_top_baselines": 0,
+    "column_count": 16,
+    "margin_top_baselines": 6,
     "margin_bottom_baselines": 9,
     "margin_side_baselines": 0,
-    "margin_left_baselines": 0,
-    "margin_right_baselines": 0,
-    "row_gutter_baselines": 4,
-    "column_gutter_baselines": 4,
+    "margin_left_baselines": 4,
+    "margin_right_baselines": 4,
+    "row_gutter_baselines": 3,
+    "column_gutter_baselines": 3,
     "fit_within_safe_area": true,
     "safe_top_px": 24,
     "safe_right_px": 24,
@@ -1889,7 +1889,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "title_text": "Ubuntu\nSummit\n26.04",
     "subtitle_text": "A showcase for the innovative and the ambitious",
     "main_heading_x_px": 490,
-    "main_heading_y_baselines": 12,
+    "main_heading_y_baselines": 11,
     "main_heading_max_width_px": 381,
     "text_1_x_px": 490,
     "text_1_y_baselines": 163,
@@ -1900,8 +1900,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "text_3_x_px": 490,
     "text_3_y_baselines": 46,
     "text_3_max_width_px": 458,
-    "title_font_size_px": 63,
-    "title_line_height_px": 64,
+    "title_font_size_px": 110,
+    "title_line_height_px": 112,
     "b_head_font_size_px": 32,
     "b_head_line_height_px": 36,
     "paragraph_font_size_px": 32,
@@ -1910,14 +1910,14 @@ export const SOURCE_DEFAULT_CONFIG = {
     "color": "#ffffff",
     "title_font_weight": 200,
     "b_head_font_weight": 400,
-    "main_heading_keyline_index": 3,
-    "main_heading_column_span": 2,
-    "text_1_keyline_index": 3,
-    "text_1_column_span": 2,
-    "text_2_keyline_index": 3,
-    "text_2_column_span": 2,
-    "text_3_keyline_index": 3,
-    "text_3_column_span": 2
+    "main_heading_keyline_index": 4,
+    "main_heading_column_span": 8,
+    "text_1_keyline_index": 2,
+    "text_1_column_span": 1,
+    "text_2_keyline_index": 2,
+    "text_2_column_span": 1,
+    "text_3_keyline_index": 2,
+    "text_3_column_span": 1
   },
   "overlay_content_formats": {
     "generic_social": {
@@ -1934,21 +1934,21 @@ export const SOURCE_DEFAULT_CONFIG = {
       "fields": {
         "body_intro": {
           "style": "b_head",
-          "keyline_index": 3,
+          "keyline_index": 6,
           "column_span": 2,
-          "y_baselines": 42
+          "y_baselines": 8
         },
         "detail_primary": {
           "style": "paragraph",
-          "keyline_index": 3,
+          "keyline_index": 4,
           "column_span": 2,
-          "y_baselines": 147
+          "y_baselines": 38
         },
         "detail_secondary": {
           "style": "paragraph",
-          "keyline_index": 3,
-          "column_span": 2,
-          "y_baselines": 152
+          "keyline_index": 4,
+          "column_span": 1,
+          "y_baselines": 42
         }
       },
       "text_1_keyline_index": 3,
@@ -1972,20 +1972,20 @@ export const SOURCE_DEFAULT_CONFIG = {
       "fields": {
         "session_title": {
           "style": "b_head",
-          "keyline_index": 3,
-          "column_span": 2,
+          "keyline_index": 2,
+          "column_span": 1,
           "y_baselines": 120
         },
         "speaker_name": {
           "style": "paragraph",
-          "keyline_index": 3,
-          "column_span": 2,
+          "keyline_index": 2,
+          "column_span": 1,
           "y_baselines": 136
         },
         "speaker_role": {
           "style": "paragraph",
-          "keyline_index": 3,
-          "column_span": 2,
+          "keyline_index": 2,
+          "column_span": 1,
           "y_baselines": 146
         }
       },
@@ -2001,7 +2001,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "enabled": true,
     "face_asset_path": "./assets/racoon-mascot-face.svg",
     "halo_asset_path": "./assets/racoon-mascot-halo.svg",
-    "base_width_px": 600,
+    "base_width_px": 852,
     "scale": 1,
     "offset_x_px": 0,
     "offset_y_px": 0,
@@ -2047,9 +2047,9 @@ export const SOURCE_DEFAULT_CONFIG = {
   "vignette": {
     "enabled": true,
     "apply_outside_safe_area": true,
-    "radius_px": 595,
-    "feather_px": 787,
-    "choke": 0.62,
+    "radius_px": 1998,
+    "feather_px": 2160,
+    "choke": 0.82,
     "outside_radius_px": 2160,
     "outside_feather_px": 507,
     "outside_choke": 1
