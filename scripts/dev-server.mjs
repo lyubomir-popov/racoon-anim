@@ -1,6 +1,7 @@
-import { exec } from "node:child_process";
+import { exec, spawn } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { compile_styles_to_string } from "./styles.mjs";
@@ -186,6 +187,58 @@ async function read_source_default_config() {
   return source_default_module.SOURCE_DEFAULT_CONFIG || source_default_module.default;
 }
 
+function python_executable() {
+  if (process.env.PYTHON && process.env.PYTHON.trim()) {
+    return process.env.PYTHON.trim();
+  }
+  return process.platform === "win32" ? "python" : "python3";
+}
+
+function run_process(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      cwd: options.cwd || project_root,
+      env: {
+        ...process.env,
+        ...(options.env || {})
+      },
+      stdio: ["ignore", "pipe", "pipe"]
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout?.on("data", (chunk) => {
+      const text = chunk.toString();
+      stdout += text;
+      if (options.log_prefix) {
+        process.stdout.write(`[${options.log_prefix}] ${text}`);
+      }
+    });
+
+    child.stderr?.on("data", (chunk) => {
+      const text = chunk.toString();
+      stderr += text;
+      if (options.log_prefix) {
+        process.stderr.write(`[${options.log_prefix}] ${text}`);
+      }
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+        return;
+      }
+      reject(
+        new Error(
+          `${command} exited with ${code}.${stderr ? ` ${stderr.trim()}` : ""}`.trim()
+        )
+      );
+    });
+  });
+}
+
 const server = http.createServer(async (request, response) => {
   const request_url = request.url || "/";
   const request_path = request_url.split("?")[0];
@@ -230,6 +283,87 @@ const server = http.createServer(async (request, response) => {
       response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({ error: error.message }));
       return;
+    }
+  }
+
+  if (request_path === "/__authoring/export-mp4" && request.method === "POST") {
+    let temp_dir_path = null;
+
+    try {
+      const request_body = await read_request_body(request);
+      const payload = JSON.parse(request_body || "{}");
+      const next_config = payload?.config;
+      const output_width_px = Math.max(1, Number(payload?.output_width_px || 0));
+      const output_height_px = Math.max(1, Number(payload?.output_height_px || 0));
+      const frame_rate = Math.max(1, Math.round(Number(payload?.frame_rate || 24)));
+      const frame_count = Math.max(1, Math.round(Number(payload?.frame_count || 1)));
+
+      if (!next_config || typeof next_config !== "object" || Array.isArray(next_config)) {
+        response.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+        response.end(JSON.stringify({ error: "Expected a config object." }));
+        return;
+      }
+
+      temp_dir_path = fs.mkdtempSync(path.join(os.tmpdir(), "mascot-animation-mp4-"));
+      const temp_config_path = path.join(temp_dir_path, "config.json");
+      fs.writeFileSync(temp_config_path, JSON.stringify(next_config, null, 2));
+
+      const output_dir = path.join(
+        project_root,
+        "output",
+        `${output_width_px}x${output_height_px}`,
+        `ui-mp4-${Date.now()}`
+      );
+      fs.mkdirSync(output_dir, { recursive: true });
+
+      const python = python_executable();
+      await run_process(
+        python,
+        [
+          "scripts/export_snapshot.py",
+          "--config",
+          temp_config_path,
+          "--frame-rate",
+          String(frame_rate),
+          "--frame-count",
+          String(frame_count),
+          "--output-dir",
+          output_dir
+        ],
+        { cwd: project_root, log_prefix: "export-mp4" }
+      );
+
+      await run_process(
+        python,
+        [
+          "scripts/encode_mp4.py",
+          "--input-dir",
+          output_dir,
+          "--fps",
+          String(frame_rate),
+          "--overwrite"
+        ],
+        { cwd: project_root, log_prefix: "encode-mp4" }
+      );
+
+      const mp4_path = path.join(output_dir, `${path.basename(output_dir)}-master.mp4`);
+      response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(
+        JSON.stringify({
+          ok: true,
+          output_dir,
+          mp4_path
+        })
+      );
+      return;
+    } catch (error) {
+      response.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+      response.end(JSON.stringify({ error: error.message }));
+      return;
+    } finally {
+      if (temp_dir_path) {
+        fs.rmSync(temp_dir_path, { recursive: true, force: true });
+      }
     }
   }
 

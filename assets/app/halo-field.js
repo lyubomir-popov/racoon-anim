@@ -70,10 +70,11 @@ export function get_phase_mask_geometry({
     Number(outer_radius_px || 0),
     box ? box.draw_size_px * 0.5 : 0
   );
-  const radius_px = Math.max(legacy_radius_px, halo_clear_radius_px + 4 * geometry_scale);
+  const field_radius_px = Math.max(legacy_radius_px, halo_clear_radius_px + 4 * geometry_scale);
   const center_offset_x_px = 50 * geometry_scale;
   return {
-    radius_px,
+    legacy_radius_px,
+    field_radius_px,
     center_offset_x_px,
     center_y_px,
     left_center_x_px: center_x_px - center_offset_x_px,
@@ -166,7 +167,8 @@ function create_field_base({
     base_pscale_px,
     min_diameter_px,
     point_style_min_scale,
-    phase_mask_radius_px: phase_mask.radius_px,
+    phase_mask_legacy_radius_px: phase_mask.legacy_radius_px,
+    phase_mask_field_radius_px: phase_mask.field_radius_px,
     phase_mask_center_offset_x_px: phase_mask.center_offset_x_px,
     use_reference_phase_masks: generator.phase_count === 2,
     base_angle_rad: radians(generator.base_angle_deg) + rotation_rad
@@ -228,7 +230,7 @@ function build_spoke_orbit_points({
     base_pscale_px,
     min_diameter_px,
     point_style_min_scale,
-    phase_mask_radius_px,
+    phase_mask_field_radius_px,
     use_reference_phase_masks
   } = context;
   const point_specs = [];
@@ -262,7 +264,7 @@ function build_spoke_orbit_points({
       point_y - center_y_px
     );
     const fits_within_spoke = use_reference_phase_masks
-      ? phase_mask_distance_px + radius_px_dot <= phase_mask_radius_px + 0.01
+      ? phase_mask_distance_px + radius_px_dot <= phase_mask_field_radius_px + 0.01
       : radius_px + radius_px_dot <= fill_end_radius_px + 0.01;
 
     if (!fits_within_spoke) {
@@ -302,7 +304,7 @@ export function build_intro_halo_field_state({
     inner_radius_px,
     outer_radius_px,
     radius_span_px,
-    phase_mask_radius_px,
+    phase_mask_field_radius_px,
     phase_mask_center_offset_x_px,
     base_angle_rad
   } = context;
@@ -367,7 +369,7 @@ export function build_intro_halo_field_state({
       inner_clip_offset_px: phase_mask_center_offset_x_px,
       inner_clip_center_x_px: phase_state.phase_mask_center_x_px,
       inner_clip_center_y_px: center_y_px,
-      inner_clip_radius_px: phase_mask_radius_px
+      phase_field_radius_px: phase_mask_field_radius_px
     };
 
     for (const point_spec of spoke_points.point_specs) {
@@ -412,7 +414,7 @@ export function build_post_finale_halo_field_state({
     inner_radius_px,
     outer_radius_px,
     radius_span_px,
-    phase_mask_radius_px,
+    phase_mask_field_radius_px,
     phase_mask_center_offset_x_px,
     base_angle_rad
   } = context;
@@ -542,7 +544,7 @@ export function build_post_finale_halo_field_state({
       inner_clip_offset_px: phase_mask_center_offset_x_px,
       inner_clip_center_x_px: clip_center_x_px,
       inner_clip_center_y_px: center_y_px,
-      inner_clip_radius_px: phase_mask_radius_px
+      phase_field_radius_px: phase_mask_field_radius_px
     };
 
     for (const point_spec of spoke_points.point_specs) {

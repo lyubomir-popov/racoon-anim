@@ -18,7 +18,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   "composition": {
     "center_x_px": 540,
     "center_y_px": 960,
-    "background_color": "#161616",
+    "background_color": "#202020",
     "scale": 0.75,
     "radial_scale": 1,
     "global_rotation_deg": 0
@@ -101,6 +101,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "row_count": 4,
     "column_count": 4,
     "margin_top_baselines": 0,
+    "margin_bottom_baselines": 9,
     "margin_side_baselines": 0,
     "row_gutter_baselines": 4,
     "column_gutter_baselines": 4,
@@ -109,7 +110,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "safe_right_px": 65,
     "safe_bottom_px": 250,
     "safe_left_px": 65,
-    "safe_area_fill_color": "#161616"
+    "safe_area_fill_color": "#161616",
+    "safe_area_fill_above_animation": false
   },
   "overlay_logo": {
     "enabled": true,
@@ -120,6 +122,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "overlay_text": {
     "enabled": true,
+    "content_format": "generic_social",
     "content_csv_path": "./assets/content.csv",
     "title_text": "Ubuntu Summit 26.04",
     "subtitle_text": "A showcase for the innovative and the ambitious",
@@ -127,20 +130,48 @@ export const SOURCE_DEFAULT_CONFIG = {
     "main_heading_y_baselines": 12,
     "main_heading_max_width_px": 381,
     "text_1_x_px": 490,
-    "text_1_y_baselines": 171,
+    "text_1_y_baselines": 163,
     "text_1_max_width_px": 381,
     "text_2_x_px": 490,
-    "text_2_y_baselines": 176,
+    "text_2_y_baselines": 168,
     "text_2_max_width_px": 381,
     "text_3_x_px": 490,
-    "text_3_y_baselines": 48,
+    "text_3_y_baselines": 46,
     "text_3_max_width_px": 458,
     "title_font_size_px": 63,
     "title_line_height_px": 64,
-    "subtitle_font_size_px": 32,
-    "subtitle_line_height_px": 36,
+    "b_head_font_size_px": 32,
+    "b_head_line_height_px": 36,
+    "paragraph_font_size_px": 32,
+    "paragraph_line_height_px": 36,
     "link_title_size_to_logo_height": true,
     "color": "#ffffff"
+  },
+  "overlay_content_formats": {
+    "generic_social": {
+      "csv_path": "./assets/content.csv",
+      "text_1_x_px": 490,
+      "text_1_y_baselines": 163,
+      "text_1_max_width_px": 381,
+      "text_2_x_px": 490,
+      "text_2_y_baselines": 168,
+      "text_2_max_width_px": 381,
+      "text_3_x_px": 490,
+      "text_3_y_baselines": 46,
+      "text_3_max_width_px": 458
+    },
+    "speaker_highlight": {
+      "csv_path": "./assets/content-speaker-highlight.csv",
+      "text_1_x_px": 490,
+      "text_1_y_baselines": 120,
+      "text_1_max_width_px": 420,
+      "text_2_x_px": 490,
+      "text_2_y_baselines": 136,
+      "text_2_max_width_px": 420,
+      "text_3_x_px": 490,
+      "text_3_y_baselines": 146,
+      "text_3_max_width_px": 420
+    }
   },
   "mascot": {
     "enabled": true,
@@ -191,9 +222,13 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "vignette": {
     "enabled": true,
-    "radius_px": 702,
-    "feather_px": 2160,
-    "choke": 1
+    "apply_outside_safe_area": true,
+    "radius_px": 597,
+    "feather_px": 252,
+    "choke": 0.42,
+    "outside_radius_px": 2160,
+    "outside_feather_px": 507,
+    "outside_choke": 1
   },
   "export_settings": {
     "frame_rate": 24,

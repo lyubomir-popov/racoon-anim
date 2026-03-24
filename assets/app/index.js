@@ -26,6 +26,8 @@ import {
   normalize_config_snapshot,
   replace_config,
   set_object_path_value,
+  sync_overlay_content_format_runtime_fields,
+  write_overlay_runtime_fields_to_active_format,
   wrap_positive
 } from "./config-schema.js";
 import { createRenderer } from "./rendering.js";
@@ -40,6 +42,7 @@ const drawer_backdrop = document.querySelector("[data-drawer-backdrop]");
 const drawer_close_button = document.querySelector("[data-drawer-close]");
 const replay_button = document.querySelector("[data-replay-button]");
 const export_frame_button = document.querySelector("[data-export-frame-button]");
+const export_mp4_button = document.querySelector("[data-export-mp4-button]");
 const export_sequence_button = document.querySelector("[data-export-sequence-button]");
 const export_transparent_background_checkbox = document.querySelector(
   "[data-export-transparent-background]"
@@ -102,9 +105,13 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "screensaver.min_spoke_count",
   "screensaver.phase_boundary_transition_sec",
   "vignette.enabled",
+  "vignette.apply_outside_safe_area",
   "vignette.radius_px",
   "vignette.feather_px",
   "vignette.choke",
+  "vignette.outside_radius_px",
+  "vignette.outside_feather_px",
+  "vignette.outside_choke",
   "sneeze.nose_bob_up_px",
   "spoke_lines.show_reference_halo",
   "spoke_lines.show_debug_masks",
@@ -128,6 +135,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "layout_grid.row_count",
   "layout_grid.column_count",
   "layout_grid.margin_top_baselines",
+  "layout_grid.margin_bottom_baselines",
   "layout_grid.margin_side_baselines",
   "layout_grid.row_gutter_baselines",
   "layout_grid.column_gutter_baselines",
@@ -137,12 +145,14 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "layout_grid.safe_bottom_px",
   "layout_grid.safe_left_px",
   "layout_grid.safe_area_fill_color",
+  "layout_grid.safe_area_fill_above_animation",
   "overlay_logo.enabled",
   "overlay_logo.asset_path",
   "overlay_logo.x_px",
   "overlay_logo.y_px",
   "overlay_logo.height_px",
   "overlay_text.enabled",
+  "overlay_text.content_format",
   "overlay_text.content_csv_path",
   "overlay_text.title_text",
   "overlay_text.subtitle_text",
@@ -160,8 +170,10 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "overlay_text.text_3_max_width_px",
   "overlay_text.title_font_size_px",
   "overlay_text.title_line_height_px",
-  "overlay_text.subtitle_font_size_px",
-  "overlay_text.subtitle_line_height_px",
+  "overlay_text.b_head_font_size_px",
+  "overlay_text.b_head_line_height_px",
+  "overlay_text.paragraph_font_size_px",
+  "overlay_text.paragraph_line_height_px",
   "overlay_text.link_title_size_to_logo_height",
   "overlay_text.color",
   "spoke_lines.echo_count",
@@ -170,6 +182,19 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.echo_width_mult",
   "spoke_lines.echo_wave_count",
   "spoke_lines.echo_opacity_mult"
+]);
+
+const ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS = new Set([
+  "overlay_text.content_csv_path",
+  "overlay_text.text_1_x_px",
+  "overlay_text.text_1_y_baselines",
+  "overlay_text.text_1_max_width_px",
+  "overlay_text.text_2_x_px",
+  "overlay_text.text_2_y_baselines",
+  "overlay_text.text_2_max_width_px",
+  "overlay_text.text_3_x_px",
+  "overlay_text.text_3_y_baselines",
+  "overlay_text.text_3_max_width_px"
 ]);
 
 const SECTION_LABELS = Object.freeze({
@@ -302,7 +327,8 @@ async function export_automation_frame(payload = {}) {
   renderer.stopAnimation();
   renderer.renderPlaybackFrame(playback_time_sec);
   const blob = await renderer.canvasToBlob("image/png", {
-    transparent_background
+    transparent_background,
+    hide_overlay_guides: true
   });
   const png_data_url = await blob_to_data_url(blob);
   const output_profile_key = get_current_output_profile_key();
@@ -1538,7 +1564,13 @@ async function handle_control_commit(event) {
   }
 
   set_config_value(path_parts, next_value);
-  const should_rebuild_editor = control_visibility_depends_on(path_key);
+  if (path_key === "overlay_text.content_format") {
+    sync_overlay_content_format_runtime_fields(config);
+  } else if (ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS.has(path_key)) {
+    write_overlay_runtime_fields_to_active_format(config);
+  }
+  const should_rebuild_editor =
+    path_key === "overlay_text.content_format" || control_visibility_depends_on(path_key);
   const control = state.editor_controls.get(path_key);
   if (!should_rebuild_editor && control && control.type === "number") {
     control.number_input.value = String(next_value);
@@ -1845,6 +1877,7 @@ async function export_png_sequence() {
 
   const export_button_label = export_sequence_button ? export_sequence_button.textContent : "";
   const export_frame_button_label = export_frame_button ? export_frame_button.textContent : "";
+  const export_mp4_button_label = export_mp4_button ? export_mp4_button.textContent : "";
 
   try {
     state.is_exporting = true;
@@ -1856,6 +1889,9 @@ async function export_png_sequence() {
     if (export_sequence_button) {
       export_sequence_button.disabled = true;
       export_sequence_button.textContent = "Exporting...";
+    }
+    if (export_mp4_button) {
+      export_mp4_button.disabled = true;
     }
 
     const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
@@ -1883,7 +1919,8 @@ async function export_png_sequence() {
       renderer.renderPlaybackFrame(playback_time_sec);
 
       const blob = await renderer.canvasToBlob("image/png", {
-        transparent_background: Boolean(config.export_settings?.transparent_background)
+        transparent_background: Boolean(config.export_settings?.transparent_background),
+        hide_overlay_guides: true
       });
       const file_handle = await output_selection.directory_handle.getFileHandle(
         `frame-${String(frame_index + 1).padStart(4, "0")}.png`,
@@ -1925,6 +1962,10 @@ async function export_png_sequence() {
       export_sequence_button.disabled = false;
       export_sequence_button.textContent = export_button_label || "Export PNG Seq";
     }
+    if (export_mp4_button) {
+      export_mp4_button.disabled = false;
+      export_mp4_button.textContent = export_mp4_button_label || "Export MP4";
+    }
     renderer.startAnimation();
   }
 }
@@ -1935,6 +1976,7 @@ async function export_current_frame_png() {
   }
 
   const export_frame_button_label = export_frame_button ? export_frame_button.textContent : "";
+  const export_mp4_button_label = export_mp4_button ? export_mp4_button.textContent : "";
   const export_sequence_button_label = export_sequence_button ? export_sequence_button.textContent : "";
   const playback_time_sec = renderer.getCurrentPlaybackTimeSec();
   const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
@@ -1954,9 +1996,13 @@ async function export_current_frame_png() {
     if (export_sequence_button) {
       export_sequence_button.disabled = true;
     }
+    if (export_mp4_button) {
+      export_mp4_button.disabled = true;
+    }
 
     const blob = await renderer.canvasToBlob("image/png", {
-      transparent_background: Boolean(config.export_settings?.transparent_background)
+      transparent_background: Boolean(config.export_settings?.transparent_background),
+      hide_overlay_guides: true
     });
     const output_selection = await get_sequence_output_directory_handle();
     if (output_selection) {
@@ -2018,11 +2064,91 @@ async function export_current_frame_png() {
       export_sequence_button.disabled = false;
       export_sequence_button.textContent = export_sequence_button_label || "Export PNG Seq";
     }
+    if (export_mp4_button) {
+      export_mp4_button.disabled = false;
+      export_mp4_button.textContent = export_mp4_button_label || "Export MP4";
+    }
 
     renderer.renderPlaybackFrame(playback_time_sec);
     if (was_animating) {
       renderer.startAnimation(playback_time_sec);
     }
+  }
+}
+
+async function export_current_mp4() {
+  if (state.is_exporting) {
+    return;
+  }
+
+  const export_frame_button_label = export_frame_button ? export_frame_button.textContent : "";
+  const export_mp4_button_label = export_mp4_button ? export_mp4_button.textContent : "";
+  const export_sequence_button_label = export_sequence_button ? export_sequence_button.textContent : "";
+  const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
+  const frame_count = Math.max(1, Math.floor(renderer.getPlaybackEndSec() * frame_rate) + 1);
+  const output_profile = get_output_profile_metrics(get_current_output_profile_key());
+
+  try {
+    state.is_exporting = true;
+    renderer.stopAnimation();
+
+    if (export_frame_button) {
+      export_frame_button.disabled = true;
+    }
+    if (export_sequence_button) {
+      export_sequence_button.disabled = true;
+    }
+    if (export_mp4_button) {
+      export_mp4_button.disabled = true;
+      export_mp4_button.textContent = "Exporting...";
+    }
+
+    set_preset_meta(`Rendering ${frame_count} frames and encoding MP4 at ${frame_rate} fps...`, false);
+    const response = await fetch("/__authoring/export-mp4", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        config: normalize_config_snapshot(config, default_config),
+        output_profile_key: get_current_output_profile_key(),
+        output_width_px: output_profile.width_px,
+        output_height_px: output_profile.height_px,
+        frame_rate,
+        frame_count
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (response.status === 404) {
+      throw new Error(
+        "MP4 export is only available from the authoring dev server. Run `npm run dev`."
+      );
+    }
+    if (!response.ok || !payload?.ok) {
+      throw new Error(payload?.error || `MP4 export failed with ${response.status}.`);
+    }
+
+    set_preset_meta(`Exported MP4 to ${payload.mp4_path}.`, false);
+  } catch (error) {
+    if (!is_abort_error(error)) {
+      console.error(error);
+      set_preset_meta(`MP4 export failed: ${error.message}`, true);
+    }
+  } finally {
+    state.is_exporting = false;
+    if (export_frame_button) {
+      export_frame_button.disabled = false;
+      export_frame_button.textContent = export_frame_button_label || "Export Frame";
+    }
+    if (export_sequence_button) {
+      export_sequence_button.disabled = false;
+      export_sequence_button.textContent = export_sequence_button_label || "Export PNG Seq";
+    }
+    if (export_mp4_button) {
+      export_mp4_button.disabled = false;
+      export_mp4_button.textContent = export_mp4_button_label || "Export MP4";
+    }
+    renderer.startAnimation();
   }
 }
 
@@ -2037,6 +2163,10 @@ function attach_ui_events() {
 
   export_frame_button.addEventListener("click", () => {
     void export_current_frame_png();
+  });
+
+  export_mp4_button?.addEventListener("click", () => {
+    void export_current_mp4();
   });
 
   export_sequence_button.addEventListener("click", () => {

@@ -29,6 +29,7 @@ import { createCircleLayer, createSegmentLayer } from "./three-primitives.js";
 
 const WORLD_BACKGROUND_ORDER = 10;
 const SAFE_AREA_FILL_ORDER = 15;
+const SAFE_AREA_FILL_OVERLAY_ORDER = 50;
 const WORLD_POINTS_ORDER = 20;
 const HALO_REFERENCE_ORDER = 30;
 const HALO_THIN_ORDER = 31;
@@ -52,6 +53,18 @@ const TEXT_LABEL_FONT_FAMILY = "\"Ubuntu Sans\", Ubuntu, sans-serif";
 const LINKED_TITLE_BASE_FONT_SIZE_PX = 63;
 const OVERLAY_GRID_COLOR = "rgba(255,0,0,0.2)";
 const OVERLAY_COMPOSITION_COLOR = "rgba(0,255,255,0.2)";
+const OVERLAY_CONTENT_FIELD_ALIASES = Object.freeze({
+  generic_social: Object.freeze({
+    text_1: Object.freeze(["text_1", "headline", "kicker", "body_top"]),
+    text_2: Object.freeze(["text_2", "footer_1", "date_line", "body_mid"]),
+    text_3: Object.freeze(["text_3", "footer_2", "summary", "body_bottom"])
+  }),
+  speaker_highlight: Object.freeze({
+    text_1: Object.freeze(["session_title", "title", "headline", "text_1"]),
+    text_2: Object.freeze(["speaker_name", "name", "speaker", "text_2"]),
+    text_3: Object.freeze(["speaker_role", "role", "speaker_title", "text_3"])
+  })
+});
 const UBUNTU_RELEASE_LABELS = Object.freeze([
   "26.04 Resolute Raccoon",
   "25.10 Questing Quokka",
@@ -393,6 +406,7 @@ export function createRenderer({
     animation_start_ms: performance.now(),
     refresh_serial: 0,
     export_transparent_background: false,
+    export_hide_overlay_guides: false,
     spoke_width_phase_u_by_source: new Map(),
     spoke_clip_center_x_by_source: new Map(),
     spoke_width_transition_playback_time_sec: null,
@@ -413,8 +427,8 @@ export function createRenderer({
     return config.composition?.background_color || STAGE_BACKGROUND_COLOR;
   }
 
-  function get_background_rgba(alpha = 1) {
-    const hex = get_background_color().replace("#", "").trim();
+  function get_color_rgba(hex_color, alpha = 1) {
+    const hex = String(hex_color || "").replace("#", "").trim();
     const normalized_hex = hex.length === 3
       ? hex.split("").map((char) => char + char).join("")
       : hex;
@@ -428,8 +442,16 @@ export function createRenderer({
     return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
   }
 
+  function get_background_rgba(alpha = 1) {
+    return get_color_rgba(get_background_color(), alpha);
+  }
+
   function get_safe_area_fill_color() {
     return config.layout_grid?.safe_area_fill_color || get_background_color();
+  }
+
+  function get_safe_area_fill_rgba(alpha = 1) {
+    return get_color_rgba(get_safe_area_fill_color(), alpha);
   }
 
   function is_overlay_enabled() {
@@ -459,7 +481,8 @@ export function createRenderer({
 
   function update_safe_area_fill_mesh() {
     const use_safe_area = Boolean(config.layout_grid?.fit_within_safe_area);
-    if (!is_overlay_enabled() || !use_safe_area) {
+    const draw_above_animation = Boolean(config.layout_grid?.safe_area_fill_above_animation);
+    if (!is_overlay_enabled() || !use_safe_area || draw_above_animation) {
       safe_area_fill_mesh.visible = false;
       return;
     }
@@ -473,6 +496,9 @@ export function createRenderer({
     }
 
     safe_area_fill_material.color.set(get_safe_area_fill_color());
+    safe_area_fill_mesh.renderOrder = config.layout_grid?.safe_area_fill_above_animation
+      ? SAFE_AREA_FILL_OVERLAY_ORDER
+      : SAFE_AREA_FILL_ORDER;
     safe_area_fill_mesh.visible = true;
     safe_area_fill_mesh.position.set(
       grid.layout_left_px + width_px * 0.5,
@@ -480,6 +506,38 @@ export function createRenderer({
       0
     );
     safe_area_fill_mesh.scale.set(width_px, height_px, 1);
+  }
+
+  function draw_safe_area_fill_overlay() {
+    const use_safe_area = Boolean(config.layout_grid?.fit_within_safe_area);
+    const draw_above_animation = Boolean(config.layout_grid?.safe_area_fill_above_animation);
+    if (
+      !text_overlay_context ||
+      !text_overlay_canvas ||
+      !is_overlay_enabled() ||
+      !use_safe_area ||
+      !draw_above_animation
+    ) {
+      return;
+    }
+
+    const grid = get_layout_grid_metrics();
+    const width_px = Math.max(0, grid.layout_right_px - grid.layout_left_px);
+    const height_px = Math.max(0, grid.layout_bottom_px - grid.layout_top_px);
+    if (width_px <= 0 || height_px <= 0) {
+      return;
+    }
+
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.fillStyle = get_safe_area_fill_color();
+    text_overlay_context.fillRect(
+      grid.layout_left_px,
+      grid.layout_top_px,
+      width_px,
+      height_px
+    );
+    text_overlay_context.restore();
   }
 
   function clear_text_overlay() {
@@ -551,6 +609,11 @@ export function createRenderer({
         0,
         Number(config.layout_grid?.margin_top_baselines ?? 3)
       ) * baseline_step_px;
+    const minimum_bottom_margin_px =
+      Math.max(
+        0,
+        Number(config.layout_grid?.margin_bottom_baselines ?? 0)
+      ) * baseline_step_px;
     const row_gutter_baselines = Math.max(
       0,
       Math.round(Number(config.layout_grid?.row_gutter_baselines ?? 2))
@@ -564,16 +627,17 @@ export function createRenderer({
     const max_row_height_space =
       layout_height_px -
       top_margin_px -
-      top_margin_px -
+      minimum_bottom_margin_px -
       row_gutter_px * Math.max(0, row_count - 1);
     const row_height_px = Math.max(
-      baseline_step_px,
+      0,
       Math.floor(Math.max(0, max_row_height_space) / (row_count * baseline_step_px)) * baseline_step_px
     );
-    const bottom_margin_px = Math.max(
-      top_margin_px,
+    const bottom_margin_px = minimum_bottom_margin_px + Math.max(
+      0,
       layout_height_px -
       top_margin_px -
+      minimum_bottom_margin_px -
       row_height_px * row_count -
       row_gutter_px * Math.max(0, row_count - 1)
     );
@@ -589,6 +653,7 @@ export function createRenderer({
       column_count,
       side_margin_px,
       top_margin_px,
+      minimum_bottom_margin_px,
       bottom_margin_px,
       row_gutter_px,
       column_gutter_px,
@@ -732,15 +797,32 @@ export function createRenderer({
       });
   }
 
+  function get_overlay_content_format_key() {
+    const format_key = String(config.overlay_text?.content_format || "").trim();
+    return OVERLAY_CONTENT_FIELD_ALIASES[format_key] ? format_key : "generic_social";
+  }
+
+  function pick_overlay_record_value(record, candidates) {
+    for (const candidate of candidates) {
+      const value = normalize_overlay_copy(record?.[candidate]);
+      if (value) {
+        return value;
+      }
+    }
+    return "";
+  }
+
   function get_overlay_content_record() {
     ensure_overlay_content_rows();
     const first_record = runtime.overlay_content_rows[0];
     if (first_record && typeof first_record === "object") {
+      const format_key = get_overlay_content_format_key();
+      const aliases = OVERLAY_CONTENT_FIELD_ALIASES[format_key] || OVERLAY_CONTENT_FIELD_ALIASES.generic_social;
       return {
-        main_heading: normalize_overlay_copy(first_record.main_heading),
-        text_1: normalize_overlay_copy(first_record.text_1),
-        text_2: normalize_overlay_copy(first_record.text_2),
-        text_3: normalize_overlay_copy(first_record.text_3)
+        main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
+        text_1: pick_overlay_record_value(first_record, aliases.text_1),
+        text_2: pick_overlay_record_value(first_record, aliases.text_2),
+        text_3: pick_overlay_record_value(first_record, aliases.text_3)
       };
     }
 
@@ -1820,7 +1902,7 @@ export function createRenderer({
         spoke.angle,
         spoke.inner_clip_center_x_px,
         spoke.inner_clip_center_y_px,
-        spoke.inner_clip_radius_px,
+        spoke.phase_field_radius_px,
         spoke.start_radius,
         halo_outer_radius_px
       )
@@ -2078,44 +2160,128 @@ export function createRenderer({
       return;
     }
 
-    const outer_radius_px = Math.max(0, Number(config.vignette.radius_px || 0));
-    const feather_px = Math.max(0, Number(config.vignette.feather_px || 0));
-    const choke = clamp(Number(config.vignette.choke ?? 0.5), 0, 1);
-    if (outer_radius_px <= 0) {
-      return;
-    }
-
     const center_x_px = config.composition.center_x_px;
     const center_y_px = config.composition.center_y_px;
-    const clear_radius_px = Math.max(0, outer_radius_px - feather_px);
-    const safe_outer_radius_px = Math.max(1, outer_radius_px);
-    const inner_stop = feather_px <= 0
-      ? 0.999
-      : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
-    const midpoint_stop = lerp(inner_stop, 1, choke);
-    const gradient = text_overlay_context.createRadialGradient(
-      center_x_px,
-      center_y_px,
-      0,
-      center_x_px,
-      center_y_px,
-      outer_radius_px
+    const use_safe_area = is_overlay_enabled() && config.layout_grid?.fit_within_safe_area;
+    const safe_area_fill_above_animation = Boolean(config.layout_grid?.safe_area_fill_above_animation);
+    const apply_outside_safe_area_vignette = Boolean(
+      config.vignette?.apply_outside_safe_area ?? true
     );
+    const fill_flat_vignette = (fill_style, clip_mode = "full") => {
+      text_overlay_context.save();
+      text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+      if (use_safe_area && clip_mode !== "full") {
+        const grid = get_layout_grid_metrics();
+        const safe_area_width_px = Math.max(0, grid.layout_right_px - grid.layout_left_px);
+        const safe_area_height_px = Math.max(0, grid.layout_bottom_px - grid.layout_top_px);
+        if (safe_area_width_px > 0 && safe_area_height_px > 0) {
+          text_overlay_context.beginPath();
+          if (clip_mode === "outside-safe-area") {
+            text_overlay_context.rect(0, 0, stage_width_px, stage_height_px);
+          }
+          text_overlay_context.rect(
+            grid.layout_left_px,
+            grid.layout_top_px,
+            safe_area_width_px,
+            safe_area_height_px
+          );
+          text_overlay_context.clip(clip_mode === "outside-safe-area" ? "evenodd" : "nonzero");
+        }
+      }
+      text_overlay_context.fillStyle = fill_style;
+      text_overlay_context.fillRect(0, 0, stage_width_px, stage_height_px);
+      text_overlay_context.restore();
+    };
+    const fill_configured_vignette = (rgba_fn, clip_mode, radius_px, feather_px, choke) => {
+      const outer_radius_px = Math.max(0, Number(radius_px || 0));
+      const safe_feather_px = Math.max(0, Number(feather_px || 0));
+      const safe_choke = clamp(Number(choke ?? 0.5), 0, 1);
+      if (outer_radius_px <= 0) {
+        fill_flat_vignette(rgba_fn(1), clip_mode);
+        return;
+      }
 
-    gradient.addColorStop(0, get_background_rgba(0));
-    gradient.addColorStop(inner_stop, get_background_rgba(0));
-    gradient.addColorStop(midpoint_stop, get_background_rgba(0.5));
-    gradient.addColorStop(1, get_background_rgba(1));
+      const clear_radius_px = Math.max(0, outer_radius_px - safe_feather_px);
+      const safe_outer_radius_px = Math.max(1, outer_radius_px);
+      const inner_stop = safe_feather_px <= 0
+        ? 0.999
+        : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
+      const midpoint_stop = lerp(inner_stop, 1, safe_choke);
+      const gradient = text_overlay_context.createRadialGradient(
+        center_x_px,
+        center_y_px,
+        0,
+        center_x_px,
+        center_y_px,
+        outer_radius_px
+      );
+      gradient.addColorStop(0, rgba_fn(0));
+      gradient.addColorStop(inner_stop, rgba_fn(0));
+      gradient.addColorStop(midpoint_stop, rgba_fn(0.5));
+      gradient.addColorStop(1, rgba_fn(1));
 
-    text_overlay_context.save();
-    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
-    text_overlay_context.fillStyle = gradient;
-    text_overlay_context.fillRect(0, 0, stage_width_px, stage_height_px);
-    text_overlay_context.restore();
+      text_overlay_context.save();
+      text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+      if (use_safe_area && clip_mode !== "full") {
+        const grid = get_layout_grid_metrics();
+        const safe_area_width_px = Math.max(0, grid.layout_right_px - grid.layout_left_px);
+        const safe_area_height_px = Math.max(0, grid.layout_bottom_px - grid.layout_top_px);
+        if (safe_area_width_px > 0 && safe_area_height_px > 0) {
+          text_overlay_context.beginPath();
+          if (clip_mode === "outside-safe-area") {
+            text_overlay_context.rect(0, 0, stage_width_px, stage_height_px);
+          }
+          text_overlay_context.rect(
+            grid.layout_left_px,
+            grid.layout_top_px,
+            safe_area_width_px,
+            safe_area_height_px
+          );
+          text_overlay_context.clip(clip_mode === "outside-safe-area" ? "evenodd" : "nonzero");
+        }
+      }
+      text_overlay_context.fillStyle = gradient;
+      text_overlay_context.fillRect(0, 0, stage_width_px, stage_height_px);
+      text_overlay_context.restore();
+    };
+
+    if (use_safe_area) {
+      if (apply_outside_safe_area_vignette) {
+        fill_configured_vignette(
+          get_background_rgba,
+          "outside-safe-area",
+          config.vignette?.outside_radius_px ?? config.vignette?.radius_px,
+          config.vignette?.outside_feather_px ?? config.vignette?.feather_px,
+          config.vignette?.outside_choke ?? config.vignette?.choke
+        );
+      }
+      if (!safe_area_fill_above_animation) {
+        fill_configured_vignette(
+          get_safe_area_fill_rgba,
+          "inside-safe-area",
+          config.vignette?.radius_px,
+          config.vignette?.feather_px,
+          config.vignette?.choke
+        );
+      }
+    } else {
+      fill_configured_vignette(
+        get_background_rgba,
+        "full",
+        config.vignette?.radius_px,
+        config.vignette?.feather_px,
+        config.vignette?.choke
+      );
+    }
   }
 
   function draw_baseline_grid_overlay() {
-    if (!text_overlay_context || !is_overlay_enabled() || !config.layout_grid?.show_baseline_grid) {
+    if (
+      !text_overlay_context ||
+      !is_overlay_enabled() ||
+      !config.layout_grid?.show_baseline_grid ||
+      runtime.export_hide_overlay_guides
+    ) {
       return;
     }
 
@@ -2141,7 +2307,12 @@ export function createRenderer({
   }
 
   function draw_composition_grid_overlay() {
-    if (!text_overlay_context || !is_overlay_enabled() || !config.layout_grid?.show_baseline_grid) {
+    if (
+      !text_overlay_context ||
+      !is_overlay_enabled() ||
+      !config.layout_grid?.show_baseline_grid ||
+      runtime.export_hide_overlay_guides
+    ) {
       return;
     }
 
@@ -2251,17 +2422,25 @@ export function createRenderer({
       1,
       Number(config.overlay_text.title_font_size_px ?? LINKED_TITLE_BASE_FONT_SIZE_PX)
     );
-    const subtitle_font_size_px = Math.max(1, Number(config.overlay_text.subtitle_font_size_px ?? 32));
+    const b_head_font_size_px = Math.max(1, Number(config.overlay_text.b_head_font_size_px ?? 32));
+    const paragraph_font_size_px = Math.max(1, Number(config.overlay_text.paragraph_font_size_px ?? 32));
     const title_font = get_overlay_text_font(title_font_size_px, 400);
-    const subtitle_font = get_overlay_text_font(subtitle_font_size_px, 400);
+    const b_head_font = get_overlay_text_font(b_head_font_size_px, 400);
+    const paragraph_font = get_overlay_text_font(paragraph_font_size_px, 400);
     const title_line_height_px = Math.max(
       baseline_step_px,
       snap_up_to_baseline(Number(config.overlay_text.title_line_height_px ?? title_font_size_px))
     );
-    const subtitle_line_height_px = Math.max(
+    const b_head_line_height_px = Math.max(
       baseline_step_px,
       snap_up_to_baseline(
-        Number(config.overlay_text.subtitle_line_height_px ?? subtitle_font_size_px)
+        Number(config.overlay_text.b_head_line_height_px ?? b_head_font_size_px)
+      )
+    );
+    const paragraph_line_height_px = Math.max(
+      baseline_step_px,
+      snap_up_to_baseline(
+        Number(config.overlay_text.paragraph_line_height_px ?? paragraph_font_size_px)
       )
     );
 
@@ -2283,30 +2462,31 @@ export function createRenderer({
       x_px: config.overlay_text.text_1_x_px,
       y_baselines: config.overlay_text.text_1_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.text_1_max_width_px ?? 0)),
-      font: subtitle_font,
-      line_height_px: subtitle_line_height_px
+      font: b_head_font,
+      line_height_px: b_head_line_height_px
     });
     draw_overlay_text_field({
       text: content.text_2,
       x_px: config.overlay_text.text_2_x_px,
       y_baselines: config.overlay_text.text_2_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.text_2_max_width_px ?? 0)),
-      font: subtitle_font,
-      line_height_px: subtitle_line_height_px
+      font: paragraph_font,
+      line_height_px: paragraph_line_height_px
     });
     draw_overlay_text_field({
       text: content.text_3,
       x_px: config.overlay_text.text_3_x_px,
       y_baselines: config.overlay_text.text_3_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.text_3_max_width_px ?? 0)),
-      font: subtitle_font,
-      line_height_px: subtitle_line_height_px
+      font: paragraph_font,
+      line_height_px: paragraph_line_height_px
     });
 
     text_overlay_context.restore();
   }
 
   function draw_overlay_guides_and_content() {
+    draw_safe_area_fill_overlay();
     draw_baseline_grid_overlay();
     draw_composition_grid_overlay();
     draw_overlay_logo();
@@ -2556,7 +2736,7 @@ export function createRenderer({
         spoke.angle,
         spoke.inner_clip_center_x_px,
         spoke.inner_clip_center_y_px,
-        spoke.inner_clip_radius_px,
+        spoke.phase_field_radius_px,
         spoke.start_radius,
         halo_outer_radius_px
       );
@@ -2616,12 +2796,12 @@ export function createRenderer({
           local_dot_y - clip_center_local_y
         );
 
-        if (clip_distance <= spoke.inner_clip_radius_px + 0.01) {
+        if (clip_distance <= spoke.phase_field_radius_px + 0.01) {
           continue;
         }
 
         const echo_index = Math.ceil(
-          (clip_distance - spoke.inner_clip_radius_px) / spoke.inner_clip_offset_px
+          (clip_distance - spoke.phase_field_radius_px) / spoke.inner_clip_offset_px
         );
         if (echo_index < 1 || echo_index > echo_count) {
           continue;
@@ -3009,7 +3189,7 @@ export function createRenderer({
       runtime.layers.debugMasks,
       phase_mask.left_center_x_px,
       phase_mask.center_y_px,
-      phase_mask.radius_px,
+      phase_mask.field_radius_px,
       mask_width_px,
       0.78
     );
@@ -3017,7 +3197,7 @@ export function createRenderer({
       runtime.layers.debugMasks,
       phase_mask.right_center_x_px,
       phase_mask.center_y_px,
-      phase_mask.radius_px,
+      phase_mask.field_radius_px,
       mask_width_px,
       0.78
     );
@@ -3150,13 +3330,16 @@ export function createRenderer({
     const previous_transparent_background = runtime.export_transparent_background;
     const should_restore_transparent_flag =
       previous_transparent_background !== transparent_background;
+    const previous_hide_overlay_guides = runtime.export_hide_overlay_guides;
+    const hide_overlay_guides = options.hide_overlay_guides !== false;
 
     try {
+      runtime.export_hide_overlay_guides = hide_overlay_guides;
       if (should_restore_transparent_flag) {
         runtime.export_transparent_background = transparent_background;
         apply_renderer_clear_color();
-        render_playback_frame(runtime.playback_time_sec);
       }
+      render_playback_frame(runtime.playback_time_sec);
 
       return await new Promise((resolve, reject) => {
       if (
@@ -3201,11 +3384,12 @@ export function createRenderer({
       }, type);
       });
     } finally {
+      runtime.export_hide_overlay_guides = previous_hide_overlay_guides;
       if (should_restore_transparent_flag) {
         runtime.export_transparent_background = previous_transparent_background;
         apply_renderer_clear_color();
-        render_playback_frame(runtime.playback_time_sec);
       }
+      render_playback_frame(runtime.playback_time_sec);
     }
   }
 

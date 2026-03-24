@@ -127,6 +127,80 @@ export const EXPORT_DIRECTORY_STORE_NAME = "handles";
 export const EXPORT_DIRECTORY_KEY = `${STORAGE_NAMESPACE}-preset-export-directory`;
 export const DOCKED_EDITOR_MIN_WIDTH_PX = 1500;
 
+export const OVERLAY_CONTENT_FORMAT_ORDER = Object.freeze([
+  "generic_social",
+  "speaker_highlight"
+]);
+
+export const OVERLAY_CONTENT_FORMATS = Object.freeze({
+  generic_social: Object.freeze({
+    key: "generic_social",
+    label: "Social Media Post - Generic"
+  }),
+  speaker_highlight: Object.freeze({
+    key: "speaker_highlight",
+    label: "Speaker Highlight"
+  })
+});
+
+const OVERLAY_FORMAT_RUNTIME_MAPPING = Object.freeze([
+  Object.freeze(["content_csv_path", "csv_path"]),
+  Object.freeze(["text_1_x_px", "text_1_x_px"]),
+  Object.freeze(["text_1_y_baselines", "text_1_y_baselines"]),
+  Object.freeze(["text_1_max_width_px", "text_1_max_width_px"]),
+  Object.freeze(["text_2_x_px", "text_2_x_px"]),
+  Object.freeze(["text_2_y_baselines", "text_2_y_baselines"]),
+  Object.freeze(["text_2_max_width_px", "text_2_max_width_px"]),
+  Object.freeze(["text_3_x_px", "text_3_x_px"]),
+  Object.freeze(["text_3_y_baselines", "text_3_y_baselines"]),
+  Object.freeze(["text_3_max_width_px", "text_3_max_width_px"])
+]);
+
+function get_active_overlay_content_format_key(target) {
+  const requested_key = target?.overlay_text?.content_format;
+  if (typeof requested_key === "string" && OVERLAY_CONTENT_FORMATS[requested_key]) {
+    return requested_key;
+  }
+  return OVERLAY_CONTENT_FORMAT_ORDER[0];
+}
+
+function get_overlay_format_bucket(target, format_key) {
+  if (!is_plain_object(target.overlay_content_formats)) {
+    target.overlay_content_formats = {};
+  }
+  if (!is_plain_object(target.overlay_content_formats[format_key])) {
+    target.overlay_content_formats[format_key] = {};
+  }
+  return target.overlay_content_formats[format_key];
+}
+
+export function sync_overlay_content_format_runtime_fields(target) {
+  if (!is_plain_object(target?.overlay_text)) {
+    return;
+  }
+  const format_key = get_active_overlay_content_format_key(target);
+  target.overlay_text.content_format = format_key;
+  const format_bucket = get_overlay_format_bucket(target, format_key);
+  for (const [runtime_key, format_key_name] of OVERLAY_FORMAT_RUNTIME_MAPPING) {
+    if (typeof format_bucket[format_key_name] === "undefined") {
+      continue;
+    }
+    target.overlay_text[runtime_key] = deep_clone(format_bucket[format_key_name]);
+  }
+}
+
+export function write_overlay_runtime_fields_to_active_format(target) {
+  if (!is_plain_object(target?.overlay_text)) {
+    return;
+  }
+  const format_key = get_active_overlay_content_format_key(target);
+  target.overlay_text.content_format = format_key;
+  const format_bucket = get_overlay_format_bucket(target, format_key);
+  for (const [runtime_key, format_key_name] of OVERLAY_FORMAT_RUNTIME_MAPPING) {
+    format_bucket[format_key_name] = deep_clone(target.overlay_text[runtime_key]);
+  }
+}
+
 export const EDITOR_TAB_GROUPS = Object.freeze([
   Object.freeze({
     key: "overlay",
@@ -271,7 +345,13 @@ export const CONFIG_FIELD_META = Object.freeze({
   "layout_grid.margin_top_baselines": {
     label: "Top Margin (Baselines)",
     help_text:
-      "Top margin for the composition grid, expressed in baseline units. The bottom margin is derived automatically.",
+      "Top margin for the composition grid, expressed in baseline units.",
+    numeric: { min: 0, max: 200, step: 1 }
+  },
+  "layout_grid.margin_bottom_baselines": {
+    label: "Bottom Margin (Baselines)",
+    help_text:
+      "Minimum bottom margin for the composition grid, expressed in baseline units. Any leftover height from row subdivision is added on top of this.",
     numeric: { min: 0, max: 200, step: 1 }
   },
   "layout_grid.margin_side_baselines": {
@@ -325,6 +405,12 @@ export const CONFIG_FIELD_META = Object.freeze({
       "A screen-space rectangle behind the whole composition, clipped to the current safe area.",
     hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false }
   },
+  "layout_grid.safe_area_fill_above_animation": {
+    label: "Overlay Background Above Animation",
+    help_text:
+      "Places the safe-area background panel above the mascot/halo animation and below the overlay text/logo, so the panel can either reveal or mask the animation.",
+    hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false }
+  },
   "overlay_logo.enabled": {
     hidden: true,
     locked_value: true,
@@ -354,10 +440,21 @@ export const CONFIG_FIELD_META = Object.freeze({
     locked_value: true,
     label: "Show Overlay Text"
   },
-  "overlay_text.content_csv_path": {
-    label: "Content CSV Path",
+  "overlay_text.content_format": {
+    label: "Overlay Content Format",
     help_text:
-      "CSV content source for the overlay. Quoted multiline CSV cells are supported, and <br> is also converted into line breaks."
+      "Chooses which CSV schema and per-format text-field layout are active. The text field X/Y/max-width controls below edit the currently selected format.",
+    options: OVERLAY_CONTENT_FORMAT_ORDER.map((format_key) =>
+      Object.freeze({
+        value: format_key,
+        label: OVERLAY_CONTENT_FORMATS[format_key].label
+      })
+    )
+  },
+  "overlay_text.content_csv_path": {
+    label: "Active Format CSV Path",
+    help_text:
+      "CSV content source for the selected overlay content format. Quoted multiline CSV cells are supported, and <br> is also converted into line breaks."
   },
   "overlay_text.title_text": {
     hidden: true,
@@ -368,79 +465,91 @@ export const CONFIG_FIELD_META = Object.freeze({
     label: "Subtitle Text"
   },
   "overlay_text.main_heading_x_px": {
-    label: "Heading X (px)",
+    label: "A-head X (px)",
     numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
   },
   "overlay_text.main_heading_y_baselines": {
-    label: "Heading Y (Baselines)",
+    label: "A-head Y (Baselines)",
     help_text:
-      "Vertical heading offset expressed in baseline units. Moving this value always keeps the heading on the baseline grid.",
+      "Vertical A-head offset expressed in baseline units. Moving this value always keeps the heading on the baseline grid.",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.main_heading_max_width_px": {
-    label: "Heading Max Width (px)",
+    label: "A-head Max Width (px)",
     help_text:
-      "Maximum width used for wrapping the heading.",
+      "Maximum width used for wrapping the A-head.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.text_1_x_px": {
-    label: "Text 1 X (px)",
+    label: "B-head X (px)",
     numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
   },
   "overlay_text.text_1_y_baselines": {
-    label: "Text 1 Y (Baselines)",
+    label: "B-head Y (Baselines)",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.text_1_max_width_px": {
-    label: "Text 1 Max Width (px)",
+    label: "B-head Max Width (px)",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.text_2_x_px": {
-    label: "Text 2 X (px)",
+    label: "Paragraph 1 X (px)",
     numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
   },
   "overlay_text.text_2_y_baselines": {
-    label: "Text 2 Y (Baselines)",
+    label: "Paragraph 1 Y (Baselines)",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.text_2_max_width_px": {
-    label: "Text 2 Max Width (px)",
+    label: "Paragraph 1 Max Width (px)",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.text_3_x_px": {
-    label: "Text 3 X (px)",
+    label: "Paragraph 2 X (px)",
     numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
   },
   "overlay_text.text_3_y_baselines": {
-    label: "Text 3 Y (Baselines)",
+    label: "Paragraph 2 Y (Baselines)",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.text_3_max_width_px": {
-    label: "Text 3 Max Width (px)",
+    label: "Paragraph 2 Max Width (px)",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.title_font_size_px": {
-    label: "Title / Logo Size (px)",
+    label: "A-head / Logo Size (px)",
     help_text:
-      "Exact title font size. The logo scales with it using the 63 px title to logo-height ratio.",
+      "Exact A-head font size. The logo scales with it using the 63 px title to logo-height ratio.",
     numeric: { min: 4, max: 320, step: 1 }
   },
   "overlay_text.title_line_height_px": {
-    label: "Title Line Height (px)",
+    label: "A-head Line Height (px)",
     help_text:
-      "Title line height. It is snapped up to the baseline grid so multiline titles stay aligned.",
+      "A-head line height. It is snapped up to the baseline grid so multiline titles stay aligned.",
     numeric: { min: 4, max: 512, step: 1 }
   },
-  "overlay_text.subtitle_font_size_px": {
-    label: "Secondary Text Size (px)",
+  "overlay_text.b_head_font_size_px": {
+    label: "B-head Size (px)",
     help_text:
-      "Shared font size for Text 1, Text 2, and Text 3.",
+      "Shared font size for the B-head text style.",
     numeric: { min: 4, max: 320, step: 1 }
   },
-  "overlay_text.subtitle_line_height_px": {
-    label: "Secondary Line Height (px)",
+  "overlay_text.b_head_line_height_px": {
+    label: "B-head Line Height (px)",
     help_text:
-      "Line height for Text 1, Text 2, and Text 3. It is snapped up to the baseline grid so multiline text stays aligned.",
+      "Line height for the B-head style. It is snapped up to the baseline grid so multiline text stays aligned.",
+    numeric: { min: 4, max: 512, step: 1 }
+  },
+  "overlay_text.paragraph_font_size_px": {
+    label: "Paragraph Size (px)",
+    help_text:
+      "Shared font size for the paragraph text style.",
+    numeric: { min: 4, max: 320, step: 1 }
+  },
+  "overlay_text.paragraph_line_height_px": {
+    label: "Paragraph Line Height (px)",
+    help_text:
+      "Line height for the paragraph style. It is snapped up to the baseline grid so multiline text stays aligned.",
     numeric: { min: 4, max: 512, step: 1 }
   },
   "overlay_text.link_title_size_to_logo_height": {
@@ -811,22 +920,48 @@ export const CONFIG_FIELD_META = Object.freeze({
   "vignette.enabled": {
     label: "Show Vignette"
   },
-  "vignette.radius_px": {
-    label: "Radius (px)",
+  "vignette.apply_outside_safe_area": {
+    label: "Vignette Outside Safe Area",
     help_text:
-      "How far the circular vignette reaches from the center before it is fully faded to the background color.",
+      "When safe-area mode is active, also apply the vignette to the area outside the safe area. Turn this off to keep the outer background clear."
+  },
+  "vignette.radius_px": {
+    label: "Safe Area Radius (px)",
+    help_text:
+      "How far the circular vignette reaches inside the safe area before it is fully faded to the safe-area background color.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
   "vignette.feather_px": {
-    label: "Feather (px)",
+    label: "Safe Area Feather (px)",
     help_text:
-      "How much of the vignette radius is used for the fade from transparent center to darkened edge.",
+      "How much of the safe-area vignette radius is used for the fade from transparent center to the safe-area background color.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
   "vignette.choke": {
-    label: "Choke",
+    label: "Safe Area Choke",
     help_text:
-      "Biases the midpoint of the vignette fade. Higher values keep more of the center revealed; lower values make the fade bite inward sooner.",
+      "Biases the midpoint of the safe-area vignette fade. Higher values keep more of the center revealed; lower values make the fade bite inward sooner.",
+    numeric: { min: 0, max: 1, step: 0.01 }
+  },
+  "vignette.outside_radius_px": {
+    label: "Outside Radius (px)",
+    help_text:
+      "How far the separate vignette outside the safe area reaches from the center before it is fully faded to the main background color.",
+    hidden_if: { path: "vignette.apply_outside_safe_area", equals: false },
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "vignette.outside_feather_px": {
+    label: "Outside Feather (px)",
+    help_text:
+      "How much of the outside vignette radius is used for the fade from transparent center to the main background color.",
+    hidden_if: { path: "vignette.apply_outside_safe_area", equals: false },
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "vignette.outside_choke": {
+    label: "Outside Choke",
+    help_text:
+      "Biases the midpoint of the outside-safe-area vignette fade. Higher values keep more of the center revealed; lower values make the fade bite inward sooner.",
+    hidden_if: { path: "vignette.apply_outside_safe_area", equals: false },
     numeric: { min: 0, max: 1, step: 0.01 }
   },
   "blink.enabled": {
@@ -881,6 +1016,7 @@ export const CONFIG_FIELD_META = Object.freeze({
 export function create_default_config() {
   const config = deep_clone(SOURCE_DEFAULT_CONFIG);
   sync_profile_derived_config(config);
+  sync_overlay_content_format_runtime_fields(config);
   return config;
 }
 
@@ -1069,6 +1205,15 @@ export function normalize_config_snapshot(source, default_config) {
       );
     }
     if (
+      !Number.isFinite(Number(source?.layout_grid?.margin_bottom_baselines)) &&
+      Number.isFinite(Number(source?.layout_grid?.margin_bottom_px))
+    ) {
+      snapshot.layout_grid.margin_bottom_baselines = Math.max(
+        0,
+        Math.round(Number(source.layout_grid.margin_bottom_px) / baseline_step_px)
+      );
+    }
+    if (
       !Number.isFinite(Number(source?.layout_grid?.margin_side_baselines)) &&
       Number.isFinite(Number(source?.layout_grid?.margin_side_px))
     ) {
@@ -1098,6 +1243,12 @@ export function normalize_config_snapshot(source, default_config) {
   }
   if (is_plain_object(snapshot.overlay_text)) {
     if (
+      typeof source?.overlay_text?.content_format !== "string" ||
+      !OVERLAY_CONTENT_FORMATS[source.overlay_text.content_format]
+    ) {
+      snapshot.overlay_text.content_format = OVERLAY_CONTENT_FORMAT_ORDER[0];
+    }
+    if (
       !Number.isFinite(Number(source?.overlay_text?.main_heading_x_px)) &&
       Number.isFinite(Number(source?.overlay_text?.x_px))
     ) {
@@ -1115,6 +1266,36 @@ export function normalize_config_snapshot(source, default_config) {
     ) {
       snapshot.overlay_text.main_heading_max_width_px = Number(source.overlay_text.max_width_px);
     }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.b_head_font_size_px)) &&
+      Number.isFinite(Number(source?.overlay_text?.subtitle_font_size_px))
+    ) {
+      snapshot.overlay_text.b_head_font_size_px = Number(source.overlay_text.subtitle_font_size_px);
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.b_head_line_height_px)) &&
+      Number.isFinite(Number(source?.overlay_text?.subtitle_line_height_px))
+    ) {
+      snapshot.overlay_text.b_head_line_height_px = Number(source.overlay_text.subtitle_line_height_px);
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.paragraph_font_size_px)) &&
+      Number.isFinite(Number(source?.overlay_text?.subtitle_font_size_px))
+    ) {
+      snapshot.overlay_text.paragraph_font_size_px = Number(source.overlay_text.subtitle_font_size_px);
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.paragraph_line_height_px)) &&
+      Number.isFinite(Number(source?.overlay_text?.subtitle_line_height_px))
+    ) {
+      snapshot.overlay_text.paragraph_line_height_px = Number(source.overlay_text.subtitle_line_height_px);
+    }
+  }
+  if (is_plain_object(snapshot.overlay_content_formats) && !is_plain_object(source?.overlay_content_formats)) {
+    const generic_social = get_overlay_format_bucket(snapshot, "generic_social");
+    for (const [runtime_key, format_key_name] of OVERLAY_FORMAT_RUNTIME_MAPPING) {
+      generic_social[format_key_name] = deep_clone(snapshot.overlay_text[runtime_key]);
+    }
   }
   if (
     !is_plain_object(source?.screensaver) &&
@@ -1123,6 +1304,7 @@ export function normalize_config_snapshot(source, default_config) {
     snapshot.screensaver.cycle_sec = Number(source.finale.orbit_breath_cycle_sec);
   }
   sync_profile_derived_config(snapshot);
+  sync_overlay_content_format_runtime_fields(snapshot);
   snapshot.mascot.face_asset_path = default_config.mascot.face_asset_path;
   snapshot.mascot.halo_asset_path = default_config.mascot.halo_asset_path;
   enforce_locked_config_values(snapshot);
