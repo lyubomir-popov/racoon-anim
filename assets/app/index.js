@@ -226,6 +226,113 @@ const COLOR_CONTROL_PATHS = Object.freeze([
 ]);
 const COLOR_CONTROL_PATH_SET = new Set(COLOR_CONTROL_PATHS);
 
+const OVERLAY_CONTENT_CONTROL_ROWS = Object.freeze([
+  Object.freeze({ path: "overlay_text.content_format" }),
+  Object.freeze({ path: "overlay_text.content_csv_path" })
+]);
+
+const OVERLAY_TEXT_STYLE_CONTROL_ROWS = Object.freeze([
+  Object.freeze({ path: "overlay_text.title_font_size_px" }),
+  Object.freeze({ path: "overlay_text.title_line_height_px" }),
+  Object.freeze({ path: "overlay_text.b_head_font_size_px" }),
+  Object.freeze({ path: "overlay_text.b_head_line_height_px" }),
+  Object.freeze({ path: "overlay_text.paragraph_font_size_px" }),
+  Object.freeze({ path: "overlay_text.paragraph_line_height_px" })
+]);
+
+const OVERLAY_LOGO_CONTROL_ROWS = Object.freeze([
+  Object.freeze({ path: "overlay_logo.asset_path" }),
+  Object.freeze({ path: "overlay_logo.x_px" }),
+  Object.freeze({ path: "overlay_logo.y_px" }),
+  Object.freeze({ path: "overlay_logo.height_px" })
+]);
+
+const OVERLAY_GRID_CONTROL_ROWS = Object.freeze([
+  Object.freeze({ path: "layout_grid.show_composition_grid" }),
+  Object.freeze({ path: "layout_grid.show_baseline_grid" }),
+  Object.freeze({ path: "layout_grid.fit_within_safe_area" }),
+  Object.freeze({ path: "layout_grid.safe_area_fill_above_animation" }),
+  Object.freeze({ path: "layout_grid.baseline_step_px" }),
+  Object.freeze({ path: "layout_grid.row_count" }),
+  Object.freeze({ path: "layout_grid.column_count" }),
+  Object.freeze({ path: "layout_grid.margin_top_baselines" }),
+  Object.freeze({ path: "layout_grid.margin_bottom_baselines" }),
+  Object.freeze({ path: "layout_grid.margin_side_baselines" }),
+  Object.freeze({ path: "layout_grid.row_gutter_baselines" }),
+  Object.freeze({ path: "layout_grid.column_gutter_baselines" }),
+  Object.freeze({ path: "layout_grid.safe_top_px" }),
+  Object.freeze({ path: "layout_grid.safe_right_px" }),
+  Object.freeze({ path: "layout_grid.safe_bottom_px" }),
+  Object.freeze({ path: "layout_grid.safe_left_px" })
+]);
+
+const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
+  generic_social: Object.freeze([
+    Object.freeze({
+      key: "a_head",
+      label: "A-head",
+      rows: Object.freeze([
+        Object.freeze({ path: "overlay_text.main_heading_x_px", label: "X (px)" }),
+        Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.main_heading_max_width_px", label: "Max Width (px)" })
+      ])
+    }),
+    Object.freeze({
+      key: "paragraph_1",
+      label: "Paragraph 1",
+      rows: Object.freeze([
+        Object.freeze({ path: "overlay_text.text_3_x_px", label: "X (px)" }),
+        Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.text_3_max_width_px", label: "Max Width (px)" })
+      ])
+    }),
+    Object.freeze({
+      key: "paragraph_2",
+      label: "Paragraph 2",
+      rows: Object.freeze([
+        Object.freeze({ path: "overlay_text.text_1_x_px", label: "Line 1 X (px)" }),
+        Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Line 1 Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.text_1_max_width_px", label: "Line 1 Max Width (px)" }),
+        Object.freeze({ path: "overlay_text.text_2_x_px", label: "Line 2 X (px)" }),
+        Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Line 2 Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.text_2_max_width_px", label: "Line 2 Max Width (px)" })
+      ])
+    })
+  ]),
+  speaker_highlight: Object.freeze([
+    Object.freeze({
+      key: "a_head",
+      label: "A-head",
+      rows: Object.freeze([
+        Object.freeze({ path: "overlay_text.main_heading_x_px", label: "X (px)" }),
+        Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.main_heading_max_width_px", label: "Max Width (px)" })
+      ])
+    }),
+    Object.freeze({
+      key: "b_head",
+      label: "B-head",
+      rows: Object.freeze([
+        Object.freeze({ path: "overlay_text.text_1_x_px", label: "X (px)" }),
+        Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.text_1_max_width_px", label: "Max Width (px)" })
+      ])
+    }),
+    Object.freeze({
+      key: "paragraphs",
+      label: "Paragraphs",
+      rows: Object.freeze([
+        Object.freeze({ path: "overlay_text.text_2_x_px", label: "Paragraph 1 X (px)" }),
+        Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Paragraph 1 Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.text_2_max_width_px", label: "Paragraph 1 Max Width (px)" }),
+        Object.freeze({ path: "overlay_text.text_3_x_px", label: "Paragraph 2 X (px)" }),
+        Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Paragraph 2 Y (Baselines)" }),
+        Object.freeze({ path: "overlay_text.text_3_max_width_px", label: "Paragraph 2 Max Width (px)" })
+      ])
+    })
+  ])
+});
+
 function get_section_label(section_key) {
   return SECTION_LABELS[section_key] || humanize_key(section_key);
 }
@@ -1318,7 +1425,7 @@ function create_control_row(path_parts, value, options = {}) {
   const label = document.createElement("label");
   label.className = "p-form__label u-no-margin--bottom";
   label.htmlFor = `control-${path_key.replace(/\./g, "-")}`;
-  label.textContent = get_control_label(path_key);
+  label.textContent = options.label_override || get_control_label(path_key);
 
   const input_bundle = create_control_input(path_key, value);
   state.editor_controls.set(path_key, input_bundle.control);
@@ -1407,6 +1514,167 @@ function build_curated_control_section(title_text, path_keys) {
   return section;
 }
 
+function build_control_rows_section(title_text, rows) {
+  const section = document.createElement("div");
+  section.className = "config-section";
+
+  let field_count = 0;
+  for (const row_spec of rows) {
+    const path_key = row_spec.path;
+    const value = get_config_value(path_key.split("."));
+    const row = create_control_row(path_key.split("."), value, {
+      excluded_paths: COLOR_CONTROL_PATH_SET,
+      label_override: row_spec.label
+    });
+    if (!row) {
+      continue;
+    }
+    section.appendChild(row);
+    field_count += 1;
+  }
+
+  if (field_count === 0) {
+    return null;
+  }
+
+  const title = document.createElement("h2");
+  title.className = "p-muted-heading u-no-margin--bottom";
+  title.textContent = title_text;
+  section.prepend(title);
+  return section;
+}
+
+function get_overlay_field_tab_specs() {
+  const format_key = String(config.overlay_text?.content_format || "").trim();
+  return OVERLAY_FIELD_TAB_SPECS_BY_FORMAT[format_key]
+    || OVERLAY_FIELD_TAB_SPECS_BY_FORMAT.generic_social;
+}
+
+function build_overlay_field_tabs_section() {
+  const tab_specs = get_overlay_field_tab_specs();
+  if (!tab_specs.length) {
+    return null;
+  }
+
+  const section = document.createElement("div");
+  section.className = "config-section";
+
+  const title = document.createElement("h2");
+  title.className = "p-muted-heading u-no-margin--bottom";
+  title.textContent = "Text Blocks";
+  section.appendChild(title);
+
+  const tabs = document.createElement("div");
+  tabs.className = "p-tabs overlay-subtabs";
+
+  const list = document.createElement("div");
+  list.className = "p-tabs__list";
+  list.setAttribute("role", "tablist");
+  list.setAttribute("aria-label", "Overlay text blocks");
+
+  const panels = document.createElement("div");
+  panels.className = "config-panels";
+
+  const set_active_tab = (next_key) => {
+    for (const button of tabs.querySelectorAll("[data-overlay-subtab]")) {
+      const is_active = button.dataset.overlaySubtab === next_key;
+      button.setAttribute("aria-selected", String(is_active));
+      button.setAttribute("tabindex", is_active ? "0" : "-1");
+    }
+
+    for (const panel of panels.querySelectorAll("[data-overlay-subpanel]")) {
+      panel.hidden = panel.dataset.overlaySubpanel !== next_key;
+    }
+  };
+
+  let first_key = null;
+
+  for (const spec of tab_specs) {
+    const item = document.createElement("div");
+    item.className = "p-tabs__item";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "p-tabs__link";
+    button.dataset.overlaySubtab = spec.key;
+    button.setAttribute("role", "tab");
+    button.textContent = spec.label;
+    button.addEventListener("click", () => {
+      set_active_tab(spec.key);
+    });
+
+    item.appendChild(button);
+    list.appendChild(item);
+
+    const panel = document.createElement("section");
+    panel.className = "overlay-subtabs__panel";
+    panel.dataset.overlaySubpanel = spec.key;
+    panel.setAttribute("role", "tabpanel");
+    panel.hidden = true;
+
+    let field_count = 0;
+    for (const row_spec of spec.rows) {
+      const path_key = row_spec.path;
+      const value = get_config_value(path_key.split("."));
+      const row = create_control_row(path_key.split("."), value, {
+        excluded_paths: COLOR_CONTROL_PATH_SET,
+        label_override: row_spec.label
+      });
+      if (!row) {
+        continue;
+      }
+      panel.appendChild(row);
+      field_count += 1;
+    }
+
+    if (field_count > 0) {
+      panels.appendChild(panel);
+      if (!first_key) {
+        first_key = spec.key;
+      }
+    }
+  }
+
+  if (!first_key) {
+    return null;
+  }
+
+  tabs.appendChild(list);
+  section.appendChild(tabs);
+  section.appendChild(panels);
+  set_active_tab(first_key);
+  return section;
+}
+
+function build_overlay_form(panel, form) {
+  const content_section = build_control_rows_section("Content", OVERLAY_CONTENT_CONTROL_ROWS);
+  if (content_section) {
+    form.appendChild(content_section);
+  }
+
+  const style_section = build_control_rows_section("Text Styles", OVERLAY_TEXT_STYLE_CONTROL_ROWS);
+  if (style_section) {
+    form.appendChild(style_section);
+  }
+
+  const text_blocks_section = build_overlay_field_tabs_section();
+  if (text_blocks_section) {
+    form.appendChild(text_blocks_section);
+  }
+
+  const logo_section = build_control_rows_section("Logo", OVERLAY_LOGO_CONTROL_ROWS);
+  if (logo_section) {
+    form.appendChild(logo_section);
+  }
+
+  const grid_section = build_control_rows_section("Grid", OVERLAY_GRID_CONTROL_ROWS);
+  if (grid_section) {
+    form.appendChild(grid_section);
+  }
+
+  panel.appendChild(form);
+}
+
 function build_config_editor() {
   config_editor.innerHTML = "";
   state.editor_controls = new Map();
@@ -1479,6 +1747,12 @@ function build_config_editor() {
         form.appendChild(color_section);
       }
       panel.appendChild(form);
+      panels.appendChild(panel);
+      continue;
+    }
+
+    if (group.key === "overlay") {
+      build_overlay_form(panel, form);
       panels.appendChild(panel);
       continue;
     }

@@ -272,6 +272,36 @@ body.editor-docked .drawer-panel {
   display: grid;
 }
 
+.overlay-subtabs {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.overlay-subtabs .p-tabs__list {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  margin-bottom: 0.5rem;
+}
+
+.overlay-subtabs .p-tabs__item {
+  margin: 0;
+  min-width: 0;
+}
+
+.overlay-subtabs .p-tabs__link {
+  display: flex;
+  justify-content: center;
+  min-height: 2.25rem;
+  text-align: center;
+  width: 100%;
+}
+
+.overlay-subtabs__panel {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .config-panel[hidden] {
   display: none;
 }
