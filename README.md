@@ -3,13 +3,15 @@
 ## Folders
 
 - `src/`: web source
-- `assets/`: mascot assets used by the page
+- `src/app/`: live application source
+- `assets/`: static mascot/content/font assets
 - `houdini/`: source wrangles from Houdini
 - `references/`: visual reference screenshots
 - `scripts/`: local tooling
 
 ## Project Docs
 
+- `00-llm-reading-order.md`: ordered reading list for future LLM handoff
 - `art-direction-plan.md`: visual and motion intent
 - `llm-handoff-context.md`: current implementation context for future model handoff
 - `history.md`: consolidated record of what has already been built
@@ -43,6 +45,10 @@ There are now two levels of tuning in the editor:
   This is where you choose the active screen size and export from it.
 - `Presets`
   This is where you edit the global shared settings that should stay consistent across every screen size.
+
+The tracked source default now lives in:
+
+- `src/app/default-config-source.js`
 
 ### What switches with Output Format
 

@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const project_root = path.resolve(__dirname, "..");
 const dist_root = path.join(project_root, "dist");
 const three_root = path.join(project_root, "node_modules", "three");
+const source_app_root = path.join(project_root, "src", "app");
 
 function copy_directory(source_path, destination_path) {
   fs.mkdirSync(destination_path, { recursive: true });
@@ -30,6 +31,7 @@ fs.mkdirSync(dist_root, { recursive: true });
 fs.copyFileSync(path.join(project_root, "src", "index.html"), path.join(dist_root, "index.html"));
 copy_directory(path.join(project_root, "2.0"), path.join(dist_root, "2.0"));
 copy_directory(path.join(project_root, "assets"), path.join(dist_root, "assets"));
+copy_directory(source_app_root, path.join(dist_root, "assets", "app"));
 copy_directory(path.join(three_root, "build"), path.join(dist_root, "three", "build"));
 await write_stylesheet(path.join(dist_root, "assets", "app.css"), { style: "compressed" });
 fs.writeFileSync(path.join(dist_root, ".nojekyll"), "");

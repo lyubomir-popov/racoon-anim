@@ -158,8 +158,8 @@ Reduce the chance of halo/overlay regressions from future feature work.
 ### Still remaining
 
 1. Continue modularizing:
-   - `assets/app/rendering.js`
-   - `assets/app/index.js`
+   - `src/app/rendering.js`
+   - `src/app/index.js`
 2. Keep halo field logic centralized in shared helpers.
 3. Move more render-only / UI metadata into schema rather than maintaining separate ad hoc allowlists.
 4. Remove legacy hidden compatibility fields once migration is stable enough.
@@ -168,7 +168,25 @@ Reduce the chance of halo/overlay regressions from future feature work.
 
 A lot of the painful regressions in this project came from patching duplicated logic in large files.
 
-## I. Validation Passes Still Worth Doing
+## I. Source Tree Reorganization
+
+### Status
+
+Partially done.
+
+### What changed
+
+- live application source now lives in `src/app/`
+- `assets/` is now reserved for static assets
+- the build/dev-server still publish browser modules at `/assets/app/*` for runtime compatibility
+
+### Still remaining
+
+1. Audit docs and helper scripts for any stale path references.
+2. Decide later whether the public output path should also change, or whether `/assets/app/*` should remain the stable browser path.
+3. Keep the current compatibility mapping until the app is otherwise stable.
+
+## J. Validation Passes Still Worth Doing
 
 These are not necessarily new features, but they should be part of future work:
 
@@ -193,4 +211,3 @@ If another model needs a practical order, use this:
 4. debug local MP4 export button
 5. implement watch-folder automation
 6. continue deeper refactor only after the overlay model is stable
-

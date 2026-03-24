@@ -9,9 +9,10 @@ import { compile_styles_to_string } from "./styles.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const project_root = path.resolve(__dirname, "..");
 const source_root = path.join(project_root, "src");
+const source_app_root = path.join(source_root, "app");
 const source_entry = path.join(source_root, "index.html");
 const three_root = path.join(project_root, "node_modules", "three");
-const source_default_config_path = path.join(project_root, "assets", "app", "default-config-source.js");
+const source_default_config_path = path.join(source_app_root, "default-config-source.js");
 const watch_roots = [
   source_root,
   path.join(project_root, "assets"),
@@ -91,6 +92,19 @@ function resolve_public_path(request_path) {
     }
 
     return normalized_three_path;
+  }
+
+  if (clean_path.startsWith("/assets/app/")) {
+    const relative_app_path = clean_path.slice("/assets/app/".length);
+    const absolute_app_path = path.join(source_app_root, relative_app_path);
+    const normalized_app_root = path.normalize(source_app_root + path.sep);
+    const normalized_app_path = path.normalize(absolute_app_path);
+
+    if (!normalized_app_path.startsWith(normalized_app_root)) {
+      return null;
+    }
+
+    return normalized_app_path;
   }
 
   const relative_path = clean_path.replace(/^\/+/, "");
@@ -275,7 +289,7 @@ const server = http.createServer(async (request, response) => {
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(JSON.stringify({
         ok: true,
-        path: "assets/app/default-config-source.js",
+        path: "src/app/default-config-source.js",
         config: next_config
       }));
       return;

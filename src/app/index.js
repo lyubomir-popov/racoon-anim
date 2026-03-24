@@ -791,14 +791,14 @@ async function write_source_default_snapshot(snapshot) {
     });
   } catch (error) {
     throw new Error(
-      "Source-default writeback needs the authoring dev server. Run `npm run dev` to write assets/app/default-config-source.js."
+      "Source-default writeback needs the authoring dev server. Run `npm run dev` to write src/app/default-config-source.js."
     );
   }
 
   const payload = await response.json().catch(() => ({}));
   if (response.status === 404) {
     throw new Error(
-      "Source-default writeback is not available in this build. Run `npm run dev` to write assets/app/default-config-source.js."
+      "Source-default writeback is not available in this build. Run `npm run dev` to write src/app/default-config-source.js."
     );
   }
 
@@ -2549,7 +2549,7 @@ async function reset_to_defaults() {
   save_presets_to_storage();
   return renderer.refreshScene({ reload_mascot: true })
     .then(() => {
-      set_preset_meta("Loaded the source default from assets/app/default-config-source.js.", false);
+      set_preset_meta("Loaded the source default from src/app/default-config-source.js.", false);
     })
     .catch((error) => {
       console.error(error);
@@ -3009,7 +3009,7 @@ async function init() {
   await renderer.refreshScene({ reload_mascot: true });
   if (is_local_editor) {
     set_preset_meta(
-      "Presets are browser-stored test snapshots. The tracked source default lives in assets/app/default-config-source.js.",
+      "Presets are browser-stored test snapshots. The tracked source default lives in src/app/default-config-source.js.",
       false
     );
   }

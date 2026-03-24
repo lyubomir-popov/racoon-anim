@@ -220,10 +220,10 @@ These are not necessarily broken right now, but they are the active zones of unf
    - `remaining-work.md`
    - `art-direction-plan.md`
 4. If touching halo behavior:
-   - inspect `assets/app/halo-field.js`
-   - inspect `assets/app/rendering.js`
+   - inspect `src/app/halo-field.js`
+   - inspect `src/app/rendering.js`
    - avoid reintroducing the shared-radius regression
 5. If touching overlay behavior:
-   - inspect `assets/app/config-schema.js`
-   - inspect `assets/app/index.js`
+   - inspect `src/app/config-schema.js`
+   - inspect `src/app/index.js`
    - preserve output-format/local vs global setting separation
