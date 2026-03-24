@@ -95,7 +95,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "radial_u": 0.77
   },
   "layout_grid": {
-    "show_baseline_grid": true,
+    "show_baseline_grid": false,
     "baseline_step_px": 8,
     "show_composition_grid": true,
     "row_count": 4,
@@ -223,9 +223,9 @@ export const SOURCE_DEFAULT_CONFIG = {
   "vignette": {
     "enabled": true,
     "apply_outside_safe_area": true,
-    "radius_px": 597,
-    "feather_px": 252,
-    "choke": 0.42,
+    "radius_px": 719,
+    "feather_px": 838,
+    "choke": 0.76,
     "outside_radius_px": 2160,
     "outside_feather_px": 507,
     "outside_choke": 1
