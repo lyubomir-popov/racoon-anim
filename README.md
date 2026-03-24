@@ -8,6 +8,13 @@
 - `references/`: visual reference screenshots
 - `scripts/`: local tooling
 
+## Project Docs
+
+- `art-direction-plan.md`: visual and motion intent
+- `llm-handoff-context.md`: current implementation context for future model handoff
+- `history.md`: consolidated record of what has already been built
+- `remaining-work.md`: open work organized by theme
+
 ## Local dev
 
 Run:
