@@ -354,26 +354,69 @@ export const CONFIG_FIELD_META = Object.freeze({
     locked_value: true,
     label: "Show Overlay Text"
   },
+  "overlay_text.content_csv_path": {
+    label: "Content CSV Path",
+    help_text:
+      "CSV content source for the overlay. Quoted multiline CSV cells are supported, and <br> is also converted into line breaks."
+  },
   "overlay_text.title_text": {
+    hidden: true,
     label: "Title Text"
   },
   "overlay_text.subtitle_text": {
+    hidden: true,
     label: "Subtitle Text"
   },
-  "overlay_text.x_px": {
-    label: "Text X (px)",
+  "overlay_text.main_heading_x_px": {
+    label: "Heading X (px)",
     numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
   },
-  "overlay_text.y_baselines": {
-    label: "Text Y (Baselines)",
+  "overlay_text.main_heading_y_baselines": {
+    label: "Heading Y (Baselines)",
     help_text:
-      "Vertical text offset expressed in baseline units. Moving this value always keeps the text block on the baseline grid.",
+      "Vertical heading offset expressed in baseline units. Moving this value always keeps the heading on the baseline grid.",
     numeric: { min: -200, max: 2000, step: 1 }
   },
-  "overlay_text.max_width_px": {
-    label: "Text Max Width (px)",
+  "overlay_text.main_heading_max_width_px": {
+    label: "Heading Max Width (px)",
     help_text:
-      "Maximum width used for wrapping the title and subtitle.",
+      "Maximum width used for wrapping the heading.",
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "overlay_text.text_1_x_px": {
+    label: "Text 1 X (px)",
+    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
+  },
+  "overlay_text.text_1_y_baselines": {
+    label: "Text 1 Y (Baselines)",
+    numeric: { min: -200, max: 2000, step: 1 }
+  },
+  "overlay_text.text_1_max_width_px": {
+    label: "Text 1 Max Width (px)",
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "overlay_text.text_2_x_px": {
+    label: "Text 2 X (px)",
+    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
+  },
+  "overlay_text.text_2_y_baselines": {
+    label: "Text 2 Y (Baselines)",
+    numeric: { min: -200, max: 2000, step: 1 }
+  },
+  "overlay_text.text_2_max_width_px": {
+    label: "Text 2 Max Width (px)",
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "overlay_text.text_3_x_px": {
+    label: "Text 3 X (px)",
+    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
+  },
+  "overlay_text.text_3_y_baselines": {
+    label: "Text 3 Y (Baselines)",
+    numeric: { min: -200, max: 2000, step: 1 }
+  },
+  "overlay_text.text_3_max_width_px": {
+    label: "Text 3 Max Width (px)",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "overlay_text.title_font_size_px": {
@@ -389,15 +432,15 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: 4, max: 512, step: 1 }
   },
   "overlay_text.subtitle_font_size_px": {
-    label: "Subtitle Font Size (px)",
+    label: "Secondary Text Size (px)",
     help_text:
-      "Subtitle font size. Its baselines are snapped to the baseline grid.",
+      "Shared font size for Text 1, Text 2, and Text 3.",
     numeric: { min: 4, max: 320, step: 1 }
   },
   "overlay_text.subtitle_line_height_px": {
-    label: "Subtitle Line Height (px)",
+    label: "Secondary Line Height (px)",
     help_text:
-      "Subtitle line height. It is snapped up to the baseline grid so multiline text stays aligned.",
+      "Line height for Text 1, Text 2, and Text 3. It is snapped up to the baseline grid so multiline text stays aligned.",
     numeric: { min: 4, max: 512, step: 1 }
   },
   "overlay_text.link_title_size_to_logo_height": {
@@ -1051,6 +1094,26 @@ export function normalize_config_snapshot(source, default_config) {
         0,
         Math.round(Number(source.layout_grid.gutter_baselines))
       );
+    }
+  }
+  if (is_plain_object(snapshot.overlay_text)) {
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.main_heading_x_px)) &&
+      Number.isFinite(Number(source?.overlay_text?.x_px))
+    ) {
+      snapshot.overlay_text.main_heading_x_px = Number(source.overlay_text.x_px);
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.main_heading_y_baselines)) &&
+      Number.isFinite(Number(source?.overlay_text?.y_baselines))
+    ) {
+      snapshot.overlay_text.main_heading_y_baselines = Number(source.overlay_text.y_baselines);
+    }
+    if (
+      !Number.isFinite(Number(source?.overlay_text?.main_heading_max_width_px)) &&
+      Number.isFinite(Number(source?.overlay_text?.max_width_px))
+    ) {
+      snapshot.overlay_text.main_heading_max_width_px = Number(source.overlay_text.max_width_px);
     }
   }
   if (

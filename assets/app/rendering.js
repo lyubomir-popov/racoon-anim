@@ -154,6 +154,88 @@ function load_image_element(image_url) {
   });
 }
 
+function load_text_asset(asset_url) {
+  return fetch(asset_url, { cache: "no-store" }).then((response) => {
+    if (!response.ok) {
+      throw new Error(`Failed to load text asset: ${asset_url}`);
+    }
+    return response.text();
+  });
+}
+
+function normalize_overlay_copy(value) {
+  return String(value || "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/\r\n?/g, "\n")
+    .trim();
+}
+
+function parse_csv_records(csv_text) {
+  const rows = [];
+  let current_row = [];
+  let current_value = "";
+  let in_quotes = false;
+
+  for (let index = 0; index < csv_text.length; index += 1) {
+    const char = csv_text[index];
+    const next_char = csv_text[index + 1];
+
+    if (char === "\"") {
+      if (in_quotes && next_char === "\"") {
+        current_value += "\"";
+        index += 1;
+      } else {
+        in_quotes = !in_quotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !in_quotes) {
+      current_row.push(current_value);
+      current_value = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !in_quotes) {
+      if (char === "\r" && next_char === "\n") {
+        index += 1;
+      }
+      current_row.push(current_value);
+      rows.push(current_row);
+      current_row = [];
+      current_value = "";
+      continue;
+    }
+
+    current_value += char;
+  }
+
+  if (current_value.length > 0 || current_row.length > 0) {
+    current_row.push(current_value);
+    rows.push(current_row);
+  }
+
+  if (!rows.length) {
+    return [];
+  }
+
+  const [header_row, ...data_rows] = rows;
+  const header = header_row.map((cell) => String(cell || "").trim());
+  return data_rows
+    .filter((row) => row.some((cell) => String(cell || "").trim() !== ""))
+    .map((row) => {
+      const record = {};
+      for (let column_index = 0; column_index < header.length; column_index += 1) {
+        const key = header[column_index];
+        if (!key) {
+          continue;
+        }
+        record[key] = normalize_overlay_copy(row[column_index] ?? "");
+      }
+      return record;
+    });
+}
+
 function normalize_svg_markup(svg_markup) {
   if (/\swidth\s*=/.test(svg_markup) && /\sheight\s*=/.test(svg_markup)) {
     return svg_markup;
@@ -299,6 +381,11 @@ export function createRenderer({
     overlay_logo_image: null,
     overlay_logo_path: "",
     overlay_logo_load_serial: 0,
+    overlay_content_rows: [],
+    overlay_content_path: "",
+    overlay_content_load_serial: 0,
+    overlay_content_loading: false,
+    overlay_content_failed_path: "",
     mascot_box: null,
     animation_frame_id: 0,
     is_paused: false,
@@ -522,7 +609,7 @@ export function createRenderer({
     return config.overlay_text?.color || "#ffffff";
   }
 
-  function get_overlay_text_font(font_size_px, weight = 500) {
+  function get_overlay_text_font(font_size_px, weight = 400) {
     return `${weight} ${Math.max(1, font_size_px)}px ${TEXT_LABEL_FONT_FAMILY}`;
   }
 
@@ -595,6 +682,74 @@ export function createRenderer({
         runtime.overlay_logo_image = null;
         console.error(error);
       });
+  }
+
+  function ensure_overlay_content_rows() {
+    const asset_path = String(config.overlay_text?.content_csv_path || "").trim();
+    if (!asset_path) {
+      runtime.overlay_content_rows = [];
+      runtime.overlay_content_path = "";
+      runtime.overlay_content_loading = false;
+      runtime.overlay_content_failed_path = "";
+      return;
+    }
+
+    if (runtime.overlay_content_path === asset_path && runtime.overlay_content_rows.length) {
+      return;
+    }
+
+    if (runtime.overlay_content_failed_path === asset_path) {
+      return;
+    }
+
+    if (runtime.overlay_content_path === asset_path && runtime.overlay_content_loading) {
+      return;
+    }
+
+    runtime.overlay_content_path = asset_path;
+    runtime.overlay_content_rows = [];
+    runtime.overlay_content_loading = true;
+    runtime.overlay_content_failed_path = "";
+    const load_serial = ++runtime.overlay_content_load_serial;
+    load_text_asset(asset_path)
+      .then((csv_text) => {
+        if (load_serial !== runtime.overlay_content_load_serial) {
+          return;
+        }
+        runtime.overlay_content_loading = false;
+        runtime.overlay_content_failed_path = "";
+        runtime.overlay_content_rows = parse_csv_records(csv_text);
+        render_playback_frame(get_current_playback_time_sec());
+      })
+      .catch((error) => {
+        if (load_serial !== runtime.overlay_content_load_serial) {
+          return;
+        }
+        runtime.overlay_content_loading = false;
+        runtime.overlay_content_rows = [];
+        runtime.overlay_content_failed_path = asset_path;
+        console.error(error);
+      });
+  }
+
+  function get_overlay_content_record() {
+    ensure_overlay_content_rows();
+    const first_record = runtime.overlay_content_rows[0];
+    if (first_record && typeof first_record === "object") {
+      return {
+        main_heading: normalize_overlay_copy(first_record.main_heading),
+        text_1: normalize_overlay_copy(first_record.text_1),
+        text_2: normalize_overlay_copy(first_record.text_2),
+        text_3: normalize_overlay_copy(first_record.text_3)
+      };
+    }
+
+    return {
+      main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
+      text_1: "",
+      text_2: "",
+      text_3: normalize_overlay_copy(config.overlay_text?.subtitle_text)
+    };
   }
 
   function get_mascot_draw_box() {
@@ -2049,25 +2204,53 @@ export function createRenderer({
     text_overlay_context.restore();
   }
 
+  function draw_overlay_text_field({
+    text,
+    x_px,
+    y_baselines,
+    max_width_px,
+    font,
+    line_height_px
+  }) {
+    const safe_text = normalize_overlay_copy(text);
+    if (!safe_text) {
+      return;
+    }
+
+    const baseline_step_px = get_baseline_step_px();
+    const grid = get_layout_grid_metrics();
+    const wrapped_lines = wrap_overlay_text_lines(safe_text, max_width_px, font);
+    if (!wrapped_lines.length) {
+      return;
+    }
+
+    let baseline_y_px = grid.layout_top_px + Number(y_baselines ?? 0) * baseline_step_px;
+    const draw_x_px = grid.layout_left_px + Number(x_px ?? 0);
+
+    text_overlay_context.font = font;
+    for (const line of wrapped_lines) {
+      text_overlay_context.fillText(line, draw_x_px, baseline_y_px, max_width_px || undefined);
+      baseline_y_px += line_height_px;
+    }
+  }
+
   function draw_overlay_text_block() {
     if (!text_overlay_context || !is_overlay_enabled() || !config.overlay_text?.enabled) {
       return;
     }
 
-    const title_text = String(config.overlay_text.title_text || "").trim();
-    const subtitle_text = String(config.overlay_text.subtitle_text || "").trim();
-    if (!title_text && !subtitle_text) {
+    const content = get_overlay_content_record();
+    if (!content.main_heading && !content.text_1 && !content.text_2 && !content.text_3) {
       return;
     }
 
     const baseline_step_px = get_baseline_step_px();
-    const max_width_px = Math.max(0, Number(config.overlay_text.max_width_px ?? 0));
     const title_font_size_px = Math.max(
       1,
       Number(config.overlay_text.title_font_size_px ?? LINKED_TITLE_BASE_FONT_SIZE_PX)
     );
     const subtitle_font_size_px = Math.max(1, Number(config.overlay_text.subtitle_font_size_px ?? 32));
-    const title_font = get_overlay_text_font(title_font_size_px, 550);
+    const title_font = get_overlay_text_font(title_font_size_px, 400);
     const subtitle_font = get_overlay_text_font(subtitle_font_size_px, 400);
     const title_line_height_px = Math.max(
       baseline_step_px,
@@ -2079,37 +2262,44 @@ export function createRenderer({
         Number(config.overlay_text.subtitle_line_height_px ?? subtitle_font_size_px)
       )
     );
-    const title_lines = wrap_overlay_text_lines(title_text, max_width_px, title_font);
-    const subtitle_lines = wrap_overlay_text_lines(subtitle_text, max_width_px, subtitle_font);
-    const grid = get_layout_grid_metrics();
-    let baseline_y_px = grid.layout_top_px + Number(config.overlay_text.y_baselines ?? 0) * baseline_step_px;
-    const x_px = grid.layout_left_px + Number(config.overlay_text.x_px ?? 0);
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
     text_overlay_context.fillStyle = get_overlay_text_color();
     text_overlay_context.textAlign = "left";
     text_overlay_context.textBaseline = "alphabetic";
-
-    if (title_lines.length) {
-      text_overlay_context.font = title_font;
-      for (const line of title_lines) {
-        text_overlay_context.fillText(line, x_px, baseline_y_px, max_width_px || undefined);
-        baseline_y_px += title_line_height_px;
-      }
-    }
-
-    if (title_lines.length && subtitle_lines.length) {
-      baseline_y_px += baseline_step_px;
-    }
-
-    if (subtitle_lines.length) {
-      text_overlay_context.font = subtitle_font;
-      for (const line of subtitle_lines) {
-        text_overlay_context.fillText(line, x_px, baseline_y_px, max_width_px || undefined);
-        baseline_y_px += subtitle_line_height_px;
-      }
-    }
+    draw_overlay_text_field({
+      text: content.main_heading,
+      x_px: config.overlay_text.main_heading_x_px,
+      y_baselines: config.overlay_text.main_heading_y_baselines,
+      max_width_px: Math.max(0, Number(config.overlay_text.main_heading_max_width_px ?? 0)),
+      font: title_font,
+      line_height_px: title_line_height_px
+    });
+    draw_overlay_text_field({
+      text: content.text_1,
+      x_px: config.overlay_text.text_1_x_px,
+      y_baselines: config.overlay_text.text_1_y_baselines,
+      max_width_px: Math.max(0, Number(config.overlay_text.text_1_max_width_px ?? 0)),
+      font: subtitle_font,
+      line_height_px: subtitle_line_height_px
+    });
+    draw_overlay_text_field({
+      text: content.text_2,
+      x_px: config.overlay_text.text_2_x_px,
+      y_baselines: config.overlay_text.text_2_y_baselines,
+      max_width_px: Math.max(0, Number(config.overlay_text.text_2_max_width_px ?? 0)),
+      font: subtitle_font,
+      line_height_px: subtitle_line_height_px
+    });
+    draw_overlay_text_field({
+      text: content.text_3,
+      x_px: config.overlay_text.text_3_x_px,
+      y_baselines: config.overlay_text.text_3_y_baselines,
+      max_width_px: Math.max(0, Number(config.overlay_text.text_3_max_width_px ?? 0)),
+      font: subtitle_font,
+      line_height_px: subtitle_line_height_px
+    });
 
     text_overlay_context.restore();
   }
