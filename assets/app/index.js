@@ -12,6 +12,7 @@ import {
   clamp,
   create_default_config,
   deep_clone,
+  control_visibility_depends_on,
   get_output_profile_metrics,
   get_control_help_text,
   get_control_label,
@@ -121,6 +122,38 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_text.enabled",
   "spoke_text.font_size_px",
   "spoke_text.radial_u",
+  "layout_grid.show_baseline_grid",
+  "layout_grid.baseline_step_px",
+  "layout_grid.show_composition_grid",
+  "layout_grid.row_count",
+  "layout_grid.column_count",
+  "layout_grid.margin_top_baselines",
+  "layout_grid.margin_side_baselines",
+  "layout_grid.row_gutter_baselines",
+  "layout_grid.column_gutter_baselines",
+  "layout_grid.fit_within_safe_area",
+  "layout_grid.safe_top_px",
+  "layout_grid.safe_right_px",
+  "layout_grid.safe_bottom_px",
+  "layout_grid.safe_left_px",
+  "layout_grid.safe_area_fill_color",
+  "overlay_logo.enabled",
+  "overlay_logo.asset_path",
+  "overlay_logo.x_px",
+  "overlay_logo.y_px",
+  "overlay_logo.height_px",
+  "overlay_text.enabled",
+  "overlay_text.title_text",
+  "overlay_text.subtitle_text",
+  "overlay_text.x_px",
+  "overlay_text.y_baselines",
+  "overlay_text.max_width_px",
+  "overlay_text.title_font_size_px",
+  "overlay_text.title_line_height_px",
+  "overlay_text.subtitle_font_size_px",
+  "overlay_text.subtitle_line_height_px",
+  "overlay_text.link_title_size_to_logo_height",
+  "overlay_text.color",
   "spoke_lines.echo_count",
   "spoke_lines.echo_style",
   "spoke_lines.echo_mix_shape_pct",
@@ -139,6 +172,9 @@ const SECTION_LABELS = Object.freeze({
   point_style: "Dot Style",
   spoke_lines: "Halo Spokes",
   spoke_text: "Release Labels",
+  layout_grid: "Layout Grid",
+  overlay_logo: "Logo",
+  overlay_text: "Text Overlay",
   screensaver: "Screensaver Loop",
   vignette: "Vignette",
   mascot: "Mascot Size"
@@ -146,9 +182,11 @@ const SECTION_LABELS = Object.freeze({
 
 const COLOR_CONTROL_PATHS = Object.freeze([
   "composition.background_color",
+  "layout_grid.safe_area_fill_color",
   "spoke_lines.construction_color",
   "spoke_lines.reference_color",
   "spoke_lines.echo_color",
+  "overlay_text.color",
   "mascot.color"
 ]);
 const COLOR_CONTROL_PATH_SET = new Set(COLOR_CONTROL_PATHS);
@@ -515,7 +553,7 @@ async function apply_output_profile(profile_key, { announce = true } = {}) {
   config.composition.center_x_px = next_metrics.center_x_px;
   config.composition.center_y_px = next_metrics.center_y_px;
   renderer.setOutputProfile(next_profile_key);
-  sync_editor_values();
+  rebuild_config_editor();
   await renderer.refreshScene({ reload_mascot: true });
 
   if (announce) {
@@ -1211,7 +1249,7 @@ function create_control_input(path_key, value) {
 
 function create_control_row(path_parts, value, options = {}) {
   const path_key = path_parts.join(".");
-  if (is_control_hidden(path_key)) {
+  if (is_control_hidden(path_key, config)) {
     return null;
   }
   if (options.allowed_paths && !options.allowed_paths.has(path_key)) {
@@ -1451,6 +1489,11 @@ function build_config_editor() {
   refresh_slider_tracks();
 }
 
+function rebuild_config_editor() {
+  build_config_editor();
+  sync_editor_values();
+}
+
 function parse_control_value(input, current_value, path_key) {
   if (typeof current_value === "boolean") {
     return input.checked;
@@ -1485,13 +1528,18 @@ async function handle_control_commit(event) {
   }
 
   set_config_value(path_parts, next_value);
+  const should_rebuild_editor = control_visibility_depends_on(path_key);
   const control = state.editor_controls.get(path_key);
-  if (control && control.type === "number") {
+  if (!should_rebuild_editor && control && control.type === "number") {
     control.number_input.value = String(next_value);
     control.range_input.value = String(
       clamp(next_value, Number(control.range_input.min), Number(control.range_input.max))
     );
     render_slider_track(control.range_input);
+  }
+
+  if (should_rebuild_editor) {
+    rebuild_config_editor();
   }
 
   try {
@@ -1534,7 +1582,7 @@ async function apply_preset_by_id(preset_id) {
   replace_config(config, preset.config, default_config);
   renderer.setOutputProfile(get_current_output_profile_key());
   preset_name_input.value = preset.name;
-  sync_editor_values();
+  rebuild_config_editor();
   render_preset_tabs();
   save_presets_to_storage();
 
@@ -1730,7 +1778,7 @@ async function reset_to_defaults() {
   state.active_preset_id = null;
   state.selected_preset_id = null;
   preset_name_input.value = get_next_preset_name();
-  sync_editor_values();
+  rebuild_config_editor();
   render_preset_tabs();
   save_presets_to_storage();
   return renderer.refreshScene({ reload_mascot: true })
@@ -1752,6 +1800,7 @@ async function write_current_as_source_default() {
       ? normalize_config_snapshot(payload.config, create_default_config())
       : normalized_snapshot;
     replace_object_contents(default_config, written_snapshot);
+    rebuild_config_editor();
     clear_legacy_browser_default_config();
     set_preset_meta(
       `Wrote the current config to ${payload.path}. This is now the source default.`,

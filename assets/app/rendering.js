@@ -28,6 +28,7 @@ import {
 import { createCircleLayer, createSegmentLayer } from "./three-primitives.js";
 
 const WORLD_BACKGROUND_ORDER = 10;
+const SAFE_AREA_FILL_ORDER = 15;
 const WORLD_POINTS_ORDER = 20;
 const HALO_REFERENCE_ORDER = 30;
 const HALO_THIN_ORDER = 31;
@@ -48,6 +49,9 @@ const TEXT_LABEL_MARGIN_PX = 16;
 const ECHO_TEXT_BASE_FONT_SIZE_PX = 6;
 const TEXT_LABEL_WIDTH_CACHE = new Map();
 const TEXT_LABEL_FONT_FAMILY = "\"Ubuntu Sans\", Ubuntu, sans-serif";
+const LINKED_TITLE_BASE_FONT_SIZE_PX = 63;
+const OVERLAY_GRID_COLOR = "rgba(255,0,0,0.2)";
+const OVERLAY_COMPOSITION_COLOR = "rgba(0,255,255,0.2)";
 const UBUNTU_RELEASE_LABELS = Object.freeze([
   "26.04 Resolute Raccoon",
   "25.10 Questing Quokka",
@@ -259,6 +263,18 @@ export function createRenderer({
   nose_cutout_mesh.renderOrder = MASCOT_NOSE_CUTOUT_ORDER;
   nose_cutout_mesh.visible = false;
 
+  const safe_area_fill_material = new THREE.MeshBasicMaterial({
+    transparent: false,
+    color: STAGE_BACKGROUND_COLOR,
+    depthTest: false,
+    depthWrite: false
+  });
+  safe_area_fill_material.toneMapped = false;
+  const safe_area_fill_mesh = new THREE.Mesh(mascot_plane_geometry, safe_area_fill_material);
+  safe_area_fill_mesh.renderOrder = SAFE_AREA_FILL_ORDER;
+  safe_area_fill_mesh.visible = false;
+
+  world_group.add(safe_area_fill_mesh);
   mascot_group.add(halo_reference_mesh);
   mascot_group.add(face_mesh);
   mascot_group.add(nose_mesh);
@@ -280,6 +296,9 @@ export function createRenderer({
     spokes: [],
     mascot_face_texture: null,
     mascot_halo_texture: null,
+    overlay_logo_image: null,
+    overlay_logo_path: "",
+    overlay_logo_load_serial: 0,
     mascot_box: null,
     animation_frame_id: 0,
     is_paused: false,
@@ -322,6 +341,14 @@ export function createRenderer({
     return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
   }
 
+  function get_safe_area_fill_color() {
+    return config.layout_grid?.safe_area_fill_color || get_background_color();
+  }
+
+  function is_overlay_enabled() {
+    return Boolean(config.layout_grid?.show_composition_grid);
+  }
+
   function apply_renderer_clear_color() {
     renderer.setClearColor(
       get_background_color(),
@@ -341,6 +368,31 @@ export function createRenderer({
     stage.style.borderColor = "transparent";
     stage.style.boxShadow = "none";
     apply_renderer_clear_color();
+  }
+
+  function update_safe_area_fill_mesh() {
+    const use_safe_area = Boolean(config.layout_grid?.fit_within_safe_area);
+    if (!is_overlay_enabled() || !use_safe_area) {
+      safe_area_fill_mesh.visible = false;
+      return;
+    }
+
+    const grid = get_layout_grid_metrics();
+    const width_px = Math.max(0, grid.layout_right_px - grid.layout_left_px);
+    const height_px = Math.max(0, grid.layout_bottom_px - grid.layout_top_px);
+    if (width_px <= 0 || height_px <= 0) {
+      safe_area_fill_mesh.visible = false;
+      return;
+    }
+
+    safe_area_fill_material.color.set(get_safe_area_fill_color());
+    safe_area_fill_mesh.visible = true;
+    safe_area_fill_mesh.position.set(
+      grid.layout_left_px + width_px * 0.5,
+      stage_height_px - grid.layout_top_px - height_px * 0.5,
+      0
+    );
+    safe_area_fill_mesh.scale.set(width_px, height_px, 1);
   }
 
   function clear_text_overlay() {
@@ -376,6 +428,173 @@ export function createRenderer({
     text_overlay_context.textBaseline = "middle";
     text_overlay_context.lineJoin = "miter";
     text_overlay_context.lineCap = "butt";
+  }
+
+  function get_baseline_step_px() {
+    return Math.max(1, Math.round(Number(config.layout_grid?.baseline_step_px ?? 8)));
+  }
+
+  function snap_up_to_baseline(value_px) {
+    const baseline_step_px = get_baseline_step_px();
+    return Math.ceil(value_px / baseline_step_px) * baseline_step_px;
+  }
+
+  function get_layout_grid_metrics() {
+    const baseline_step_px = get_baseline_step_px();
+    const row_count = Math.max(1, Math.round(Number(config.layout_grid?.row_count ?? 4)));
+    const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 4)));
+    const use_safe_area = Boolean(config.layout_grid?.fit_within_safe_area);
+    const safe_top_px = use_safe_area ? Math.max(0, Number(config.layout_grid?.safe_top_px ?? 0)) : 0;
+    const safe_right_px = use_safe_area ? Math.max(0, Number(config.layout_grid?.safe_right_px ?? 0)) : 0;
+    const safe_bottom_px = use_safe_area ? Math.max(0, Number(config.layout_grid?.safe_bottom_px ?? 0)) : 0;
+    const safe_left_px = use_safe_area ? Math.max(0, Number(config.layout_grid?.safe_left_px ?? 0)) : 0;
+    const layout_left_px = safe_left_px;
+    const layout_top_px = safe_top_px;
+    const layout_right_px = Math.max(layout_left_px, stage_width_px - safe_right_px);
+    const layout_bottom_px = Math.max(layout_top_px, stage_height_px - safe_bottom_px);
+    const layout_width_px = Math.max(0, layout_right_px - layout_left_px);
+    const layout_height_px = Math.max(0, layout_bottom_px - layout_top_px);
+    const side_margin_px =
+      Math.max(
+        0,
+        Number(config.layout_grid?.margin_side_baselines ?? 8)
+      ) * baseline_step_px;
+    const top_margin_px =
+      Math.max(
+        0,
+        Number(config.layout_grid?.margin_top_baselines ?? 3)
+      ) * baseline_step_px;
+    const row_gutter_baselines = Math.max(
+      0,
+      Math.round(Number(config.layout_grid?.row_gutter_baselines ?? 2))
+    );
+    const column_gutter_baselines = Math.max(
+      0,
+      Math.round(Number(config.layout_grid?.column_gutter_baselines ?? 2))
+    );
+    const row_gutter_px = row_gutter_baselines * baseline_step_px;
+    const column_gutter_px = column_gutter_baselines * baseline_step_px;
+    const max_row_height_space =
+      layout_height_px -
+      top_margin_px -
+      top_margin_px -
+      row_gutter_px * Math.max(0, row_count - 1);
+    const row_height_px = Math.max(
+      baseline_step_px,
+      Math.floor(Math.max(0, max_row_height_space) / (row_count * baseline_step_px)) * baseline_step_px
+    );
+    const bottom_margin_px = Math.max(
+      top_margin_px,
+      layout_height_px -
+      top_margin_px -
+      row_height_px * row_count -
+      row_gutter_px * Math.max(0, row_count - 1)
+    );
+    const content_width_px = Math.max(
+      0,
+      layout_width_px - side_margin_px * 2 - column_gutter_px * Math.max(0, column_count - 1)
+    );
+    const column_width_px = column_count <= 0 ? 0 : content_width_px / column_count;
+
+    return {
+      baseline_step_px,
+      row_count,
+      column_count,
+      side_margin_px,
+      top_margin_px,
+      bottom_margin_px,
+      row_gutter_px,
+      column_gutter_px,
+      row_height_px,
+      column_width_px,
+      layout_left_px,
+      layout_top_px,
+      layout_right_px,
+      layout_bottom_px,
+      content_left_px: layout_left_px + side_margin_px,
+      content_top_px: layout_top_px + top_margin_px,
+      content_right_px: layout_right_px - side_margin_px,
+      content_bottom_px: layout_bottom_px - bottom_margin_px
+    };
+  }
+
+  function get_overlay_text_color() {
+    return config.overlay_text?.color || "#ffffff";
+  }
+
+  function get_overlay_text_font(font_size_px, weight = 500) {
+    return `${weight} ${Math.max(1, font_size_px)}px ${TEXT_LABEL_FONT_FAMILY}`;
+  }
+
+  function wrap_overlay_text_lines(text, max_width_px, font) {
+    const safe_text = String(text || "").trim();
+    if (!safe_text || !text_overlay_context) {
+      return [];
+    }
+
+    text_overlay_context.save();
+    text_overlay_context.font = font;
+    const paragraphs = safe_text.split(/\r?\n/);
+    const lines = [];
+
+    for (const paragraph of paragraphs) {
+      const words = paragraph.split(/\s+/).filter(Boolean);
+      if (!words.length) {
+        lines.push("");
+        continue;
+      }
+
+      let current_line = words[0];
+      for (let word_index = 1; word_index < words.length; word_index += 1) {
+        const next_line = `${current_line} ${words[word_index]}`;
+        if (max_width_px > 0 && text_overlay_context.measureText(next_line).width > max_width_px) {
+          lines.push(current_line);
+          current_line = words[word_index];
+        } else {
+          current_line = next_line;
+        }
+      }
+      lines.push(current_line);
+    }
+
+    text_overlay_context.restore();
+    return lines;
+  }
+
+  function ensure_overlay_logo_image() {
+    const asset_path = String(config.overlay_logo?.asset_path || "").trim();
+    if (!asset_path) {
+      runtime.overlay_logo_image = null;
+      runtime.overlay_logo_path = "";
+      return;
+    }
+
+    if (runtime.overlay_logo_path === asset_path && runtime.overlay_logo_image) {
+      return;
+    }
+
+    if (runtime.overlay_logo_path === asset_path && !runtime.overlay_logo_image) {
+      return;
+    }
+
+    runtime.overlay_logo_path = asset_path;
+    runtime.overlay_logo_image = null;
+    const load_serial = ++runtime.overlay_logo_load_serial;
+    load_image_element(asset_path)
+      .then((image) => {
+        if (load_serial !== runtime.overlay_logo_load_serial) {
+          return;
+        }
+        runtime.overlay_logo_image = image;
+        render_playback_frame(get_current_playback_time_sec());
+      })
+      .catch((error) => {
+        if (load_serial !== runtime.overlay_logo_load_serial) {
+          return;
+        }
+        runtime.overlay_logo_image = null;
+        console.error(error);
+      });
   }
 
   function get_mascot_draw_box() {
@@ -1738,6 +1957,170 @@ export function createRenderer({
     text_overlay_context.restore();
   }
 
+  function draw_baseline_grid_overlay() {
+    if (!text_overlay_context || !is_overlay_enabled() || !config.layout_grid?.show_baseline_grid) {
+      return;
+    }
+
+    const baseline_step_px = get_baseline_step_px();
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.strokeStyle = OVERLAY_GRID_COLOR;
+    text_overlay_context.lineWidth = 1;
+
+    const grid = get_layout_grid_metrics();
+    for (
+      let y_px = grid.layout_top_px + baseline_step_px;
+      y_px <= grid.layout_bottom_px;
+      y_px += baseline_step_px
+    ) {
+      text_overlay_context.beginPath();
+      text_overlay_context.moveTo(grid.layout_left_px, y_px + 0.5);
+      text_overlay_context.lineTo(grid.layout_right_px, y_px + 0.5);
+      text_overlay_context.stroke();
+    }
+
+    text_overlay_context.restore();
+  }
+
+  function draw_composition_grid_overlay() {
+    if (!text_overlay_context || !is_overlay_enabled() || !config.layout_grid?.show_baseline_grid) {
+      return;
+    }
+
+    const grid = get_layout_grid_metrics();
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.strokeStyle = OVERLAY_COMPOSITION_COLOR;
+    text_overlay_context.lineWidth = 1;
+
+    for (let row_index = 0; row_index < grid.row_count; row_index += 1) {
+      const y_px =
+        grid.content_top_px + row_index * (grid.row_height_px + grid.row_gutter_px);
+
+      for (let column_index = 0; column_index < grid.column_count; column_index += 1) {
+        const x_px =
+          grid.content_left_px +
+          column_index * (grid.column_width_px + grid.column_gutter_px);
+
+        text_overlay_context.strokeRect(
+          x_px + 0.5,
+          y_px + 0.5,
+          Math.max(0, grid.column_width_px),
+          Math.max(0, grid.row_height_px)
+        );
+      }
+    }
+
+    text_overlay_context.restore();
+  }
+
+  function draw_overlay_logo() {
+    if (!text_overlay_context || !is_overlay_enabled() || !config.overlay_logo?.enabled) {
+      return;
+    }
+
+    ensure_overlay_logo_image();
+    const image = runtime.overlay_logo_image;
+    if (!image) {
+      return;
+    }
+
+    const base_height_px = Math.max(1, Number(config.overlay_logo.height_px ?? 108));
+    const title_font_size_px = Math.max(
+      1,
+      Number(config.overlay_text?.title_font_size_px ?? LINKED_TITLE_BASE_FONT_SIZE_PX)
+    );
+    const linked_scale = Boolean(config.overlay_text?.link_title_size_to_logo_height)
+      ? title_font_size_px / LINKED_TITLE_BASE_FONT_SIZE_PX
+      : 1;
+    const target_height_px = base_height_px * linked_scale;
+    const aspect_ratio = image.naturalWidth > 0 && image.naturalHeight > 0
+      ? image.naturalWidth / image.naturalHeight
+      : 1;
+    const target_width_px = target_height_px * aspect_ratio;
+    const grid = get_layout_grid_metrics();
+    const x_px = grid.layout_left_px + Number(config.overlay_logo.x_px ?? 0);
+    const y_px = grid.layout_top_px + Number(config.overlay_logo.y_px ?? 0);
+
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.drawImage(image, x_px, y_px, target_width_px, target_height_px);
+    text_overlay_context.restore();
+  }
+
+  function draw_overlay_text_block() {
+    if (!text_overlay_context || !is_overlay_enabled() || !config.overlay_text?.enabled) {
+      return;
+    }
+
+    const title_text = String(config.overlay_text.title_text || "").trim();
+    const subtitle_text = String(config.overlay_text.subtitle_text || "").trim();
+    if (!title_text && !subtitle_text) {
+      return;
+    }
+
+    const baseline_step_px = get_baseline_step_px();
+    const max_width_px = Math.max(0, Number(config.overlay_text.max_width_px ?? 0));
+    const title_font_size_px = Math.max(
+      1,
+      Number(config.overlay_text.title_font_size_px ?? LINKED_TITLE_BASE_FONT_SIZE_PX)
+    );
+    const subtitle_font_size_px = Math.max(1, Number(config.overlay_text.subtitle_font_size_px ?? 32));
+    const title_font = get_overlay_text_font(title_font_size_px, 550);
+    const subtitle_font = get_overlay_text_font(subtitle_font_size_px, 400);
+    const title_line_height_px = Math.max(
+      baseline_step_px,
+      snap_up_to_baseline(Number(config.overlay_text.title_line_height_px ?? title_font_size_px))
+    );
+    const subtitle_line_height_px = Math.max(
+      baseline_step_px,
+      snap_up_to_baseline(
+        Number(config.overlay_text.subtitle_line_height_px ?? subtitle_font_size_px)
+      )
+    );
+    const title_lines = wrap_overlay_text_lines(title_text, max_width_px, title_font);
+    const subtitle_lines = wrap_overlay_text_lines(subtitle_text, max_width_px, subtitle_font);
+    const grid = get_layout_grid_metrics();
+    let baseline_y_px = grid.layout_top_px + Number(config.overlay_text.y_baselines ?? 0) * baseline_step_px;
+    const x_px = grid.layout_left_px + Number(config.overlay_text.x_px ?? 0);
+
+    text_overlay_context.save();
+    text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+    text_overlay_context.fillStyle = get_overlay_text_color();
+    text_overlay_context.textAlign = "left";
+    text_overlay_context.textBaseline = "alphabetic";
+
+    if (title_lines.length) {
+      text_overlay_context.font = title_font;
+      for (const line of title_lines) {
+        text_overlay_context.fillText(line, x_px, baseline_y_px, max_width_px || undefined);
+        baseline_y_px += title_line_height_px;
+      }
+    }
+
+    if (title_lines.length && subtitle_lines.length) {
+      baseline_y_px += baseline_step_px;
+    }
+
+    if (subtitle_lines.length) {
+      text_overlay_context.font = subtitle_font;
+      for (const line of subtitle_lines) {
+        text_overlay_context.fillText(line, x_px, baseline_y_px, max_width_px || undefined);
+        baseline_y_px += subtitle_line_height_px;
+      }
+    }
+
+    text_overlay_context.restore();
+  }
+
+  function draw_overlay_guides_and_content() {
+    draw_baseline_grid_overlay();
+    draw_composition_grid_overlay();
+    draw_overlay_logo();
+    draw_overlay_text_block();
+  }
+
   function set_reference_halo_visibility(box, base_alpha, reveal_state) {
     const should_show =
       Boolean(config.spoke_lines.show_reference_halo) &&
@@ -2271,9 +2654,11 @@ export function createRenderer({
         reveal_state
       });
       push_phase_debug_overlay(field_state.box);
+      update_safe_area_fill_mesh();
       finalize_layers();
       renderer.render(scene, camera);
       draw_vignette_overlay();
+      draw_overlay_guides_and_content();
       return;
     }
 
@@ -2309,9 +2694,11 @@ export function createRenderer({
     });
     push_phase_debug_overlay(runtime.mascot_box);
 
+    update_safe_area_fill_mesh();
     finalize_layers();
     renderer.render(scene, camera);
     draw_vignette_overlay();
+    draw_overlay_guides_and_content();
   }
 
   function render_playback_frame(playback_time_sec) {

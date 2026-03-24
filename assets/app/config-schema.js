@@ -129,6 +129,11 @@ export const DOCKED_EDITOR_MIN_WIDTH_PX = 1500;
 
 export const EDITOR_TAB_GROUPS = Object.freeze([
   Object.freeze({
+    key: "overlay",
+    label: "Overlay",
+    sections: Object.freeze(["layout_grid", "overlay_logo", "overlay_text"])
+  }),
+  Object.freeze({
     key: "field",
     label: "Field",
     sections: Object.freeze(["composition", "generator_wrangle", "mascot"])
@@ -234,6 +239,176 @@ export const CONFIG_FIELD_META = Object.freeze({
     hidden: true,
     locked_value: 0,
     numeric: { min: -180, max: 180, step: 0.1 }
+  },
+  "layout_grid.show_baseline_grid": {
+    label: "Show Grid",
+    help_text:
+      "Shows both the baseline grid and the composition grid. This works only when the overlay is enabled."
+  },
+  "layout_grid.baseline_step_px": {
+    label: "Baseline Step (px)",
+    help_text:
+      "Vertical baseline spacing for the layout overlay. Text baselines and row heights snap to this step.",
+    numeric: { min: 2, max: 64, step: 1 }
+  },
+  "layout_grid.show_composition_grid": {
+    label: "Show Overlay",
+    help_text:
+      "Master switch for the overlay system: safe area fill, composition grid, logo, and text. The baseline grid follows this too."
+  },
+  "layout_grid.row_count": {
+    label: "Rows",
+    help_text:
+      "Number of vertical subdivisions. Any leftover height is added to the bottom margin so row heights stay baseline-aligned.",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
+  "layout_grid.column_count": {
+    label: "Columns",
+    help_text:
+      "Number of equal-width columns between the left and right margins.",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
+  "layout_grid.margin_top_baselines": {
+    label: "Top Margin (Baselines)",
+    help_text:
+      "Top margin for the composition grid, expressed in baseline units. The bottom margin is derived automatically.",
+    numeric: { min: 0, max: 200, step: 1 }
+  },
+  "layout_grid.margin_side_baselines": {
+    label: "Side Margin (Baselines)",
+    help_text:
+      "Shared left and right margin for the composition grid, expressed in baseline units.",
+    numeric: { min: 0, max: 200, step: 1 }
+  },
+  "layout_grid.row_gutter_baselines": {
+    label: "Row Gutter (Baselines)",
+    help_text:
+      "Vertical gutter between grid rows, expressed in baseline units.",
+    numeric: { min: 0, max: 24, step: 1 }
+  },
+  "layout_grid.column_gutter_baselines": {
+    label: "Column Gutter (Baselines)",
+    help_text:
+      "Horizontal gutter between grid columns, expressed in baseline units.",
+    numeric: { min: 0, max: 24, step: 1 }
+  },
+  "layout_grid.fit_within_safe_area": {
+    label: "Fit Within Safe Area",
+    help_text:
+      "Constrains the baseline grid, composition grid, and text/logo placement origin to a safe area inset from the frame edges."
+  },
+  "layout_grid.safe_top_px": {
+    label: "Safe Top (px)",
+    help_text:
+      "Top safe-area inset. Used as the text/logo area origin and as the clipping edge for the overlay grids.",
+    hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false },
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "layout_grid.safe_right_px": {
+    label: "Safe Right (px)",
+    hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false },
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "layout_grid.safe_bottom_px": {
+    label: "Safe Bottom (px)",
+    hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false },
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "layout_grid.safe_left_px": {
+    label: "Safe Left (px)",
+    hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false },
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "layout_grid.safe_area_fill_color": {
+    label: "Safe Area Fill Color",
+    help_text:
+      "A screen-space rectangle behind the whole composition, clipped to the current safe area.",
+    hidden_if: { path: "layout_grid.fit_within_safe_area", equals: false }
+  },
+  "overlay_logo.enabled": {
+    hidden: true,
+    locked_value: true,
+    label: "Show Logo"
+  },
+  "overlay_logo.asset_path": {
+    label: "Logo Asset Path",
+    help_text:
+      "Path to the Ubuntu tag logo image or SVG. Relative project paths are recommended."
+  },
+  "overlay_logo.x_px": {
+    label: "Logo X (px)",
+    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
+  },
+  "overlay_logo.y_px": {
+    label: "Logo Y (px)",
+    numeric: { min: -MAX_OUTPUT_PROFILE_HEIGHT_PX, max: MAX_OUTPUT_PROFILE_HEIGHT_PX * 2, step: 1 }
+  },
+  "overlay_logo.height_px": {
+    label: "Logo Height At 63px Title (px)",
+    help_text:
+      "Base logo height for a 63 px title. When title/logo linking is on, the logo scales from this ratio.",
+    numeric: { min: 1, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
+  },
+  "overlay_text.enabled": {
+    hidden: true,
+    locked_value: true,
+    label: "Show Overlay Text"
+  },
+  "overlay_text.title_text": {
+    label: "Title Text"
+  },
+  "overlay_text.subtitle_text": {
+    label: "Subtitle Text"
+  },
+  "overlay_text.x_px": {
+    label: "Text X (px)",
+    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
+  },
+  "overlay_text.y_baselines": {
+    label: "Text Y (Baselines)",
+    help_text:
+      "Vertical text offset expressed in baseline units. Moving this value always keeps the text block on the baseline grid.",
+    numeric: { min: -200, max: 2000, step: 1 }
+  },
+  "overlay_text.max_width_px": {
+    label: "Text Max Width (px)",
+    help_text:
+      "Maximum width used for wrapping the title and subtitle.",
+    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
+  },
+  "overlay_text.title_font_size_px": {
+    label: "Title / Logo Size (px)",
+    help_text:
+      "Exact title font size. The logo scales with it using the 63 px title to logo-height ratio.",
+    numeric: { min: 4, max: 320, step: 1 }
+  },
+  "overlay_text.title_line_height_px": {
+    label: "Title Line Height (px)",
+    help_text:
+      "Title line height. It is snapped up to the baseline grid so multiline titles stay aligned.",
+    numeric: { min: 4, max: 512, step: 1 }
+  },
+  "overlay_text.subtitle_font_size_px": {
+    label: "Subtitle Font Size (px)",
+    help_text:
+      "Subtitle font size. Its baselines are snapped to the baseline grid.",
+    numeric: { min: 4, max: 320, step: 1 }
+  },
+  "overlay_text.subtitle_line_height_px": {
+    label: "Subtitle Line Height (px)",
+    help_text:
+      "Subtitle line height. It is snapped up to the baseline grid so multiline text stays aligned.",
+    numeric: { min: 4, max: 512, step: 1 }
+  },
+  "overlay_text.link_title_size_to_logo_height": {
+    hidden: true,
+    locked_value: true,
+    label: "Link Title Size To Logo Height",
+    help_text:
+      "Uses the logo height as the title font size so the logo wordmark and heading scale together across deliverables."
+  },
+  "overlay_text.color": {
+    label: "Overlay Text Color"
   },
   "generator_wrangle.inner_radius": {
     label: "Inner Radius",
@@ -726,9 +901,29 @@ export function get_control_help_text(path_key) {
   return field_meta?.help_text || "";
 }
 
-export function is_control_hidden(path_key) {
+export function is_control_hidden(path_key, root_object = null) {
   const field_meta = get_field_meta(path_key);
-  return Boolean(field_meta?.hidden);
+  if (field_meta?.hidden) {
+    return true;
+  }
+  if (field_meta?.hidden_if && root_object) {
+    try {
+      const hidden_value = get_object_path_value(root_object, field_meta.hidden_if.path.split("."));
+      if (Object.prototype.hasOwnProperty.call(field_meta.hidden_if, "equals")) {
+        return hidden_value === field_meta.hidden_if.equals;
+      }
+      return Boolean(hidden_value);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+export function control_visibility_depends_on(path_key) {
+  return Object.values(CONFIG_FIELD_META).some(
+    (field_meta) => field_meta?.hidden_if?.path === path_key
+  );
 }
 
 export function set_object_path_value(target, path_key, next_value) {
@@ -819,6 +1014,45 @@ export function merge_known_config_values(target, source) {
 export function normalize_config_snapshot(source, default_config) {
   const snapshot = deep_clone(default_config);
   merge_known_config_values(snapshot, source);
+  if (is_plain_object(snapshot.layout_grid)) {
+    const baseline_step_px = Math.max(1, Number(snapshot.layout_grid.baseline_step_px || 8));
+    if (
+      !Number.isFinite(Number(source?.layout_grid?.margin_top_baselines)) &&
+      Number.isFinite(Number(source?.layout_grid?.margin_top_px))
+    ) {
+      snapshot.layout_grid.margin_top_baselines = Math.max(
+        0,
+        Math.round(Number(source.layout_grid.margin_top_px) / baseline_step_px)
+      );
+    }
+    if (
+      !Number.isFinite(Number(source?.layout_grid?.margin_side_baselines)) &&
+      Number.isFinite(Number(source?.layout_grid?.margin_side_px))
+    ) {
+      snapshot.layout_grid.margin_side_baselines = Math.max(
+        0,
+        Math.round(Number(source.layout_grid.margin_side_px) / baseline_step_px)
+      );
+    }
+    if (
+      !Number.isFinite(Number(source?.layout_grid?.row_gutter_baselines)) &&
+      Number.isFinite(Number(source?.layout_grid?.gutter_baselines))
+    ) {
+      snapshot.layout_grid.row_gutter_baselines = Math.max(
+        0,
+        Math.round(Number(source.layout_grid.gutter_baselines))
+      );
+    }
+    if (
+      !Number.isFinite(Number(source?.layout_grid?.column_gutter_baselines)) &&
+      Number.isFinite(Number(source?.layout_grid?.gutter_baselines))
+    ) {
+      snapshot.layout_grid.column_gutter_baselines = Math.max(
+        0,
+        Math.round(Number(source.layout_grid.gutter_baselines))
+      );
+    }
+  }
   if (
     !is_plain_object(source?.screensaver) &&
     Number.isFinite(Number(source?.finale?.orbit_breath_cycle_sec))

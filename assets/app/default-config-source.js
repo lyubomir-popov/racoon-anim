@@ -94,6 +94,44 @@ export const SOURCE_DEFAULT_CONFIG = {
     "font_size_px": 10.5,
     "radial_u": 0.77
   },
+  "layout_grid": {
+    "show_baseline_grid": true,
+    "baseline_step_px": 8,
+    "show_composition_grid": true,
+    "row_count": 4,
+    "column_count": 4,
+    "margin_top_baselines": 3,
+    "margin_side_baselines": 0,
+    "row_gutter_baselines": 2,
+    "column_gutter_baselines": 2,
+    "fit_within_safe_area": true,
+    "safe_top_px": 250,
+    "safe_right_px": 65,
+    "safe_bottom_px": 250,
+    "safe_left_px": 65,
+    "safe_area_fill_color": "#161616"
+  },
+  "overlay_logo": {
+    "enabled": true,
+    "asset_path": "./assets/UbuntuTagLogo.svg",
+    "x_px": 64,
+    "y_px": 0,
+    "height_px": 108
+  },
+  "overlay_text": {
+    "enabled": true,
+    "title_text": "Ubuntu Summit 26.04",
+    "subtitle_text": "A showcase for the innovative and the ambitious",
+    "x_px": 471,
+    "y_baselines": 12,
+    "max_width_px": 381,
+    "title_font_size_px": 63,
+    "title_line_height_px": 57,
+    "subtitle_font_size_px": 24,
+    "subtitle_line_height_px": 24,
+    "link_title_size_to_logo_height": true,
+    "color": "#ffffff"
+  },
   "mascot": {
     "enabled": true,
     "face_asset_path": "./assets/racoon-mascot-face.svg",
