@@ -127,6 +127,72 @@ The current formats expect:
 
 Quoted multiline CSV cells are supported. `<br>` is also accepted and converted into line breaks on import.
 
+## Export pipeline setup
+
+The export scripts (`scripts/export_frames.py`, `scripts/encode_mp4.py`) require **Python 3**, **Playwright**, and **ffmpeg**. Install steps differ by platform.
+
+### Windows (PowerShell)
+
+```powershell
+# ffmpeg – install via winget, then confirm it is on PATH
+winget install Gyan.FFmpeg
+# restart terminal, then:
+ffmpeg -version
+
+# Node (if not already present)
+winget install OpenJS.NodeJS.LTS
+
+# Python Playwright
+pip install playwright
+playwright install chromium
+```
+
+The scripts call `playwright` and `ffmpeg` directly as subprocesses. No venv needed on Windows if `pip install` lands in the user site-packages.
+
+### WSL / Ubuntu 24.04
+
+Ubuntu 24.04 enforces PEP 668 – `pip install` outside a venv is blocked. Use a venv:
+
+```bash
+sudo apt update && sudo apt install -y ffmpeg nodejs npm python3-venv
+
+python3 -m venv .venv
+.venv/bin/pip install playwright
+.venv/bin/playwright install chromium
+```
+
+Activate the venv before running the scripts:
+
+```bash
+source .venv/bin/activate
+python scripts/export_frames.py --help
+```
+
+Or invoke through the venv Python directly without activating:
+
+```bash
+.venv/bin/python scripts/export_frames.py --help
+```
+
+### macOS
+
+```bash
+brew install ffmpeg node python3
+
+pip install playwright
+playwright install chromium
+```
+
+No venv required unless your system Python restricts `pip`.
+
+### Confirm everything is in place
+
+```bash
+ffmpeg -version
+node --version
+python3 -c "from playwright.sync_api import sync_playwright; print('ok')"
+```
+
 ## Houdini
 
 The `houdini/` folder includes the wrangles that mirror the current browser logic:

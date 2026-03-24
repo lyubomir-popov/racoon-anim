@@ -174,10 +174,10 @@ Ensure the Python export pipeline works on Windows, WSL (Ubuntu), Linux, and mac
 - `pip install playwright && playwright install chromium` (no PEP 668 restriction with Homebrew Python)
 
 - [x] Audit current platform state (Windows, WSL/Linux, macOS) – documented above.
-- [ ] Add `requirements.txt` listing `playwright` so the install step is explicit.
-- [ ] Add a setup section to `README.md` with per-platform install steps (Windows, WSL/Linux, macOS).
-- [ ] Decide how to handle the venv on WSL/Linux: document activation, or add a check at the top of each script that prints a clear install hint if the module is missing.
-- [ ] Fix the frame filename padding vs ffmpeg glob mismatch: `export_frames.py` uses `max(4, len(str(max(frames))))` digits but `encode_mp4.py` hardcodes `frame-%04d.png`. At 10 000+ frames ffmpeg fails to match files – cap at 4 digits or make the pattern dynamic.
+- [x] Add `requirements.txt` listing `playwright` so the install step is explicit. (added: `playwright>=1.40`)
+- [x] Fix the frame filename padding vs ffmpeg glob mismatch. (`encode_mp4.py` now derives digit width from first frame stem instead of hardcoding `%04d`)
+- [x] Add a setup section to `README.md` with per-platform install steps (Windows, WSL/Linux, macOS). (added `## Export pipeline setup` with Windows/WSL/macOS steps and confirmation check)
+- [x] Decide how to handle the venv on WSL/Linux: document activation, or add a check at the top of each script that prints a clear install hint if the module is missing. (documented – both activation and direct `.venv/bin/python` invocation described; runtime check not added to scripts)
 
 ### Why it matters
 
@@ -189,7 +189,7 @@ If another model needs a practical order, use this:
 
 - [x] Move safe area into output profile metadata (B)
 - [x] Finish overlay data model cleanup (A)
-- [ ] Add requirements.txt and cross-platform setup docs (K)
+- [x] Add requirements.txt and cross-platform setup docs (K)
 - [ ] Finish stakeholder-friendly CSV flow (D)
 - [ ] Debug local MP4 export button end to end (F)
 - [ ] Implement watch-folder automation (G)
