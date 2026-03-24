@@ -44,7 +44,10 @@ const DEBUG_MASK_COLOR = "#22d3ee";
 const DEBUG_MASK_SEGMENT_COUNT = 96;
 const ECHO_PLUS_SIZE_PX = 9.6;
 const ECHO_MARKER_HALO_GAP_PX = 16;
+const TEXT_LABEL_MARGIN_PX = 16;
 const ECHO_TEXT_BASE_FONT_SIZE_PX = 6;
+const TEXT_LABEL_WIDTH_CACHE = new Map();
+const TEXT_LABEL_FONT_FAMILY = "\"Ubuntu Sans\", Ubuntu, sans-serif";
 const UBUNTU_RELEASE_LABELS = Object.freeze([
   "26.04 Resolute Raccoon",
   "25.10 Questing Quokka",
@@ -1365,6 +1368,101 @@ export function createRenderer({
     return Math.trunc(Number(config.spoke_lines.echo_shape_seed ?? 1)) || 0;
   }
 
+  function get_text_label_font_size_px() {
+    const base_font_size_px = Math.max(
+      3,
+      Number(config.spoke_text?.font_size_px ?? ECHO_TEXT_BASE_FONT_SIZE_PX)
+    );
+    return Math.max(
+      base_font_size_px,
+      Math.round(base_font_size_px * Math.min(stage_width_px, stage_height_px) / 1080)
+    );
+  }
+
+  function get_text_label_width_px(label, font_size_px) {
+    const safe_label = String(label || "");
+    const cache_key = `${font_size_px}:${safe_label}`;
+    const cached_width = TEXT_LABEL_WIDTH_CACHE.get(cache_key);
+    if (cached_width != null) {
+      return cached_width;
+    }
+
+    let measured_width = font_size_px * 0.58 * safe_label.length;
+    if (text_overlay_context && safe_label) {
+      text_overlay_context.save();
+      text_overlay_context.font = `${font_size_px}px ${TEXT_LABEL_FONT_FAMILY}`;
+      measured_width = text_overlay_context.measureText(safe_label).width;
+      text_overlay_context.restore();
+    }
+
+    TEXT_LABEL_WIDTH_CACHE.set(cache_key, measured_width);
+    return measured_width;
+  }
+
+  function get_text_label_radius_metrics(
+    spoke,
+    halo_outer_radius_px,
+    full_frame_outer_radius_px,
+    font_size_px,
+    label_text = ""
+  ) {
+    const radial_u = clamp(Number(config.spoke_text?.radial_u ?? 0.55), 0, 1);
+    const origin_radius = Math.max(0, Number(spoke?.echo_dot_origin_radius ?? halo_outer_radius_px));
+    const max_orbit_count = Math.max(1, Math.round(config.generator_wrangle?.num_orbits || 1));
+    const current_orbit_step_px = Math.max(0, Number(spoke?.echo_dot_step_px ?? 0));
+    const base_orbit_step_px = max_orbit_count <= 1
+      ? 0
+      : Math.max(0, (full_frame_outer_radius_px - origin_radius) / (max_orbit_count - 1));
+    const base_start_radius = lerp(halo_outer_radius_px, full_frame_outer_radius_px, radial_u);
+    const pulsed_orbit_index = base_orbit_step_px <= 0
+      ? 0
+      : Math.max(0, (base_start_radius - origin_radius) / base_orbit_step_px);
+    const thick_segment = spoke
+      ? get_world_ray_circle_segment(
+        config.composition.center_x_px,
+        config.composition.center_y_px,
+        spoke.angle,
+        spoke.inner_clip_center_x_px,
+        spoke.inner_clip_center_y_px,
+        spoke.inner_clip_radius_px,
+        spoke.start_radius,
+        full_frame_outer_radius_px
+      )
+      : null;
+    const thick_segment_end_radius = thick_segment
+      ? Math.hypot(
+        thick_segment.end_x - config.composition.center_x_px,
+        thick_segment.end_y - config.composition.center_y_px
+      )
+      : halo_outer_radius_px;
+    const min_start_radius = halo_outer_radius_px + ECHO_MARKER_HALO_GAP_PX + TEXT_LABEL_MARGIN_PX;
+    const start_radius = clamp(
+      Math.max(
+        current_orbit_step_px > 0
+          ? origin_radius + pulsed_orbit_index * current_orbit_step_px
+          : base_start_radius,
+        thick_segment_end_radius + TEXT_LABEL_MARGIN_PX
+      ),
+      min_start_radius,
+      full_frame_outer_radius_px
+    );
+    const estimated_length_px = get_text_label_width_px(label_text, font_size_px);
+    const end_radius = clamp(
+      start_radius + estimated_length_px,
+      start_radius,
+      full_frame_outer_radius_px
+    );
+    return {
+      start_radius,
+      end_radius,
+      clear_start_r: Math.max(
+        halo_outer_radius_px + ECHO_MARKER_HALO_GAP_PX,
+        start_radius - TEXT_LABEL_MARGIN_PX
+      ),
+      clear_end_r: Math.min(full_frame_outer_radius_px, end_radius + TEXT_LABEL_MARGIN_PX)
+    };
+  }
+
   function get_echo_marker_variant(echo_style, spoke_seed, marker_seed) {
     if (echo_style === "plus" || echo_style === "triangles") {
       return echo_style;
@@ -1508,19 +1606,13 @@ export function createRenderer({
 
     const field_center_x = config.composition.center_x_px;
     const field_center_y = config.composition.center_y_px;
-    const base_font_size_px = Math.max(3, Number(config.spoke_text.font_size_px ?? 6));
-    const font_size_px = Math.max(
-      base_font_size_px,
-      Math.round(base_font_size_px * Math.min(stage_width_px, stage_height_px) / 1080)
-    );
-    const radial_u = clamp(Number(config.spoke_text.radial_u ?? 0.55), 0, 1);
-    const text_start_radius = lerp(halo_outer_radius_px, full_frame_outer_radius_px, radial_u);
+    const font_size_px = get_text_label_font_size_px();
     const label_count = UBUNTU_RELEASE_LABELS.length;
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
-    text_overlay_context.fillStyle = "#ffffff";
-    text_overlay_context.font = `${font_size_px}px "Ubuntu Sans", Ubuntu, sans-serif`;
+    text_overlay_context.fillStyle = config.spoke_lines.reference_color || "#ffffff";
+    text_overlay_context.font = `${font_size_px}px ${TEXT_LABEL_FONT_FAMILY}`;
     text_overlay_context.textBaseline = "middle";
 
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
@@ -1543,8 +1635,16 @@ export function createRenderer({
         continue;
       }
 
-      const world_x = field_center_x + Math.cos(spoke.angle) * text_start_radius;
-      const world_y = field_center_y + Math.sin(spoke.angle) * text_start_radius;
+      const label = UBUNTU_RELEASE_LABELS[label_index];
+      const text_metrics = get_text_label_radius_metrics(
+        spoke,
+        halo_outer_radius_px,
+        full_frame_outer_radius_px,
+        font_size_px,
+        label
+      );
+      const world_x = field_center_x + Math.cos(spoke.angle) * text_metrics.start_radius;
+      const world_y = field_center_y + Math.sin(spoke.angle) * text_metrics.start_radius;
       const local_x = world_x - box.center_x_px;
       const local_y = world_y - box.center_y_px;
       const reveal_alpha = get_reveal_local_alpha(local_x, local_y, reveal_state);
@@ -1555,7 +1655,6 @@ export function createRenderer({
       // Convert from world space (Y-up, CCW angles) to canvas space (Y-down, CW angles).
       const canvas_x = world_x;
       const canvas_y = stage_height_px - world_y;
-      const label = UBUNTU_RELEASE_LABELS[label_index];
       text_overlay_context.save();
       text_overlay_context.translate(canvas_x, canvas_y);
       text_overlay_context.rotate(-spoke.angle);
@@ -1794,24 +1893,23 @@ export function createRenderer({
     const ripple_max_scale = 1.55;
     const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
 
-    // Precompute text-label clearance zone for spokes that carry release labels.
-    // Shapes within this radial band are suppressed so text has 16 px breathing room.
-    const TEXT_LABEL_MARGIN_PX = 16;
     const text_labels_active = Boolean(config.spoke_text?.enabled);
-    const text_label_base_font_px = Math.max(3, Number(config.spoke_text?.font_size_px ?? 6));
-    const text_label_font_px = Math.max(
-      text_label_base_font_px,
-      Math.round(text_label_base_font_px * Math.min(stage_width_px, stage_height_px) / 1080)
-    );
-    const text_label_radial_u = clamp(Number(config.spoke_text?.radial_u ?? 0.55), 0, 1);
-    const text_label_start_r = lerp(halo_outer_radius_px, full_frame_outer_radius_px, text_label_radial_u);
-    // Estimate radial extent: Ubuntu Sans avg char width ≈ 0.58 × font_size; longest label = 22 chars
-    const text_label_end_r = text_label_start_r + text_label_font_px * 0.58 * 22;
-    const text_clear_start_r = text_label_start_r - TEXT_LABEL_MARGIN_PX;
-    const text_clear_end_r = text_label_end_r + TEXT_LABEL_MARGIN_PX;
+    const text_label_font_px = get_text_label_font_size_px();
 
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
+      const spoke_label_index = spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index;
+      const text_label = UBUNTU_RELEASE_LABELS[spoke_label_index];
+      const text_label_metrics =
+        text_labels_active && text_label
+          ? get_text_label_radius_metrics(
+            spoke,
+            halo_outer_radius_px,
+            full_frame_outer_radius_px,
+            text_label_font_px,
+            text_label
+          )
+          : null;
       const phase_end_alpha = get_phase_end_alpha(spoke.angle);
       const fold_seam_alpha = get_fold_seam_alpha(spoke.angle);
       const spoke_alpha =
@@ -1960,15 +2058,12 @@ export function createRenderer({
         }
 
         // Suppress shapes in the text-label clearance zone for spokes that carry a label.
-        if (text_labels_active) {
-          const spoke_label_index = spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index;
-          if (
-            spoke_label_index < UBUNTU_RELEASE_LABELS.length &&
-            dot_radius >= text_clear_start_r &&
-            dot_radius <= text_clear_end_r
-          ) {
-            continue;
-          }
+        if (
+          text_label_metrics &&
+          dot_radius >= text_label_metrics.clear_start_r &&
+          dot_radius <= text_label_metrics.clear_end_r
+        ) {
+          continue;
         }
 
         // Marker shape choice must stay stable across reveal/post-finale handoffs.

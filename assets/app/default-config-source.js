@@ -91,8 +91,8 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "spoke_text": {
     "enabled": true,
-    "font_size_px": 6,
-    "radial_u": 0.55
+    "font_size_px": 10.5,
+    "radial_u": 0.77
   },
   "mascot": {
     "enabled": true,
@@ -134,7 +134,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "desynchronized": true
   },
   "screensaver": {
-    "cycle_sec": 40,
+    "cycle_sec": 60,
     "ramp_in_sec": 2,
     "pulse_orbits": true,
     "pulse_spokes": true,
@@ -148,7 +148,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "choke": 0.5
   },
   "export_settings": {
-    "frame_rate": 30,
+    "frame_rate": 24,
     "transparent_background": false
   }
 };
