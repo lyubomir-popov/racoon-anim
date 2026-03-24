@@ -6,7 +6,9 @@
     "build": "node scripts/build-site.mjs",
     "dev": "node scripts/dev-server.mjs",
     "serve": "node scripts/dev-server.mjs --no-open --no-watch",
-    "export:cli": "python scripts/export_frames.py"
+    "export:cli": "python scripts/export_frames.py",
+    "export:snapshot": "python scripts/export_snapshot.py",
+    "encode:mp4": "python scripts/encode_mp4.py"
   },
   "dependencies": {
     "sass": "^1.98.0",
