@@ -62,13 +62,9 @@ const output_profile_options = document.querySelector("[data-output-profile-opti
 const config_editor = document.querySelector("[data-config-editor]");
 const text_overlay_canvas = stage.querySelector("[data-text-overlay]");
 
-const config = create_default_config();
-initialize_profile_preset_architecture(config);
-apply_selected_profile_runtime(config);
-const default_config = deep_clone(config);
-initialize_profile_preset_architecture(default_config);
-apply_selected_profile_runtime(default_config);
-const renderer = createRenderer({ stage, canvas, text_overlay_canvas, config });
+let config;
+let default_config;
+let renderer;
 
 const state = {
   presets: [],
@@ -500,6 +496,22 @@ function create_profile_architecture_base() {
   initialize_profile_preset_architecture(base);
   apply_selected_profile_runtime(base);
   return base;
+}
+
+function initialize_runtime_state() {
+  if (config && default_config && renderer) {
+    return;
+  }
+
+  config = create_default_config();
+  initialize_profile_preset_architecture(config);
+  apply_selected_profile_runtime(config);
+
+  default_config = deep_clone(config);
+  initialize_profile_preset_architecture(default_config);
+  apply_selected_profile_runtime(default_config);
+
+  renderer = createRenderer({ stage, canvas, text_overlay_canvas, config });
 }
 
 function set_preset_meta(message, is_error = false) {
@@ -2763,6 +2775,8 @@ function attach_ui_events() {
 }
 
 async function init() {
+  initialize_runtime_state();
+
   if (is_local_editor) {
     state.export_directory_handle = await load_export_directory_handle();
     clear_legacy_browser_default_config();

@@ -230,6 +230,7 @@ function build_spoke_orbit_points({
     base_pscale_px,
     min_diameter_px,
     point_style_min_scale,
+    phase_mask_legacy_radius_px,
     phase_mask_field_radius_px,
     use_reference_phase_masks
   } = context;
@@ -264,7 +265,7 @@ function build_spoke_orbit_points({
       point_y - center_y_px
     );
     const fits_within_spoke = use_reference_phase_masks
-      ? phase_mask_distance_px + radius_px_dot <= phase_mask_field_radius_px + 0.01
+      ? phase_mask_distance_px + radius_px_dot <= phase_mask_legacy_radius_px + 0.01
       : radius_px + radius_px_dot <= fill_end_radius_px + 0.01;
 
     if (!fits_within_spoke) {
@@ -304,6 +305,7 @@ export function build_intro_halo_field_state({
     inner_radius_px,
     outer_radius_px,
     radius_span_px,
+    phase_mask_legacy_radius_px,
     phase_mask_field_radius_px,
     phase_mask_center_offset_x_px,
     base_angle_rad
@@ -369,6 +371,7 @@ export function build_intro_halo_field_state({
       inner_clip_offset_px: phase_mask_center_offset_x_px,
       inner_clip_center_x_px: phase_state.phase_mask_center_x_px,
       inner_clip_center_y_px: center_y_px,
+      phase_clip_radius_px: phase_mask_legacy_radius_px,
       phase_field_radius_px: phase_mask_field_radius_px
     };
 
@@ -414,6 +417,7 @@ export function build_post_finale_halo_field_state({
     inner_radius_px,
     outer_radius_px,
     radius_span_px,
+    phase_mask_legacy_radius_px,
     phase_mask_field_radius_px,
     phase_mask_center_offset_x_px,
     base_angle_rad
@@ -544,6 +548,7 @@ export function build_post_finale_halo_field_state({
       inner_clip_offset_px: phase_mask_center_offset_x_px,
       inner_clip_center_x_px: clip_center_x_px,
       inner_clip_center_y_px: center_y_px,
+      phase_clip_radius_px: phase_mask_legacy_radius_px,
       phase_field_radius_px: phase_mask_field_radius_px
     };
 

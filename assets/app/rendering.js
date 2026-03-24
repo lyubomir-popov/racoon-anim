@@ -1902,7 +1902,7 @@ export function createRenderer({
         spoke.angle,
         spoke.inner_clip_center_x_px,
         spoke.inner_clip_center_y_px,
-        spoke.phase_field_radius_px,
+        spoke.phase_clip_radius_px ?? spoke.phase_field_radius_px,
         spoke.start_radius,
         halo_outer_radius_px
       )
@@ -2736,7 +2736,7 @@ export function createRenderer({
         spoke.angle,
         spoke.inner_clip_center_x_px,
         spoke.inner_clip_center_y_px,
-        spoke.phase_field_radius_px,
+        spoke.phase_clip_radius_px ?? spoke.phase_field_radius_px,
         spoke.start_radius,
         halo_outer_radius_px
       );
