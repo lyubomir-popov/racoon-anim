@@ -303,6 +303,7 @@ export function build_intro_halo_field_state({
   const spokes = new Array(generator.spoke_count);
   const point_specs = [];
   const orbit_counts = new Array(generator.num_orbits).fill(0);
+  const label_anchor_slot_id = Math.floor(generator.spoke_count * 0.5);
 
   for (let spoke_id = 0; spoke_id < generator.spoke_count; spoke_id += 1) {
     const spoke_pattern_id = wrap_positive(
@@ -346,6 +347,7 @@ export function build_intro_halo_field_state({
     spokes[spoke_id] = {
       source_spoke_id: spoke_id,
       display_slot_id: spoke_id,
+      label_slot_id: wrap_positive(label_anchor_slot_id - spoke_id, generator.spoke_count),
       spoke_pattern_id,
       angle: target_angle,
       phase_u: phase_state.fill_u,
@@ -517,6 +519,7 @@ export function build_post_finale_halo_field_state({
     const spoke = {
       source_spoke_id: source_index,
       display_slot_id,
+      label_slot_id: source_index,
       spoke_pattern_id,
       angle,
       alpha: 1,

@@ -1368,6 +1368,26 @@ export function createRenderer({
     return Math.trunc(Number(config.spoke_lines.echo_shape_seed ?? 1)) || 0;
   }
 
+  function get_release_label_index(spoke, fallback_spoke_index = 0, slot_count = null) {
+    const total_slots = Math.max(
+      1,
+      Math.round(
+        slot_count ??
+        config.generator_wrangle?.spoke_count ??
+        0
+      ) || 1
+    );
+    const label_slot_id = wrap_positive(
+      Math.round(Number(
+        spoke?.label_slot_id ??
+        spoke?.display_slot_id ??
+        fallback_spoke_index
+      )),
+      total_slots
+    );
+    return label_slot_id < UBUNTU_RELEASE_LABELS.length ? label_slot_id : -1;
+  }
+
   function get_text_label_font_size_px() {
     const base_font_size_px = Math.max(
       3,
@@ -1622,8 +1642,8 @@ export function createRenderer({
       }
 
       // Spokes 44–59 carry geometric shapes only – no text label.
-      const label_index = spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index;
-      if (label_index >= label_count) {
+      const label_index = get_release_label_index(spoke, spoke_index);
+      if (label_index < 0 || label_index >= label_count) {
         continue;
       }
 
@@ -1657,7 +1677,14 @@ export function createRenderer({
       const canvas_y = stage_height_px - world_y;
       text_overlay_context.save();
       text_overlay_context.translate(canvas_x, canvas_y);
-      text_overlay_context.rotate(-spoke.angle);
+      let label_rotation = -spoke.angle;
+      const normalized_rotation = wrap_positive(label_rotation + Math.PI, TAU) - Math.PI;
+      const should_flip = normalized_rotation > Math.PI * 0.5 || normalized_rotation < -Math.PI * 0.5;
+      if (should_flip) {
+        label_rotation += Math.PI;
+      }
+      text_overlay_context.rotate(label_rotation);
+      text_overlay_context.textAlign = should_flip ? "right" : "left";
       text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha;
       text_overlay_context.fillText(label, 0, 0);
       text_overlay_context.restore();
@@ -1898,7 +1925,7 @@ export function createRenderer({
 
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
-      const spoke_label_index = spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index;
+      const spoke_label_index = get_release_label_index(spoke, spoke_index);
       const text_label = UBUNTU_RELEASE_LABELS[spoke_label_index];
       const text_label_metrics =
         text_labels_active && text_label
@@ -2071,7 +2098,7 @@ export function createRenderer({
         // the current clip-derived echo rank, which can shift when mask geometry changes.
         const echo_marker_variant = get_echo_marker_variant(
           echo_style,
-          spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index,
+          spoke.source_spoke_id ?? spoke.display_slot_id ?? spoke_index,
           orbit_index
         );
         let marker_outer_extent_px = dot_radius_px;
