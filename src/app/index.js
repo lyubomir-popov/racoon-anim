@@ -2813,8 +2813,21 @@ async function export_current_mp4() {
   const export_mp4_button_label = export_mp4_button ? export_mp4_button.textContent : "";
   const export_sequence_button_label = export_sequence_button ? export_sequence_button.textContent : "";
   const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
-  const frame_count = Math.max(1, Math.floor(renderer.getPlaybackEndSec() * frame_rate) + 1);
+  const default_frame_count = Math.max(1, Math.floor(renderer.getPlaybackEndSec() * frame_rate) + 1);
   const output_profile = get_output_profile_metrics(get_current_output_profile_key());
+
+  const frame_count_input = window.prompt(
+    `How many frames to export at ${frame_rate} fps? ${default_frame_count} frames = full animation loop.`,
+    String(default_frame_count)
+  );
+  if (frame_count_input === null) {
+    return;
+  }
+  const frame_count = Math.max(1, Math.round(Number(frame_count_input)));
+  if (!Number.isFinite(frame_count)) {
+    set_preset_meta("Frame count must be a positive number.", true);
+    return;
+  }
 
   try {
     state.is_exporting = true;

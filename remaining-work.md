@@ -122,17 +122,18 @@ The user explicitly wants multiple overlay template types, not just one generic 
 
 Make local export robust and make static-hosting limitations obvious.
 
+### Done (2026-03-24)
+
+1. `Export MP4` button now prompts for frame count before starting (was silent/derived).
+2. `Failed to fetch` on static hosting now produces the correct error message via the 404 path.
+3. `preserveDrawingBuffer: true` added to WebGLRenderer – fixes black background outside safe area in exported frames.
+4. `device_scale_factor` raised from 1 to 2 in headless Playwright – fixes soft/unsharp text in exports.
+5. MP4 encode now uses `--delivery --all-intra`: yuv420p, CRF 14, BT.709 tags, level 4.1, all-keyframes. Eliminates banding; correct settings for Instagram, YouTube, LinkedIn, X.
+6. `STAGE_BACKGROUND_COLOR` constant corrected from `#262626` to `#202020`.
+
 ### Still remaining
 
-1. Debug the local `Export MP4` button end to end on the authoring server.
-2. Ensure the UI clearly communicates:
-   - local dev server: MP4 export supported
-   - GitHub Pages/static build: MP4 export not available
-3. Consider disabling or relabeling MP4 export automatically on static builds.
-
-### Why it matters
-
-Right now users can infer the button works everywhere, but the Python backend only exists locally.
+1. Consider disabling or relabeling MP4 export automatically on static builds (the 404 message is a reasonable fallback but a proactive label would be cleaner).
 
 ## G. Watch-Folder Automation
 
@@ -215,6 +216,41 @@ These are not necessarily new features, but they should be part of future work:
    - `speaker_highlight`
    and confirm each tab edits only its own field layout.
 
+## K. Cross-Platform Export Dependencies
+
+### Goal
+
+Ensure the Python export pipeline works on Windows, WSL (Ubuntu), Linux, and macOS without manual environment archaeology.
+
+### Current state (audited 2026-03-24)
+
+**Windows PowerShell – fully working:**
+- ffmpeg v8.1 present (gyan.dev build, found via PATH or winget packages)
+- Playwright installed with bundled Chromium
+- `npm_executable()` and `python_executable()` helpers already handle platform differences
+
+**WSL (Ubuntu 24.04) and Linux – dependencies missing but installable:**
+- ffmpeg: `sudo apt install ffmpeg` (v6.1 available in apt)
+- Node.js: `sudo apt install nodejs npm` (v18 available in apt)
+- Playwright: not an apt package; must be pip-installed inside a venv because Ubuntu 24.04 enforces PEP 668
+  - `python3 -m venv .venv && .venv/bin/pip install playwright && .venv/bin/playwright install chromium`
+- The bare `python` / `python3` in PATH will not have Playwright without an activated venv
+
+**macOS:**
+- `brew install ffmpeg node`
+- `pip install playwright && playwright install chromium` (no PEP 668 restriction with Homebrew Python)
+
+### Still remaining
+
+1. Add `requirements.txt` listing `playwright` so the install step is explicit.
+2. Add a setup section to `README.md` with per-platform install steps (Windows, WSL/Linux, macOS).
+3. Decide how to handle the venv on WSL/Linux: document activation, or add a check at the top of each script that prints a clear install hint if the module is missing.
+4. Fix the frame filename padding vs ffmpeg glob mismatch: `export_frames.py` uses `max(4, len(str(max(frames))))` digits but `encode_mp4.py` hardcodes `frame-%04d.png`. At 10 000+ frames ffmpeg fails to match files. Cap at 4 digits or make the pattern dynamic.
+
+### Why it matters
+
+The project may move to a Linux or macOS machine. The scripts are structurally cross-platform already; they just need declared dependencies and a setup path that does not require reverse-engineering the environment.
+
 ## Suggested Execution Order
 
 If another model needs a practical order, use this:
@@ -222,6 +258,7 @@ If another model needs a practical order, use this:
 1. finish overlay data model cleanup
 2. move safe area into output profile metadata
 3. finish stakeholder-friendly CSV flow
-4. debug local MP4 export button
-5. implement watch-folder automation
-6. continue deeper refactor only after the overlay model is stable
+4. add requirements.txt and cross-platform setup docs
+5. debug local MP4 export button end to end
+6. implement watch-folder automation
+7. continue deeper refactor only after the overlay model is stable

@@ -211,12 +211,13 @@ The browser UI supports:
 
 - still export
 - PNG sequence export
-- MP4 export button
+- MP4 export button (prompts for frame count before starting)
 
 But:
 
 - MP4 export is only expected to work when running the local authoring server (`npm run dev`)
 - GitHub Pages / static hosting cannot run the Python backend pipeline
+- if the browser page is not served by `npm run dev`, clicking Export MP4 will get a `Failed to fetch` error – this is expected and correct
 
 ### Python export
 
@@ -229,6 +230,37 @@ The repo already has:
 These are the real long-render tools and are important for stable unattended output.
 
 Snapshot export is especially important because it avoids background edits affecting a long render.
+
+### Export quality fixes (done 2026-03-24)
+
+Several issues were found and fixed in one session:
+
+**Background colour outside safe area was black in MP4:**
+- Root cause: `THREE.WebGLRenderer` was created without `preserveDrawingBuffer: true`
+- In headless Playwright the framebuffer was not guaranteed to survive until `drawImage()` read it; transparent pixels encoded as black by ffmpeg
+- Fix: added `preserveDrawingBuffer: true` to the WebGLRenderer constructor in `rendering.js`
+- Also fixed: `STAGE_BACKGROUND_COLOR` fallback constant was `#262626`; corrected to `#202020` to match the authored default
+
+**Text was not crisp in exported frames:**
+- Root cause: `export_frames.py` was opening the headless Playwright context with `device_scale_factor=1`
+- This meant `window.devicePixelRatio=1` → `runtime.dpr=1` → text overlay canvas rasterised at exactly 1080×1920 with no supersampling
+- Fix: default `device_scale_factor` changed to `2` – both the Three.js WebGLRenderer and the Canvas 2D text overlay now rasterise internally at 2×, composite down to the output size
+- The output PNG dimensions are unchanged (still 1080×1920); only internal rasterisation quality increases
+- Exposed as `--device-scale-factor` CLI arg on both `export_frames.py` and `export_snapshot.py`
+- For very large formats (LED wall 7680×2160) pass `--device-scale-factor 1` to avoid excessive memory
+
+**MP4 encoding (banding and platform upload quality):**
+- Previous default: CRF 10, `yuv444p`, keyframe every 2 seconds → P-frame banding on dark animations
+- UI export path now uses `--delivery --all-intra`:
+  - `yuv420p` (all platforms ingest to 420p anyway; doing it ourselves is cleaner)
+  - CRF 14 (high quality delivery ceiling)
+  - BT.709 colour space tags on all three ffmpeg metadata fields
+  - H.264 level 4.1 (universally safe for 1080p on Instagram, YouTube, LinkedIn, X)
+  - every frame a keyframe (`-g 1 -keyint_min 1 -sc_threshold 0`) – eliminates inter-frame prediction banding
+- The `yuv444p` CRF 10 archival path is still available via CLI without `--delivery`
+
+**MP4 export frame count prompt:**
+- Previously derived silently from animation duration; now prompts with the full loop as suggested default, consistent with PNG sequence export
 
 ## What Has Historically Caused Regressions
 
@@ -247,8 +279,8 @@ These are not necessarily broken right now, but they are the active zones of unf
 - fully data-driven multi-CSV overlay formats
 - safe area as true output-profile metadata
 - stakeholder-friendly CSV upload UI
-- local MP4 export button debugging
 - further modularization of `rendering.js` and `index.js`
+- cross-platform Python dependency setup (requirements.txt + README install steps)
 
 ## Recommended Startup Checklist For The Next LLM
 

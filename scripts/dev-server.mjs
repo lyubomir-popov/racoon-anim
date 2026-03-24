@@ -355,6 +355,8 @@ const server = http.createServer(async (request, response) => {
           output_dir,
           "--fps",
           String(frame_rate),
+          "--delivery",
+          "--all-intra",
           "--overwrite"
         ],
         { cwd: project_root, log_prefix: "encode-mp4" }

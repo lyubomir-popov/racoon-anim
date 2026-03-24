@@ -268,6 +268,7 @@ export function createRenderer({
     canvas,
     antialias: true,
     alpha: true,
+    preserveDrawingBuffer: true,
     powerPreference: "high-performance"
   });
   renderer.outputColorSpace = THREE.SRGBColorSpace;

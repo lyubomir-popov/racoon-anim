@@ -62,7 +62,7 @@ def parse_args() -> argparse.Namespace:
   parser.add_argument(
     "--delivery",
     action="store_true",
-    help="Use delivery-oriented defaults: yuv420p, CRF 14, still high quality but more compatible."
+    help="Use delivery-oriented defaults: yuv420p, CRF 14, BT.709 tags, level 4.1. Recommended for platform upload (Instagram, YouTube, LinkedIn, X)."
   )
   parser.add_argument(
     "--ffmpeg",
@@ -150,6 +150,14 @@ def build_ffmpeg_command(
     pix_fmt,
     "-profile:v",
     "high444" if pix_fmt == "yuv444p" else "high",
+    "-level:v",
+    "4.1",
+    "-colorspace",
+    "bt709",
+    "-color_primaries",
+    "bt709",
+    "-color_trc",
+    "bt709",
     "-movflags",
     "+faststart",
     "-tune",

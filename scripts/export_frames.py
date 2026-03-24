@@ -65,6 +65,17 @@ def parse_args() -> argparse.Namespace:
     action="store_true",
     help="Run the browser visibly for debugging instead of headless."
   )
+  parser.add_argument(
+    "--device-scale-factor",
+    type=float,
+    default=2.0,
+    help=(
+      "Browser device scale factor for headless rendering. "
+      "2 gives 2x supersampling: text and geometry rasterise at double resolution "
+      "then composite down to the output size. Sharper results at the cost of render time. "
+      "Use 1 for very large output formats where memory is a concern."
+    )
+  )
   return parser.parse_args()
 
 
@@ -205,9 +216,10 @@ def main() -> int:
 
       browser = browser_type.launch(**launch_kwargs)
       try:
+        device_scale_factor = max(1.0, float(args.device_scale_factor))
         context = browser.new_context(
           viewport=DEFAULT_VIEWPORT,
-          device_scale_factor=1
+          device_scale_factor=device_scale_factor
         )
         page = context.new_page()
         page.goto(url, wait_until="networkidle")

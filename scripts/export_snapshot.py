@@ -44,6 +44,12 @@ def parse_args() -> argparse.Namespace:
     help="Browser channel for the headless exporter."
   )
   parser.add_argument("--headful", action="store_true", help="Run the browser visibly for debugging.")
+  parser.add_argument(
+    "--device-scale-factor",
+    type=float,
+    default=2.0,
+    help="Browser device scale factor for headless rendering. 2 gives 2x supersampling (default)."
+  )
   parser.add_argument("--host", default=DEFAULT_HOST, help="Host for the snapshot server.")
   parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port for the snapshot server.")
   parser.add_argument(
@@ -143,6 +149,7 @@ def build_child_command(args: argparse.Namespace, output_dir: str, url: str) -> 
     command.extend(["--browser-channel", args.browser_channel])
   if args.headful:
     command.append("--headful")
+  command.extend(["--device-scale-factor", str(args.device_scale_factor)])
   if args.output_dir:
     command.extend(["--output-dir", output_dir])
   return command
