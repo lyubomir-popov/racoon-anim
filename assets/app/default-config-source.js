@@ -91,8 +91,8 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "spoke_text": {
     "enabled": true,
-    "font_size_px": 10.5,
-    "radial_u": 0.77
+    "font_size_px": 14,
+    "radial_u": 0.6
   },
   "layout_grid": {
     "show_baseline_grid": false,
@@ -223,9 +223,9 @@ export const SOURCE_DEFAULT_CONFIG = {
   "vignette": {
     "enabled": true,
     "apply_outside_safe_area": true,
-    "radius_px": 719,
-    "feather_px": 838,
-    "choke": 0.76,
+    "radius_px": 595,
+    "feather_px": 787,
+    "choke": 0.62,
     "outside_radius_px": 2160,
     "outside_feather_px": 507,
     "outside_choke": 1
