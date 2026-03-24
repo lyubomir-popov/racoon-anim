@@ -6,33 +6,32 @@ export const OUTPUT_PROFILE_ORDER = Object.freeze([
   "instagram_1080x1350",
   "story_1080x1920",
   "screen_3840x2160",
-  "tablet_2560x1600",
-  "led_wall_7680x2160"
+  "tablet_2560x1600"
 ]);
 export const OUTPUT_PROFILES = Object.freeze({
   landscape_1280x720: Object.freeze({
     key: "landscape_1280x720",
-    label: "1280 x 720 (16:9)",
+    label: "1280×720 X LI",
     width_px: 1280,
     height_px: 720,
     default_frame_rate: 24,
     kind: "social_landscape",
-    platforms: "LinkedIn, Twitter, Mastodon",
-    safe_zone: "No safe zone"
+    platforms: "Twitter/X, Mastodon, LinkedIn",
+    safe_zone: "N/A"
   }),
   instagram_1080x1350: Object.freeze({
     key: "instagram_1080x1350",
-    label: "1080 x 1350 (4:5)",
+    label: "1080 × 1350 4:5 IG",
     width_px: 1080,
     height_px: 1350,
     default_frame_rate: 30,
     kind: "social_portrait",
     platforms: "Instagram",
-    safe_zone: "No safe zone"
+    safe_zone: "N/A"
   }),
   story_1080x1920: Object.freeze({
     key: "story_1080x1920",
-    label: "1080 x 1920 (9:16)",
+    label: "1080×1920 9:16 IG Story",
     width_px: 1080,
     height_px: 1920,
     default_frame_rate: 30,
@@ -60,19 +59,9 @@ export const OUTPUT_PROFILES = Object.freeze({
     platforms: "Tablet",
     safe_zone: "No safe zone"
   }),
-  led_wall_7680x2160: Object.freeze({
-    key: "led_wall_7680x2160",
-    label: "LED Wall 7680 x 2160",
-    width_px: 7680,
-    height_px: 2160,
-    default_frame_rate: 24,
-    kind: "largest_target",
-    platforms: "LED wall",
-    safe_zone: "No safe zone"
-  })
 });
 export const DEFAULT_OUTPUT_PROFILE_KEY = "story_1080x1920";
-export const LARGEST_OUTPUT_PROFILE_KEY = "led_wall_7680x2160";
+export const LARGEST_OUTPUT_PROFILE_KEY = "screen_3840x2160";
 export const MAX_OUTPUT_PROFILE_WIDTH_PX = Math.max(
   ...Object.values(OUTPUT_PROFILES).map((profile) => profile.width_px)
 );
@@ -490,11 +479,13 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: 0, max: 1, step: 0.01 }
   },
   "composition.center_x_px": {
-    hidden: true,
+    label: "Position X (px)",
+    help_text: "Horizontal center of the whole composition – moves the mascot, halo, and dots together.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
   "composition.center_y_px": {
-    hidden: true,
+    label: "Position Y (px)",
+    help_text: "Vertical center of the whole composition – moves the mascot, halo, and dots together.",
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
   "composition.background_color": {
@@ -1091,13 +1082,11 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "mascot.offset_x_px": {
     hidden: true,
-    locked_value: 0,
-    numeric: { min: -240, max: 240, step: 1 }
+    numeric: { min: -960, max: 960, step: 1 }
   },
   "mascot.offset_y_px": {
     hidden: true,
-    locked_value: 0,
-    numeric: { min: -240, max: 240, step: 1 }
+    numeric: { min: -960, max: 960, step: 1 }
   },
   "mascot.color": {
     hidden: true
@@ -1364,8 +1353,51 @@ export function humanize_key(value) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+const OVERLAY_FIELD_STYLE_META = Object.freeze({
+  label: "Style",
+  options: Object.freeze([
+    Object.freeze({ value: "b_head", label: "B Head" }),
+    Object.freeze({ value: "paragraph", label: "Paragraph" })
+  ])
+});
+
+const OVERLAY_FIELD_Y_BASELINES_META = Object.freeze({
+  label: "Y (Baselines)",
+  numeric: { min: -200, max: 2000, step: 1 }
+});
+
+const OVERLAY_FIELD_KEYLINE_META = Object.freeze({
+  label: "Column",
+  numeric: { min: 1, max: 24, step: 1 }
+});
+
+const OVERLAY_FIELD_COLUMN_SPAN_META = Object.freeze({
+  label: "Span (Columns)",
+  numeric: { min: 1, max: 24, step: 1 }
+});
+
+const OVERLAY_FIELD_STYLE_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.style$/;
+const OVERLAY_FIELD_Y_BASELINES_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.y_baselines$/;
+const OVERLAY_FIELD_KEYLINE_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.keyline_index$/;
+const OVERLAY_FIELD_COLUMN_SPAN_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.column_span$/;
+
 export function get_field_meta(path_key) {
-  return CONFIG_FIELD_META[path_key] || null;
+  if (CONFIG_FIELD_META[path_key]) {
+    return CONFIG_FIELD_META[path_key];
+  }
+  if (OVERLAY_FIELD_STYLE_PATH_RE.test(path_key)) {
+    return OVERLAY_FIELD_STYLE_META;
+  }
+  if (OVERLAY_FIELD_Y_BASELINES_PATH_RE.test(path_key)) {
+    return OVERLAY_FIELD_Y_BASELINES_META;
+  }
+  if (OVERLAY_FIELD_KEYLINE_PATH_RE.test(path_key)) {
+    return OVERLAY_FIELD_KEYLINE_META;
+  }
+  if (OVERLAY_FIELD_COLUMN_SPAN_PATH_RE.test(path_key)) {
+    return OVERLAY_FIELD_COLUMN_SPAN_META;
+  }
+  return null;
 }
 
 export function get_control_label(path_key) {
@@ -1439,8 +1471,6 @@ export function sync_profile_derived_config(target) {
     : DEFAULT_OUTPUT_PROFILE_KEY;
   const profile = get_output_profile_metrics(profile_key);
   target.output_profile_key = profile.key;
-  target.composition.center_x_px = profile.center_x_px;
-  target.composition.center_y_px = profile.center_y_px;
 }
 
 export function is_hex_color_string(value) {

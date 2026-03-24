@@ -854,6 +854,11 @@ export function createRenderer({
     return "";
   }
 
+  function get_field_style_override(format_key, field_spec) {
+    const config_style = config?.overlay_content_formats?.[format_key]?.fields?.[field_spec.id]?.style;
+    return typeof config_style === "string" ? config_style : field_spec.style;
+  }
+
   function get_overlay_content_record() {
     ensure_overlay_content_rows();
     const first_record = runtime.overlay_content_rows[0];
@@ -864,7 +869,7 @@ export function createRenderer({
         main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
         variable_fields: format_spec.fields.map((field_spec) => ({
           id: field_spec.id,
-          style: field_spec.style,
+          style: get_field_style_override(format_key, field_spec),
           text: pick_overlay_record_value(first_record, field_spec.aliases || [])
         }))
       };
@@ -874,7 +879,7 @@ export function createRenderer({
       main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
       variable_fields: format_spec.fields.map((field_spec, field_index) => ({
         id: field_spec.id,
-        style: field_spec.style,
+        style: get_field_style_override(format_key, field_spec),
         text:
           field_index === format_spec.fields.length - 1
             ? normalize_overlay_copy(config.overlay_text?.subtitle_text)
@@ -2245,7 +2250,7 @@ export function createRenderer({
     }
 
     const center_x_px = config.composition.center_x_px;
-    const center_y_px = config.composition.center_y_px;
+    const center_y_px = stage_height_px - config.composition.center_y_px;
     const use_safe_area = is_overlay_enabled() && config.layout_grid?.fit_within_safe_area;
     const safe_area_fill_above_animation = Boolean(config.layout_grid?.safe_area_fill_above_animation);
     const apply_outside_safe_area_vignette = Boolean(

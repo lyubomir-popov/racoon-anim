@@ -382,6 +382,12 @@ function seed_profile_local_snapshot(source, profile_key) {
   const snapshot = clone_runtime_config_without_buckets(source);
   snapshot.output_profile_key = profile_key;
   sync_profile_derived_config(snapshot);
+  // Seed the geometric centre for this profile's canvas dimensions.
+  const profile_metrics = get_output_profile_metrics(profile_key);
+  if (is_plain_object(snapshot.composition)) {
+    snapshot.composition.center_x_px = profile_metrics.center_x_px;
+    snapshot.composition.center_y_px = profile_metrics.center_y_px;
+  }
   const profile = OUTPUT_PROFILES[profile_key];
   if (profile && Number.isFinite(profile.default_frame_rate)) {
     snapshot.export_settings.frame_rate = Math.max(1, Math.round(profile.default_frame_rate));
@@ -1847,6 +1853,10 @@ function get_overlay_field_tab_specs() {
       key: field_spec.id,
       label: field_spec.label,
       rows: Object.freeze([
+        Object.freeze({
+          path: get_overlay_field_layout_path(format_key, field_spec.id, "style"),
+          label: "Style"
+        }),
         Object.freeze({
           columns: Object.freeze([
             Object.freeze({
