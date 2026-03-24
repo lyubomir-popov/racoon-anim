@@ -15,6 +15,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     label: "1280 x 720 (16:9)",
     width_px: 1280,
     height_px: 720,
+    default_frame_rate: 24,
     kind: "social_landscape",
     platforms: "LinkedIn, Twitter, Mastodon",
     safe_zone: "No safe zone"
@@ -24,6 +25,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     label: "1080 x 1350 (4:5)",
     width_px: 1080,
     height_px: 1350,
+    default_frame_rate: 30,
     kind: "social_portrait",
     platforms: "Instagram",
     safe_zone: "No safe zone"
@@ -33,6 +35,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     label: "1080 x 1920 (9:16)",
     width_px: 1080,
     height_px: 1920,
+    default_frame_rate: 30,
     kind: "story",
     platforms: "Instagram Story",
     safe_zone: "Safe zone"
@@ -42,6 +45,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     label: "3840 x 2160",
     width_px: 3840,
     height_px: 2160,
+    default_frame_rate: 24,
     kind: "screen",
     platforms: "Screen",
     safe_zone: "No safe zone"
@@ -51,6 +55,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     label: "2560 x 1600",
     width_px: 2560,
     height_px: 1600,
+    default_frame_rate: 24,
     kind: "tablet",
     platforms: "Tablet",
     safe_zone: "No safe zone"
@@ -60,6 +65,7 @@ export const OUTPUT_PROFILES = Object.freeze({
     label: "LED Wall 7680 x 2160",
     width_px: 7680,
     height_px: 2160,
+    default_frame_rate: 24,
     kind: "largest_target",
     platforms: "LED wall",
     safe_zone: "No safe zone"
@@ -135,7 +141,7 @@ export const EDITOR_TAB_GROUPS = Object.freeze([
   Object.freeze({
     key: "halo",
     label: "Halo",
-    sections: Object.freeze(["spoke_lines", "screensaver"])
+    sections: Object.freeze(["spoke_lines", "spoke_text", "screensaver"])
   }),
   Object.freeze({
     key: "vignette",
@@ -547,6 +553,21 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "sneeze.nose_bob_up_px": {
     numeric: { min: 0, max: 20, step: 0.1 }
+  },
+  "spoke_text.enabled": {
+    label: "Show Release Labels"
+  },
+  "spoke_text.font_size_px": {
+    label: "Label Font Size (px)",
+    help_text:
+      "Base font size for Ubuntu release labels along the spokes. Scales proportionally for larger output profiles.",
+    numeric: { min: 3, max: 24, step: 0.5 }
+  },
+  "spoke_text.radial_u": {
+    label: "Label Position (u)",
+    help_text:
+      "Normalised position along the spoke from the halo outer boundary (0) to the frame edge (1). Drag to slide labels inward or outward without overlapping shapes.",
+    numeric: { min: 0, max: 1, step: 0.01 }
   },
   "screensaver.cycle_sec": {
     label: "Breath Cycle (sec)",

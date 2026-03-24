@@ -1793,6 +1793,22 @@ export function createRenderer({
     const ripple_max_scale = 1.55;
     const ripple_fade_start_u = lerp(0.2, 0.85, echo_fade_mult);
 
+    // Precompute text-label clearance zone for spokes that carry release labels.
+    // Shapes within this radial band are suppressed so text has 16 px breathing room.
+    const TEXT_LABEL_MARGIN_PX = 16;
+    const text_labels_active = Boolean(config.spoke_text?.enabled);
+    const text_label_base_font_px = Math.max(3, Number(config.spoke_text?.font_size_px ?? 6));
+    const text_label_font_px = Math.max(
+      text_label_base_font_px,
+      Math.round(text_label_base_font_px * Math.min(stage_width_px, stage_height_px) / 1080)
+    );
+    const text_label_radial_u = clamp(Number(config.spoke_text?.radial_u ?? 0.55), 0, 1);
+    const text_label_start_r = lerp(halo_outer_radius_px, full_frame_outer_radius_px, text_label_radial_u);
+    // Estimate radial extent: Ubuntu Sans avg char width ≈ 0.58 × font_size; longest label = 22 chars
+    const text_label_end_r = text_label_start_r + text_label_font_px * 0.58 * 22;
+    const text_clear_start_r = text_label_start_r - TEXT_LABEL_MARGIN_PX;
+    const text_clear_end_r = text_label_end_r + TEXT_LABEL_MARGIN_PX;
+
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
       const phase_end_alpha = get_phase_end_alpha(spoke.angle);
@@ -1942,6 +1958,18 @@ export function createRenderer({
           continue;
         }
 
+        // Suppress shapes in the text-label clearance zone for spokes that carry a label.
+        if (text_labels_active) {
+          const spoke_label_index = spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index;
+          if (
+            spoke_label_index < UBUNTU_RELEASE_LABELS.length &&
+            dot_radius >= text_clear_start_r &&
+            dot_radius <= text_clear_end_r
+          ) {
+            continue;
+          }
+        }
+
         // Marker shape choice must stay stable across reveal/post-finale handoffs.
         // Seed it from source spoke identity plus radial orbit index, not from
         // the current clip-derived echo rank, which can shift when mask geometry changes.
@@ -2082,7 +2110,8 @@ export function createRenderer({
       box,
       base_alpha,
       reveal_state,
-      halo_outer_radius_px
+      halo_outer_radius_px,
+      full_frame_outer_radius_px
     });
   }
 

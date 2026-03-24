@@ -82,14 +82,17 @@ export const SOURCE_DEFAULT_CONFIG = {
     "echo_count": 16,
     "echo_style": "mixed",
     "echo_shape_seed": 0,
-    "text_labels_enabled": true,
-    "text_radial_offset_px": 80,
     "echo_mix_shape_pct": 0.56,
     "echo_width_mult": 0.88,
     "echo_wave_count": 4,
     "echo_opacity_mult": 0.5,
     "start_radius_px": 150,
     "end_radius_extra_px": 0
+  },
+  "spoke_text": {
+    "enabled": true,
+    "font_size_px": 6,
+    "radial_u": 0.55
   },
   "mascot": {
     "enabled": true,
@@ -145,7 +148,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "choke": 0.5
   },
   "export_settings": {
-    "frame_rate": 24,
+    "frame_rate": 30,
     "transparent_background": false
   }
 };

@@ -118,8 +118,9 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.inner_width_px",
   "spoke_lines.phase_start_scale",
   "spoke_lines.reverse_inner_spoke_thickness_scale",
-  "spoke_lines.text_labels_enabled",
-  "spoke_lines.text_radial_offset_px",
+  "spoke_text.enabled",
+  "spoke_text.font_size_px",
+  "spoke_text.radial_u",
   "spoke_lines.echo_count",
   "spoke_lines.echo_style",
   "spoke_lines.echo_mix_shape_pct",
@@ -137,6 +138,7 @@ const SECTION_LABELS = Object.freeze({
   transition_wrangle: "Dot Motion",
   point_style: "Dot Style",
   spoke_lines: "Halo Spokes",
+  spoke_text: "Release Labels",
   screensaver: "Screensaver Loop",
   vignette: "Vignette",
   mascot: "Mascot Size"
@@ -505,6 +507,10 @@ async function apply_output_profile(profile_key, { announce = true } = {}) {
   }
 
   config.output_profile_key = next_profile_key;
+  const profile = OUTPUT_PROFILES[next_profile_key];
+  if (Number.isFinite(profile?.default_frame_rate)) {
+    config.export_settings.frame_rate = Math.max(1, Math.round(profile.default_frame_rate));
+  }
   const next_metrics = get_output_profile_metrics(next_profile_key);
   config.composition.center_x_px = next_metrics.center_x_px;
   config.composition.center_y_px = next_metrics.center_y_px;
@@ -513,9 +519,8 @@ async function apply_output_profile(profile_key, { announce = true } = {}) {
   await renderer.refreshScene({ reload_mascot: true });
 
   if (announce) {
-    const profile = OUTPUT_PROFILES[next_profile_key];
     set_preset_meta(
-      `Switched format to ${profile.label} (${profile.width_px} x ${profile.height_px}).`,
+      `Switched format to ${profile.label} (${profile.width_px} x ${profile.height_px}) at ${config.export_settings.frame_rate} fps.`,
       false
     );
   }
