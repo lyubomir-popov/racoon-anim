@@ -1493,32 +1493,33 @@ export function createRenderer({
     box,
     base_alpha,
     reveal_state,
-    halo_outer_radius_px
+    halo_outer_radius_px,
+    full_frame_outer_radius_px
   }) {
     if (
       !text_overlay_context ||
       !text_overlay_canvas ||
       !box ||
       base_alpha <= 0 ||
-      !config.spoke_lines.text_labels_enabled
+      !config.spoke_text?.enabled
     ) {
       return;
     }
 
     const field_center_x = config.composition.center_x_px;
     const field_center_y = config.composition.center_y_px;
+    const base_font_size_px = Math.max(3, Number(config.spoke_text.font_size_px ?? 6));
     const font_size_px = Math.max(
-      ECHO_TEXT_BASE_FONT_SIZE_PX,
-      Math.round(ECHO_TEXT_BASE_FONT_SIZE_PX * Math.min(stage_width_px, stage_height_px) / 1080)
+      base_font_size_px,
+      Math.round(base_font_size_px * Math.min(stage_width_px, stage_height_px) / 1080)
     );
-    // Place labels along the spoke at a user-controlled radial offset beyond the halo boundary.
-    const text_radial_offset_px = Math.max(0, Number(config.spoke_lines.text_radial_offset_px ?? 80));
-    const text_start_radius = (halo_outer_radius_px ?? 0) + text_radial_offset_px;
+    const radial_u = clamp(Number(config.spoke_text.radial_u ?? 0.55), 0, 1);
+    const text_start_radius = lerp(halo_outer_radius_px, full_frame_outer_radius_px, radial_u);
     const label_count = UBUNTU_RELEASE_LABELS.length;
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
-    text_overlay_context.fillStyle = get_echo_color();
+    text_overlay_context.fillStyle = "#ffffff";
     text_overlay_context.font = `${font_size_px}px "Ubuntu Sans", Ubuntu, sans-serif`;
     text_overlay_context.textBaseline = "middle";
 
