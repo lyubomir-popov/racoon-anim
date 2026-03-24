@@ -14,13 +14,15 @@ That older repo is useful only for reference or for checking legacy behavior. Th
 
 ## Current Git State
 
-At the time this handoff was written:
+This repo has moved quickly during the refactor.
 
-- active branch: `codex/spoke-clean-port`
-- local HEAD: `9594533` `Make overlay text width grid-based`
-- local branch is ahead of `origin/codex/spoke-clean-port` by 2 commits
+Do not trust any older hardcoded SHA from previous notes.
 
-If another LLM takes over, check `git status` first and do not assume `origin/main` contains the latest local work.
+Instead, when taking over:
+
+- check `git status`
+- check `git log -1 --oneline`
+- confirm whether the user is reviewing `main` or `codex/spoke-clean-port`
 
 ## High-Level Product Model
 
@@ -95,6 +97,12 @@ These formats currently map into the runtime fields:
 
 So the format system exists, but the renderer still has fixed-slot assumptions internally.
 
+Important current nuance:
+
+- the A-head / summit heading is still fixed brand content from `overlay_text.title_text`
+- CSV currently drives the variable fields below it
+- `speaker_highlight` CSV now includes a `speaker_photo` path, but photo-card runtime/layout work is still future work
+
 ### Grid-based overlay placement
 
 Overlay text layout is moving away from raw XY fiddling.
@@ -114,6 +122,39 @@ That means text blocks should be positioned using:
 not raw pixel X and pixel max width
 
 Legacy pixel fields still exist in hidden compatibility form so older defaults/presets can migrate.
+
+Recent additions:
+
+- left and right margins are now independent baseline controls
+- the old shared `margin_side_baselines` is now a hidden migration fallback
+- startup HTML/CSS background was aligned to the composition default to avoid a lighter flash on reload
+
+### Overlay text-block tabs
+
+The overlay text-block tabs are sensitive right now.
+
+Recent finding:
+
+- the UI needs to follow the Vanilla tabs interaction pattern more closely
+- this is not just styling; the relevant behavior is in:
+  - `h:\WSL_dev_projects\vanilla-framework\templates\static\js\tabs.js`
+
+If another model touches subtab behavior, preserve:
+
+- real `aria-controls` on the tab buttons
+- `aria-labelledby` on the tabpanels
+- active-on-focus/click behavior
+- hidden inactive panels
+
+Also re-test both content formats:
+
+- `generic_social`
+- `speaker_highlight`
+
+Concrete recent bug to remember:
+
+- inactive panels were still visible because author CSS (`display:grid`) overrode the browser's default `[hidden]` behavior
+- fix was to add an explicit `.overlay-subtabs__panel[hidden] { display:none !important; }`
 
 ### Safe area model
 

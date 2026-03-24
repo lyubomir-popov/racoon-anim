@@ -22,7 +22,7 @@ body.editor-docked {
 
 html,
 body {
-  background: #262626;
+  background: #202020;
   height: 100%;
   width: 100%;
 }
@@ -39,8 +39,8 @@ body {
   --vf-color-link-default: #ffffff;
   --vf-color-link-visited: #ffffff;
   --vf-color-focus: #ffffff;
-  --vf-color-background-default: #262626;
-  --vf-color-background-alt: #262626;
+  --vf-color-background-default: #202020;
+  --vf-color-background-alt: #202020;
   --vf-color-background-code: #303030;
   --vf-color-background-inputs: #303030;
   --vf-color-background-active: #383838;
@@ -49,7 +49,7 @@ body {
   --vf-color-border-default: #4b4b4b;
   --vf-color-border-high-contrast: #6a6a6a;
   --vf-color-border-low-contrast: #3a3a3a;
-  background: #262626;
+  background: #202020;
   height: 100%;
   position: relative;
   width: 100%;
@@ -131,7 +131,7 @@ body.editor-docked .stage {
 
 .stage {
   aspect-ratio: 16 / 9;
-  background: #262626;
+  background: #202020;
   cursor: pointer;
   overflow: hidden;
   position: relative;
@@ -324,6 +324,10 @@ body.editor-docked .drawer-panel {
 .overlay-subtabs__panel {
   display: grid;
   gap: 0.5rem;
+}
+
+.overlay-subtabs__panel[hidden] {
+  display: none !important;
 }
 
 .overlay-control-grid.grid-row {

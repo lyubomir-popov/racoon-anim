@@ -14,6 +14,8 @@ import {
   LARGEST_OUTPUT_PROFILE,
   clamp,
   get_output_profile_metrics,
+  get_overlay_content_format_spec,
+  is_plain_object,
   lerp,
   smoothstep,
   radians,
@@ -54,18 +56,6 @@ const TEXT_LABEL_FONT_FAMILY = "\"Ubuntu Sans\", Ubuntu, sans-serif";
 const LINKED_TITLE_BASE_FONT_SIZE_PX = 63;
 const OVERLAY_GRID_COLOR = "rgba(255,0,0,0.2)";
 const OVERLAY_COMPOSITION_COLOR = "rgba(0,255,255,0.2)";
-const OVERLAY_CONTENT_FIELD_ALIASES = Object.freeze({
-  generic_social: Object.freeze({
-    text_1: Object.freeze(["text_1", "headline", "kicker", "body_top"]),
-    text_2: Object.freeze(["text_2", "footer_1", "date_line", "body_mid"]),
-    text_3: Object.freeze(["text_3", "footer_2", "summary", "body_bottom"])
-  }),
-  speaker_highlight: Object.freeze({
-    text_1: Object.freeze(["session_title", "title", "headline", "text_1"]),
-    text_2: Object.freeze(["speaker_name", "name", "speaker", "text_2"]),
-    text_3: Object.freeze(["speaker_role", "role", "speaker_title", "text_3"])
-  })
-});
 const UBUNTU_RELEASE_LABELS = Object.freeze([
   "26.04 Resolute Raccoon",
   "25.10 Questing Quokka",
@@ -600,10 +590,19 @@ export function createRenderer({
     const layout_bottom_px = Math.max(layout_top_px, stage_height_px - safe_bottom_px);
     const layout_width_px = Math.max(0, layout_right_px - layout_left_px);
     const layout_height_px = Math.max(0, layout_bottom_px - layout_top_px);
-    const side_margin_px =
+    const legacy_side_margin_baselines = Math.max(
+      0,
+      Number(config.layout_grid?.margin_side_baselines ?? 8)
+    );
+    const left_margin_px =
       Math.max(
         0,
-        Number(config.layout_grid?.margin_side_baselines ?? 8)
+        Number(config.layout_grid?.margin_left_baselines ?? legacy_side_margin_baselines)
+      ) * baseline_step_px;
+    const right_margin_px =
+      Math.max(
+        0,
+        Number(config.layout_grid?.margin_right_baselines ?? legacy_side_margin_baselines)
       ) * baseline_step_px;
     const top_margin_px =
       Math.max(
@@ -644,18 +643,20 @@ export function createRenderer({
     );
     const content_width_px = Math.max(
       0,
-      layout_width_px - side_margin_px * 2 - column_gutter_px * Math.max(0, column_count - 1)
+      layout_width_px - left_margin_px - right_margin_px - column_gutter_px * Math.max(0, column_count - 1)
     );
     const column_width_px = column_count <= 0 ? 0 : content_width_px / column_count;
     const column_keyline_positions_px = Array.from({ length: column_count }, (_, index) => (
-      layout_left_px + side_margin_px + index * (column_width_px + column_gutter_px)
+      layout_left_px + left_margin_px + index * (column_width_px + column_gutter_px)
     ));
 
     return {
       baseline_step_px,
       row_count,
       column_count,
-      side_margin_px,
+      side_margin_px: legacy_side_margin_baselines * baseline_step_px,
+      left_margin_px,
+      right_margin_px,
       top_margin_px,
       minimum_bottom_margin_px,
       bottom_margin_px,
@@ -667,9 +668,9 @@ export function createRenderer({
       layout_top_px,
       layout_right_px,
       layout_bottom_px,
-      content_left_px: layout_left_px + side_margin_px,
+      content_left_px: layout_left_px + left_margin_px,
       content_top_px: layout_top_px + top_margin_px,
-      content_right_px: layout_right_px - side_margin_px,
+      content_right_px: layout_right_px - right_margin_px,
       content_bottom_px: layout_bottom_px - bottom_margin_px,
       column_keyline_positions_px
     };
@@ -784,7 +785,13 @@ export function createRenderer({
   }
 
   function ensure_overlay_content_rows() {
-    const asset_path = String(config.overlay_text?.content_csv_path || "").trim();
+    const format_key = get_overlay_content_format_key();
+    const format_bucket = is_plain_object(config.overlay_content_formats?.[format_key])
+      ? config.overlay_content_formats[format_key]
+      : null;
+    const asset_path = String(
+      format_bucket?.csv_path || config.overlay_text?.content_csv_path || ""
+    ).trim();
     if (!asset_path) {
       runtime.overlay_content_rows = [];
       runtime.overlay_content_path = "";
@@ -833,7 +840,7 @@ export function createRenderer({
 
   function get_overlay_content_format_key() {
     const format_key = String(config.overlay_text?.content_format || "").trim();
-    return OVERLAY_CONTENT_FIELD_ALIASES[format_key] ? format_key : "generic_social";
+    return get_overlay_content_format_spec(format_key).key;
   }
 
   function pick_overlay_record_value(record, candidates) {
@@ -849,22 +856,29 @@ export function createRenderer({
   function get_overlay_content_record() {
     ensure_overlay_content_rows();
     const first_record = runtime.overlay_content_rows[0];
+    const format_key = get_overlay_content_format_key();
+    const format_spec = get_overlay_content_format_spec(format_key);
     if (first_record && typeof first_record === "object") {
-      const format_key = get_overlay_content_format_key();
-      const aliases = OVERLAY_CONTENT_FIELD_ALIASES[format_key] || OVERLAY_CONTENT_FIELD_ALIASES.generic_social;
       return {
         main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
-        text_1: pick_overlay_record_value(first_record, aliases.text_1),
-        text_2: pick_overlay_record_value(first_record, aliases.text_2),
-        text_3: pick_overlay_record_value(first_record, aliases.text_3)
+        variable_fields: format_spec.fields.map((field_spec) => ({
+          id: field_spec.id,
+          style: field_spec.style,
+          text: pick_overlay_record_value(first_record, field_spec.aliases || [])
+        }))
       };
     }
 
     return {
       main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
-      text_1: "",
-      text_2: "",
-      text_3: normalize_overlay_copy(config.overlay_text?.subtitle_text)
+      variable_fields: format_spec.fields.map((field_spec, field_index) => ({
+        id: field_spec.id,
+        style: field_spec.style,
+        text:
+          field_index === format_spec.fields.length - 1
+            ? normalize_overlay_copy(config.overlay_text?.subtitle_text)
+            : ""
+      }))
     };
   }
 
@@ -2483,7 +2497,8 @@ export function createRenderer({
     }
 
     const content = get_overlay_content_record();
-    if (!content.main_heading && !content.text_1 && !content.text_2 && !content.text_3) {
+    const variable_fields = Array.isArray(content.variable_fields) ? content.variable_fields : [];
+    if (!content.main_heading && !variable_fields.some((field) => field.text)) {
       return;
     }
 
@@ -2537,30 +2552,29 @@ export function createRenderer({
       font: title_font,
       line_height_px: title_line_height_px
     });
-    draw_overlay_text_field({
-      text: content.text_1,
-      keyline_index: config.overlay_text.text_1_keyline_index,
-      y_baselines: config.overlay_text.text_1_y_baselines,
-      column_span: config.overlay_text.text_1_column_span,
-      font: b_head_font,
-      line_height_px: b_head_line_height_px
-    });
-    draw_overlay_text_field({
-      text: content.text_2,
-      keyline_index: config.overlay_text.text_2_keyline_index,
-      y_baselines: config.overlay_text.text_2_y_baselines,
-      column_span: config.overlay_text.text_2_column_span,
-      font: paragraph_font,
-      line_height_px: paragraph_line_height_px
-    });
-    draw_overlay_text_field({
-      text: content.text_3,
-      keyline_index: config.overlay_text.text_3_keyline_index,
-      y_baselines: config.overlay_text.text_3_y_baselines,
-      column_span: config.overlay_text.text_3_column_span,
-      font: paragraph_font,
-      line_height_px: paragraph_line_height_px
-    });
+
+    const format_key = get_overlay_content_format_key();
+    const format_bucket = is_plain_object(config.overlay_content_formats?.[format_key])
+      ? config.overlay_content_formats[format_key]
+      : null;
+    const format_fields = is_plain_object(format_bucket?.fields) ? format_bucket.fields : {};
+
+    for (const field of variable_fields) {
+      const field_layout = is_plain_object(format_fields[field.id]) ? format_fields[field.id] : null;
+      if (!field_layout) {
+        continue;
+      }
+
+      const uses_b_head = field.style === "b_head";
+      draw_overlay_text_field({
+        text: field.text,
+        keyline_index: field_layout.keyline_index,
+        y_baselines: field_layout.y_baselines,
+        column_span: field_layout.column_span,
+        font: uses_b_head ? b_head_font : paragraph_font,
+        line_height_px: uses_b_head ? b_head_line_height_px : paragraph_line_height_px
+      });
+    }
 
     text_overlay_context.restore();
   }

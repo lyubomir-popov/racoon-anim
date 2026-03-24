@@ -1,2 +1,2 @@
-session_title,speaker_name,speaker_role
-"Developer ready Ubuntu on Qualcomm IoT","Ameya Pandit","Software Engineering Lead, Qualcomm"
+session_title,speaker_name,speaker_role, speaker_photo
+"Developer ready Ubuntu on Qualcomm IoT","Ameya Pandit","Software Engineering Lead, Qualcomm", "./assets/speaker_photos/ameya_pandit.jpg"

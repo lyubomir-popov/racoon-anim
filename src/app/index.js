@@ -16,6 +16,9 @@ import {
   get_output_profile_metrics,
   get_control_help_text,
   get_control_label,
+  get_overlay_content_format_spec,
+  get_overlay_field_layout_path,
+  get_overlay_format_csv_path,
   get_field_meta,
   get_numeric_control_spec,
   get_object_path_value,
@@ -191,18 +194,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.echo_opacity_mult"
 ]);
 
-const ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS = new Set([
-  "overlay_text.content_csv_path",
-  "overlay_text.text_1_x_px",
-  "overlay_text.text_1_y_baselines",
-  "overlay_text.text_1_column_span",
-  "overlay_text.text_2_x_px",
-  "overlay_text.text_2_y_baselines",
-  "overlay_text.text_2_column_span",
-  "overlay_text.text_3_x_px",
-  "overlay_text.text_3_y_baselines",
-  "overlay_text.text_3_column_span"
-]);
+const ACTIVE_OVERLAY_FORMAT_RUNTIME_PATHS = new Set();
 
 const SECTION_LABELS = Object.freeze({
   composition: "Stage",
@@ -255,8 +247,7 @@ const INTERNAL_CONFIG_BUCKET_KEYS = new Set([
 ]);
 
 const OVERLAY_CONTENT_CONTROL_ROWS = Object.freeze([
-  Object.freeze({ path: "overlay_text.content_format" }),
-  Object.freeze({ path: "overlay_text.content_csv_path" })
+  Object.freeze({ path: "overlay_text.content_format" })
 ]);
 
 const OVERLAY_VISIBILITY_CONTROL_ROWS = Object.freeze([
@@ -324,7 +315,12 @@ const OVERLAY_GRID_CONTROL_ROWS = Object.freeze([
       Object.freeze({ path: "layout_grid.margin_bottom_baselines" })
     ])
   }),
-  Object.freeze({ path: "layout_grid.margin_side_baselines" }),
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.margin_left_baselines", label: "Left Margin (Baselines)" }),
+      Object.freeze({ path: "layout_grid.margin_right_baselines", label: "Right Margin (Baselines)" })
+    ])
+  }),
   Object.freeze({
     columns: Object.freeze([
       Object.freeze({ path: "layout_grid.row_gutter_baselines" }),
@@ -349,105 +345,6 @@ const OVERLAY_GRID_CONTROL_ROWS = Object.freeze([
     suppress_help: true
   })
 ]);
-
-const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
-  generic_social: Object.freeze([
-    Object.freeze({
-      key: "a_head",
-      label: "A Head",
-      rows: Object.freeze([
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Column" }),
-            Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span (Columns)" })
-      ])
-    }),
-    Object.freeze({
-      key: "paragraph_1",
-      label: "Paragraph 1",
-      rows: Object.freeze([
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.text_3_keyline_index", label: "Column" }),
-            Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.text_3_column_span", label: "Span (Columns)" })
-      ])
-    }),
-    Object.freeze({
-      key: "paragraph_2",
-      label: "Paragraph 2",
-      rows: Object.freeze([
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.text_1_keyline_index", label: "Line 1 Column" }),
-            Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Line 1 Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.text_1_column_span", label: "Line 1 Span (Columns)" }),
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.text_2_keyline_index", label: "Line 2 Column" }),
-            Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Line 2 Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.text_2_column_span", label: "Line 2 Span (Columns)" })
-      ])
-    })
-  ]),
-  speaker_highlight: Object.freeze([
-    Object.freeze({
-      key: "a_head",
-      label: "A Head",
-      rows: Object.freeze([
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Column" }),
-            Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span (Columns)" })
-      ])
-    }),
-    Object.freeze({
-      key: "b_head",
-      label: "B Head",
-      rows: Object.freeze([
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.text_1_keyline_index", label: "Column" }),
-            Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.text_1_column_span", label: "Span (Columns)" })
-      ])
-    }),
-    Object.freeze({
-      key: "paragraphs",
-      label: "Paragraph",
-      rows: Object.freeze([
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.text_2_keyline_index", label: "Paragraph 1 Column" }),
-            Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Paragraph 1 Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.text_2_column_span", label: "Paragraph 1 Span (Columns)" }),
-        Object.freeze({
-          columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.text_3_keyline_index", label: "Paragraph 2 Column" }),
-            Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Paragraph 2 Y (Baselines)" })
-          ])
-        }),
-        Object.freeze({ path: "overlay_text.text_3_column_span", label: "Paragraph 2 Span (Columns)" })
-      ])
-    })
-  ])
-});
 
 function get_section_label(section_key) {
   return SECTION_LABELS[section_key] || humanize_key(section_key);
@@ -1586,7 +1483,12 @@ function create_control_input(path_key, value, options = {}) {
   const number_input_only = Boolean(options.number_input_only);
   if (typeof value === "number") {
     let numeric_spec = get_numeric_control_spec(path_key, value);
-    if (path_key.endsWith("_keyline_index") || path_key.endsWith("_column_span")) {
+    if (
+      path_key.endsWith("_keyline_index") ||
+      path_key.endsWith(".keyline_index") ||
+      path_key.endsWith("_column_span") ||
+      path_key.endsWith(".column_span")
+    ) {
       const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 1)));
       numeric_spec = { min: 1, max: column_count, step: 1 };
     }
@@ -1921,10 +1823,70 @@ function build_control_rows_section(title_text, rows) {
   return section;
 }
 
+function get_active_overlay_format_key() {
+  return get_overlay_content_format_spec(config.overlay_text?.content_format).key;
+}
+
+function get_overlay_content_control_rows() {
+  const format_key = get_active_overlay_format_key();
+  const format_spec = get_overlay_content_format_spec(format_key);
+  return Object.freeze([
+    ...OVERLAY_CONTENT_CONTROL_ROWS,
+    Object.freeze({
+      path: get_overlay_format_csv_path(format_key),
+      label: `${format_spec.label} CSV Path`
+    })
+  ]);
+}
+
 function get_overlay_field_tab_specs() {
-  const format_key = String(config.overlay_text?.content_format || "").trim();
-  return OVERLAY_FIELD_TAB_SPECS_BY_FORMAT[format_key]
-    || OVERLAY_FIELD_TAB_SPECS_BY_FORMAT.generic_social;
+  const format_key = get_active_overlay_format_key();
+  const format_spec = get_overlay_content_format_spec(format_key);
+  const variable_field_tabs = (format_spec.fields || []).map((field_spec) =>
+    Object.freeze({
+      key: field_spec.id,
+      label: field_spec.label,
+      rows: Object.freeze([
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({
+              path: get_overlay_field_layout_path(format_key, field_spec.id, "keyline_index"),
+              label: "Column"
+            }),
+            Object.freeze({
+              path: get_overlay_field_layout_path(format_key, field_spec.id, "y_baselines"),
+              label: "Y (Baselines)"
+            })
+          ])
+        }),
+        Object.freeze({
+          path: get_overlay_field_layout_path(format_key, field_spec.id, "column_span"),
+          label: "Span (Columns)"
+        })
+      ])
+    })
+  );
+
+  return Object.freeze([
+    Object.freeze({
+      key: "a_head",
+      label: "A Head",
+      rows: Object.freeze([
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Column" }),
+            Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
+          ])
+        }),
+        Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span (Columns)" })
+      ])
+    }),
+    ...variable_field_tabs
+  ]);
+}
+
+function is_render_only_path(path_key) {
+  return RENDER_ONLY_CONTROL_PATHS.has(path_key) || path_key.startsWith("overlay_content_formats.");
 }
 
 function build_tabbed_control_section(title_text, tab_specs, aria_label) {
@@ -1951,6 +1913,11 @@ function build_tabbed_control_section(title_text, tab_specs, aria_label) {
   const panels = document.createElement("div");
   panels.className = "config-panels";
 
+  const section_slug = title_text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
   const set_active_tab = (next_key) => {
     for (const button of tabs.querySelectorAll("[data-overlay-subtab]")) {
       const is_active = button.dataset.overlaySubtab === next_key;
@@ -1959,24 +1926,50 @@ function build_tabbed_control_section(title_text, tab_specs, aria_label) {
     }
 
     for (const panel of panels.querySelectorAll("[data-overlay-subpanel]")) {
-      panel.hidden = panel.dataset.overlaySubpanel !== next_key;
+      if (panel.dataset.overlaySubpanel === next_key) {
+        panel.removeAttribute("hidden");
+      } else {
+        panel.setAttribute("hidden", "hidden");
+      }
     }
   };
 
   let first_key = null;
 
   for (const spec of tab_specs) {
+    const panel_id = `${section_slug}-${spec.key}-panel`;
+    const button_id = `${section_slug}-${spec.key}-tab`;
     const item = document.createElement("div");
     item.className = "p-tabs__item";
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "p-tabs__link";
+    button.id = button_id;
     button.dataset.overlaySubtab = spec.key;
     button.setAttribute("role", "tab");
+    button.setAttribute("aria-controls", panel_id);
+    button.setAttribute("aria-selected", "false");
+    button.setAttribute("tabindex", "-1");
     button.textContent = spec.label;
     button.addEventListener("click", () => {
       set_active_tab(spec.key);
+    });
+    button.addEventListener("focus", () => {
+      set_active_tab(spec.key);
+    });
+    button.addEventListener("keyup", (event) => {
+      if (event.code === "ArrowLeft" || event.code === "ArrowRight") {
+        const tab_buttons = Array.from(tabs.querySelectorAll("[data-overlay-subtab]"));
+        const active_index = tab_buttons.indexOf(button);
+        if (active_index === -1) {
+          return;
+        }
+        const direction = event.code === "ArrowLeft" ? -1 : 1;
+        const next_index =
+          (active_index + direction + tab_buttons.length) % Math.max(1, tab_buttons.length);
+        tab_buttons[next_index]?.focus();
+      }
     });
 
     item.appendChild(button);
@@ -1984,9 +1977,12 @@ function build_tabbed_control_section(title_text, tab_specs, aria_label) {
 
     const panel = document.createElement("section");
     panel.className = "overlay-subtabs__panel";
+    panel.id = panel_id;
     panel.dataset.overlaySubpanel = spec.key;
     panel.setAttribute("role", "tabpanel");
-    panel.hidden = true;
+    panel.setAttribute("tabindex", "0");
+    panel.setAttribute("aria-labelledby", button_id);
+    panel.setAttribute("hidden", "hidden");
 
     let field_count = 0;
     for (const row_spec of spec.rows) {
@@ -2059,7 +2055,7 @@ function build_overlay_form(panel, form) {
     form.appendChild(visibility_section);
   }
 
-  const content_section = build_control_rows_section("Content", OVERLAY_CONTENT_CONTROL_ROWS);
+  const content_section = build_control_rows_section("Content", get_overlay_content_control_rows());
   if (content_section) {
     form.appendChild(content_section);
   }
@@ -2249,7 +2245,12 @@ function parse_control_value(input, current_value, path_key) {
       return undefined;
     }
 
-    if (path_key.endsWith("_keyline_index") || path_key.endsWith("_column_span")) {
+    if (
+      path_key.endsWith("_keyline_index") ||
+      path_key.endsWith(".keyline_index") ||
+      path_key.endsWith("_column_span") ||
+      path_key.endsWith(".column_span")
+    ) {
       const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 1)));
       return clamp(Math.round(next_value), 1, column_count);
     }
@@ -2303,7 +2304,7 @@ async function handle_control_commit(event) {
   }
 
   try {
-    const rebuild_scene = !RENDER_ONLY_CONTROL_PATHS.has(path_key);
+    const rebuild_scene = !is_render_only_path(path_key);
     await renderer.refreshScene({
       reload_mascot:
         path_parts[0] === "mascot" &&

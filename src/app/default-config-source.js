@@ -13,7 +13,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     },
     "overlay_text": {
       "color": "#ffffff",
-      "title_text": "Ubuntu Summit 26.04",
+      "title_text": "Ubuntu\nSummit\n26.04",
       "content_format": "generic_social"
     },
     "mascot": {
@@ -129,6 +129,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_top_baselines": 0,
         "margin_bottom_baselines": 9,
         "margin_side_baselines": 0,
+        "margin_left_baselines": 0,
+        "margin_right_baselines": 0,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
         "fit_within_safe_area": true,
@@ -150,7 +152,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "content_format": "generic_social",
         "content_csv_path": "./assets/content.csv",
-        "title_text": "Ubuntu Summit 26.04",
+        "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_baselines": 12,
@@ -173,7 +175,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
         "title_font_weight": 400,
-        "b_head_font_weight": 400
+        "b_head_font_weight": 400,
+        "main_heading_keyline_index": 3,
+        "main_heading_column_span": 1,
+        "text_1_keyline_index": 3,
+        "text_1_column_span": 1,
+        "text_2_keyline_index": 3,
+        "text_2_column_span": 1,
+        "text_3_keyline_index": 3,
+        "text_3_column_span": 2
       },
       "overlay_content_formats": {
         "generic_social": {
@@ -186,7 +196,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 381,
           "text_3_x_px": 490,
           "text_3_y_baselines": 46,
-          "text_3_max_width_px": 458
+          "text_3_max_width_px": 458,
+          "fields": {
+            "body_intro": {
+              "keyline_index": 3,
+              "column_span": 1,
+              "y_baselines": 163
+            },
+            "detail_primary": {
+              "keyline_index": 3,
+              "column_span": 1,
+              "y_baselines": 168
+            },
+            "detail_secondary": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 46
+            }
+          }
         },
         "speaker_highlight": {
           "csv_path": "./assets/content-speaker-highlight.csv",
@@ -198,7 +225,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 420,
           "text_3_x_px": 490,
           "text_3_y_baselines": 146,
-          "text_3_max_width_px": 420
+          "text_3_max_width_px": 420,
+          "fields": {
+            "session_title": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 120
+            },
+            "speaker_name": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 136
+            },
+            "speaker_role": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 146
+            }
+          }
         }
       },
       "mascot": {
@@ -368,6 +412,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_top_baselines": 0,
         "margin_bottom_baselines": 9,
         "margin_side_baselines": 0,
+        "margin_left_baselines": 0,
+        "margin_right_baselines": 0,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
         "fit_within_safe_area": true,
@@ -389,7 +435,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "content_format": "generic_social",
         "content_csv_path": "./assets/content.csv",
-        "title_text": "Ubuntu Summit 26.04",
+        "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_baselines": 12,
@@ -412,7 +458,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
         "title_font_weight": 400,
-        "b_head_font_weight": 400
+        "b_head_font_weight": 400,
+        "main_heading_keyline_index": 3,
+        "main_heading_column_span": 2,
+        "text_1_keyline_index": 3,
+        "text_1_column_span": 2,
+        "text_2_keyline_index": 3,
+        "text_2_column_span": 2,
+        "text_3_keyline_index": 3,
+        "text_3_column_span": 2
       },
       "overlay_content_formats": {
         "generic_social": {
@@ -425,7 +479,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 381,
           "text_3_x_px": 490,
           "text_3_y_baselines": 46,
-          "text_3_max_width_px": 458
+          "text_3_max_width_px": 458,
+          "fields": {
+            "body_intro": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 163
+            },
+            "detail_primary": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 168
+            },
+            "detail_secondary": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 46
+            }
+          }
         },
         "speaker_highlight": {
           "csv_path": "./assets/content-speaker-highlight.csv",
@@ -437,7 +508,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 420,
           "text_3_x_px": 490,
           "text_3_y_baselines": 146,
-          "text_3_max_width_px": 420
+          "text_3_max_width_px": 420,
+          "fields": {
+            "session_title": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 120
+            },
+            "speaker_name": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 136
+            },
+            "speaker_role": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 146
+            }
+          }
         }
       },
       "mascot": {
@@ -606,7 +694,9 @@ export const SOURCE_DEFAULT_CONFIG = {
         "column_count": 4,
         "margin_top_baselines": 0,
         "margin_bottom_baselines": 9,
-        "margin_side_baselines": 0,
+        "margin_side_baselines": 16,
+        "margin_left_baselines": 4,
+        "margin_right_baselines": 4,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
         "fit_within_safe_area": true,
@@ -628,7 +718,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "content_format": "generic_social",
         "content_csv_path": "./assets/content.csv",
-        "title_text": "Ubuntu Summit 26.04",
+        "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_baselines": 12,
@@ -651,7 +741,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
         "title_font_weight": 200,
-        "b_head_font_weight": 400
+        "b_head_font_weight": 400,
+        "main_heading_keyline_index": 3,
+        "main_heading_column_span": 2,
+        "text_1_keyline_index": 3,
+        "text_1_column_span": 2,
+        "text_2_keyline_index": 3,
+        "text_2_column_span": 2,
+        "text_3_keyline_index": 3,
+        "text_3_column_span": 2
       },
       "overlay_content_formats": {
         "generic_social": {
@@ -664,7 +762,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 381,
           "text_3_x_px": 490,
           "text_3_y_baselines": 46,
-          "text_3_max_width_px": 458
+          "text_3_max_width_px": 458,
+          "fields": {
+            "body_intro": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 163
+            },
+            "detail_primary": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 168
+            },
+            "detail_secondary": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 46
+            }
+          }
         },
         "speaker_highlight": {
           "csv_path": "./assets/content-speaker-highlight.csv",
@@ -676,7 +791,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 420,
           "text_3_x_px": 490,
           "text_3_y_baselines": 146,
-          "text_3_max_width_px": 420
+          "text_3_max_width_px": 420,
+          "fields": {
+            "session_title": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 120
+            },
+            "speaker_name": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 136
+            },
+            "speaker_role": {
+              "keyline_index": 3,
+              "column_span": 2,
+              "y_baselines": 146
+            }
+          }
         }
       },
       "mascot": {
@@ -846,6 +978,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_top_baselines": 0,
         "margin_bottom_baselines": 9,
         "margin_side_baselines": 0,
+        "margin_left_baselines": 0,
+        "margin_right_baselines": 0,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
         "fit_within_safe_area": true,
@@ -867,7 +1001,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "content_format": "generic_social",
         "content_csv_path": "./assets/content.csv",
-        "title_text": "Ubuntu Summit 26.04",
+        "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_baselines": 12,
@@ -890,7 +1024,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
         "title_font_weight": 400,
-        "b_head_font_weight": 400
+        "b_head_font_weight": 400,
+        "main_heading_keyline_index": 2,
+        "main_heading_column_span": 1,
+        "text_1_keyline_index": 2,
+        "text_1_column_span": 1,
+        "text_2_keyline_index": 2,
+        "text_2_column_span": 1,
+        "text_3_keyline_index": 2,
+        "text_3_column_span": 1
       },
       "overlay_content_formats": {
         "generic_social": {
@@ -903,7 +1045,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 381,
           "text_3_x_px": 490,
           "text_3_y_baselines": 46,
-          "text_3_max_width_px": 458
+          "text_3_max_width_px": 458,
+          "fields": {
+            "body_intro": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 163
+            },
+            "detail_primary": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 168
+            },
+            "detail_secondary": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 46
+            }
+          }
         },
         "speaker_highlight": {
           "csv_path": "./assets/content-speaker-highlight.csv",
@@ -915,7 +1074,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 420,
           "text_3_x_px": 490,
           "text_3_y_baselines": 146,
-          "text_3_max_width_px": 420
+          "text_3_max_width_px": 420,
+          "fields": {
+            "session_title": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 120
+            },
+            "speaker_name": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 136
+            },
+            "speaker_role": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 146
+            }
+          }
         }
       },
       "mascot": {
@@ -1085,6 +1261,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_top_baselines": 0,
         "margin_bottom_baselines": 9,
         "margin_side_baselines": 0,
+        "margin_left_baselines": 0,
+        "margin_right_baselines": 0,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
         "fit_within_safe_area": true,
@@ -1106,7 +1284,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "content_format": "generic_social",
         "content_csv_path": "./assets/content.csv",
-        "title_text": "Ubuntu Summit 26.04",
+        "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_baselines": 12,
@@ -1129,7 +1307,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
         "title_font_weight": 400,
-        "b_head_font_weight": 400
+        "b_head_font_weight": 400,
+        "main_heading_keyline_index": 2,
+        "main_heading_column_span": 1,
+        "text_1_keyline_index": 2,
+        "text_1_column_span": 1,
+        "text_2_keyline_index": 2,
+        "text_2_column_span": 1,
+        "text_3_keyline_index": 2,
+        "text_3_column_span": 1
       },
       "overlay_content_formats": {
         "generic_social": {
@@ -1142,7 +1328,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 381,
           "text_3_x_px": 490,
           "text_3_y_baselines": 46,
-          "text_3_max_width_px": 458
+          "text_3_max_width_px": 458,
+          "fields": {
+            "body_intro": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 163
+            },
+            "detail_primary": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 168
+            },
+            "detail_secondary": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 46
+            }
+          }
         },
         "speaker_highlight": {
           "csv_path": "./assets/content-speaker-highlight.csv",
@@ -1154,7 +1357,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 420,
           "text_3_x_px": 490,
           "text_3_y_baselines": 146,
-          "text_3_max_width_px": 420
+          "text_3_max_width_px": 420,
+          "fields": {
+            "session_title": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 120
+            },
+            "speaker_name": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 136
+            },
+            "speaker_role": {
+              "keyline_index": 2,
+              "column_span": 1,
+              "y_baselines": 146
+            }
+          }
         }
       },
       "mascot": {
@@ -1324,6 +1544,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_top_baselines": 0,
         "margin_bottom_baselines": 9,
         "margin_side_baselines": 0,
+        "margin_left_baselines": 0,
+        "margin_right_baselines": 0,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
         "fit_within_safe_area": true,
@@ -1345,7 +1567,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "enabled": true,
         "content_format": "generic_social",
         "content_csv_path": "./assets/content.csv",
-        "title_text": "Ubuntu Summit 26.04",
+        "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_baselines": 12,
@@ -1368,7 +1590,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "link_title_size_to_logo_height": true,
         "color": "#ffffff",
         "title_font_weight": 400,
-        "b_head_font_weight": 400
+        "b_head_font_weight": 400,
+        "main_heading_keyline_index": 1,
+        "main_heading_column_span": 1,
+        "text_1_keyline_index": 1,
+        "text_1_column_span": 1,
+        "text_2_keyline_index": 1,
+        "text_2_column_span": 1,
+        "text_3_keyline_index": 1,
+        "text_3_column_span": 1
       },
       "overlay_content_formats": {
         "generic_social": {
@@ -1381,7 +1611,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 381,
           "text_3_x_px": 490,
           "text_3_y_baselines": 46,
-          "text_3_max_width_px": 458
+          "text_3_max_width_px": 458,
+          "fields": {
+            "body_intro": {
+              "keyline_index": 1,
+              "column_span": 1,
+              "y_baselines": 163
+            },
+            "detail_primary": {
+              "keyline_index": 1,
+              "column_span": 1,
+              "y_baselines": 168
+            },
+            "detail_secondary": {
+              "keyline_index": 1,
+              "column_span": 1,
+              "y_baselines": 46
+            }
+          }
         },
         "speaker_highlight": {
           "csv_path": "./assets/content-speaker-highlight.csv",
@@ -1393,7 +1640,24 @@ export const SOURCE_DEFAULT_CONFIG = {
           "text_2_max_width_px": 420,
           "text_3_x_px": 490,
           "text_3_y_baselines": 146,
-          "text_3_max_width_px": 420
+          "text_3_max_width_px": 420,
+          "fields": {
+            "session_title": {
+              "keyline_index": 1,
+              "column_span": 1,
+              "y_baselines": 120
+            },
+            "speaker_name": {
+              "keyline_index": 1,
+              "column_span": 1,
+              "y_baselines": 136
+            },
+            "speaker_role": {
+              "keyline_index": 1,
+              "column_span": 1,
+              "y_baselines": 146
+            }
+          }
         }
       },
       "mascot": {
@@ -1562,7 +1826,9 @@ export const SOURCE_DEFAULT_CONFIG = {
     "column_count": 4,
     "margin_top_baselines": 0,
     "margin_bottom_baselines": 9,
-    "margin_side_baselines": 0,
+    "margin_side_baselines": 16,
+    "margin_left_baselines": 4,
+    "margin_right_baselines": 4,
     "row_gutter_baselines": 4,
     "column_gutter_baselines": 4,
     "fit_within_safe_area": true,
@@ -1584,7 +1850,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "enabled": true,
     "content_format": "generic_social",
     "content_csv_path": "./assets/content.csv",
-    "title_text": "Ubuntu Summit 26.04",
+    "title_text": "Ubuntu\nSummit\n26.04",
     "subtitle_text": "A showcase for the innovative and the ambitious",
     "main_heading_x_px": 490,
     "main_heading_y_baselines": 12,
@@ -1607,7 +1873,15 @@ export const SOURCE_DEFAULT_CONFIG = {
     "link_title_size_to_logo_height": true,
     "color": "#ffffff",
     "title_font_weight": 200,
-    "b_head_font_weight": 400
+    "b_head_font_weight": 400,
+    "main_heading_keyline_index": 3,
+    "main_heading_column_span": 2,
+    "text_1_keyline_index": 3,
+    "text_1_column_span": 2,
+    "text_2_keyline_index": 3,
+    "text_2_column_span": 2,
+    "text_3_keyline_index": 3,
+    "text_3_column_span": 2
   },
   "overlay_content_formats": {
     "generic_social": {
@@ -1620,7 +1894,30 @@ export const SOURCE_DEFAULT_CONFIG = {
       "text_2_max_width_px": 381,
       "text_3_x_px": 490,
       "text_3_y_baselines": 46,
-      "text_3_max_width_px": 458
+      "text_3_max_width_px": 458,
+      "fields": {
+        "body_intro": {
+          "keyline_index": 3,
+          "column_span": 2,
+          "y_baselines": 163
+        },
+        "detail_primary": {
+          "keyline_index": 3,
+          "column_span": 2,
+          "y_baselines": 168
+        },
+        "detail_secondary": {
+          "keyline_index": 3,
+          "column_span": 2,
+          "y_baselines": 46
+        }
+      },
+      "text_1_keyline_index": 3,
+      "text_2_keyline_index": 3,
+      "text_3_keyline_index": 3,
+      "text_1_column_span": 2,
+      "text_2_column_span": 2,
+      "text_3_column_span": 2
     },
     "speaker_highlight": {
       "csv_path": "./assets/content-speaker-highlight.csv",
@@ -1632,7 +1929,30 @@ export const SOURCE_DEFAULT_CONFIG = {
       "text_2_max_width_px": 420,
       "text_3_x_px": 490,
       "text_3_y_baselines": 146,
-      "text_3_max_width_px": 420
+      "text_3_max_width_px": 420,
+      "fields": {
+        "session_title": {
+          "keyline_index": 3,
+          "column_span": 2,
+          "y_baselines": 120
+        },
+        "speaker_name": {
+          "keyline_index": 3,
+          "column_span": 2,
+          "y_baselines": 136
+        },
+        "speaker_role": {
+          "keyline_index": 3,
+          "column_span": 2,
+          "y_baselines": 146
+        }
+      },
+      "text_1_keyline_index": 3,
+      "text_2_keyline_index": 3,
+      "text_3_keyline_index": 3,
+      "text_1_column_span": 2,
+      "text_2_column_span": 2,
+      "text_3_column_span": 2
     }
   },
   "mascot": {

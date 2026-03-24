@@ -18,6 +18,15 @@ Finish the move from a partially projected overlay system to a clean data-driven
 2. Make content formats declare their own field list and style mapping in a fully data-driven way.
 3. Keep the summit heading/logo as fixed brand content while variable content comes from the selected CSV format.
 4. Preserve migration for older presets/source defaults.
+5. Verify the text-block subtabs after the recent dynamic-field refactor.
+   - The subtab UI must follow the Vanilla tabs interaction model:
+     - real `aria-controls`
+     - `aria-labelledby`
+     - active-on-focus/click
+     - hidden tabpanels
+   - Local reference repo for this behavior:
+     - `h:\WSL_dev_projects\vanilla-framework`
+     - especially `templates/static/js/tabs.js`
 
 ### Why it matters
 
@@ -100,6 +109,7 @@ Expand beyond the current generic social text layout.
    - speaker role
    - session title
    - optional photo block
+   - note: the CSV already carries `speaker_photo`, but the visual card/photo layout is not finished runtime behavior yet
 3. Ensure field naming and tabs reflect the active format naturally.
 
 ### Why it matters
@@ -200,6 +210,10 @@ These are not necessarily new features, but they should be part of future work:
    - portrait social
    - landscape screen
    - LED-wide formats
+4. Verify overlay text-block subtabs in both formats:
+   - `generic_social`
+   - `speaker_highlight`
+   and confirm each tab edits only its own field layout.
 
 ## Suggested Execution Order
 

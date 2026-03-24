@@ -135,26 +135,80 @@ export const OVERLAY_CONTENT_FORMAT_ORDER = Object.freeze([
 export const OVERLAY_CONTENT_FORMATS = Object.freeze({
   generic_social: Object.freeze({
     key: "generic_social",
-    label: "Social Media Post - Generic"
+    label: "Social Media Post - Generic",
+    fields: Object.freeze([
+      Object.freeze({
+        id: "body_intro",
+        label: "B Head",
+        style: "b_head",
+        legacy_slot: "text_1",
+        aliases: Object.freeze(["text_1", "headline", "kicker", "body_top"])
+      }),
+      Object.freeze({
+        id: "detail_primary",
+        label: "Paragraph 1",
+        style: "paragraph",
+        legacy_slot: "text_2",
+        aliases: Object.freeze(["text_2", "footer_1", "date_line", "body_mid"])
+      }),
+      Object.freeze({
+        id: "detail_secondary",
+        label: "Paragraph 2",
+        style: "paragraph",
+        legacy_slot: "text_3",
+        aliases: Object.freeze(["text_3", "footer_2", "summary", "body_bottom"])
+      })
+    ])
   }),
   speaker_highlight: Object.freeze({
     key: "speaker_highlight",
-    label: "Speaker Highlight"
+    label: "Speaker Highlight",
+    fields: Object.freeze([
+      Object.freeze({
+        id: "session_title",
+        label: "Session Title",
+        style: "b_head",
+        legacy_slot: "text_1",
+        aliases: Object.freeze(["session_title", "title", "headline", "text_1"])
+      }),
+      Object.freeze({
+        id: "speaker_name",
+        label: "Speaker Name",
+        style: "paragraph",
+        legacy_slot: "text_2",
+        aliases: Object.freeze(["speaker_name", "name", "speaker", "text_2"])
+      }),
+      Object.freeze({
+        id: "speaker_role",
+        label: "Speaker Role",
+        style: "paragraph",
+        legacy_slot: "text_3",
+        aliases: Object.freeze(["speaker_role", "role", "speaker_title", "text_3"])
+      })
+    ])
   })
 });
 
 const OVERLAY_FORMAT_RUNTIME_MAPPING = Object.freeze([
-  Object.freeze(["content_csv_path", "csv_path"]),
-  Object.freeze(["text_1_keyline_index", "text_1_keyline_index"]),
-  Object.freeze(["text_1_y_baselines", "text_1_y_baselines"]),
-  Object.freeze(["text_1_column_span", "text_1_column_span"]),
-  Object.freeze(["text_2_keyline_index", "text_2_keyline_index"]),
-  Object.freeze(["text_2_y_baselines", "text_2_y_baselines"]),
-  Object.freeze(["text_2_column_span", "text_2_column_span"]),
-  Object.freeze(["text_3_keyline_index", "text_3_keyline_index"]),
-  Object.freeze(["text_3_y_baselines", "text_3_y_baselines"]),
-  Object.freeze(["text_3_column_span", "text_3_column_span"])
+  Object.freeze(["content_csv_path", "csv_path"])
 ]);
+
+export function get_overlay_content_format_spec(format_key) {
+  const requested_key = typeof format_key === "string" ? format_key : OVERLAY_CONTENT_FORMAT_ORDER[0];
+  return OVERLAY_CONTENT_FORMATS[requested_key] || OVERLAY_CONTENT_FORMATS[OVERLAY_CONTENT_FORMAT_ORDER[0]];
+}
+
+export function get_overlay_variable_field_specs(format_key) {
+  return get_overlay_content_format_spec(format_key).fields || [];
+}
+
+export function get_overlay_format_csv_path(format_key) {
+  return `overlay_content_formats.${format_key}.csv_path`;
+}
+
+export function get_overlay_field_layout_path(format_key, field_id, layout_key) {
+  return `overlay_content_formats.${format_key}.fields.${field_id}.${layout_key}`;
+}
 
 function compute_overlay_layout_metrics_for_target(target) {
   const profile_key = typeof target?.output_profile_key === "string"
@@ -168,18 +222,24 @@ function compute_overlay_layout_metrics_for_target(target) {
   const safe_left_px = use_safe_area ? Math.max(0, Number(layout_grid.safe_left_px ?? 0)) : 0;
   const safe_right_px = use_safe_area ? Math.max(0, Number(layout_grid.safe_right_px ?? 0)) : 0;
   const layout_width_px = Math.max(0, profile.width_px - safe_left_px - safe_right_px);
-  const side_margin_px = Math.max(0, Number(layout_grid.margin_side_baselines ?? 0)) * baseline_step_px;
+  const legacy_side_margin_baselines = Math.max(0, Number(layout_grid.margin_side_baselines ?? 0));
+  const left_margin_px =
+    Math.max(0, Number(layout_grid.margin_left_baselines ?? legacy_side_margin_baselines)) *
+    baseline_step_px;
+  const right_margin_px =
+    Math.max(0, Number(layout_grid.margin_right_baselines ?? legacy_side_margin_baselines)) *
+    baseline_step_px;
   const column_gutter_px =
     Math.max(0, Math.round(Number(layout_grid.column_gutter_baselines ?? 0))) * baseline_step_px;
   const content_width_px = Math.max(
     0,
-    layout_width_px - side_margin_px * 2 - column_gutter_px * Math.max(0, column_count - 1)
+    layout_width_px - left_margin_px - right_margin_px - column_gutter_px * Math.max(0, column_count - 1)
   );
   const column_width_px = column_count > 0 ? content_width_px / column_count : 0;
 
   return {
     column_count,
-    content_left_relative_px: side_margin_px,
+    content_left_relative_px: left_margin_px,
     keyline_step_px: column_width_px + column_gutter_px
   };
 }
@@ -253,28 +313,50 @@ function ensure_overlay_text_keyline_defaults(target) {
     return;
   }
 
-  const bucket_specs = [
-    ["text_1_keyline_index", "text_1_x_px", "text_1_column_span", "text_1_max_width_px"],
-    ["text_2_keyline_index", "text_2_x_px", "text_2_column_span", "text_2_max_width_px"],
-    ["text_3_keyline_index", "text_3_x_px", "text_3_column_span", "text_3_max_width_px"]
-  ];
-
-  for (const format_bucket of Object.values(target.overlay_content_formats)) {
-    if (!is_plain_object(format_bucket)) {
-      continue;
+  for (const format_key of OVERLAY_CONTENT_FORMAT_ORDER) {
+    const format_spec = get_overlay_content_format_spec(format_key);
+    const format_bucket = get_overlay_format_bucket(target, format_key);
+    if (!is_plain_object(format_bucket.fields)) {
+      format_bucket.fields = {};
     }
-    for (const [keyline_key, legacy_key, span_key, legacy_width_key] of bucket_specs) {
-      if (!Number.isFinite(Number(format_bucket[keyline_key]))) {
-        format_bucket[keyline_key] = derive_keyline_index_from_legacy_x(
-          target,
-          format_bucket[legacy_key]
-        );
+
+    for (const field_spec of format_spec.fields) {
+      if (!is_plain_object(format_bucket.fields[field_spec.id])) {
+        format_bucket.fields[field_spec.id] = {};
       }
-      if (!Number.isFinite(Number(format_bucket[span_key]))) {
-        format_bucket[span_key] = derive_column_span_from_legacy_width(
-          target,
-          format_bucket[legacy_width_key]
-        );
+
+      const field_bucket = format_bucket.fields[field_spec.id];
+      const legacy_slot = field_spec.legacy_slot;
+      const legacy_keyline_value = format_bucket[`${legacy_slot}_keyline_index`];
+      const legacy_x_value = format_bucket[`${legacy_slot}_x_px`];
+      const legacy_span_value = format_bucket[`${legacy_slot}_column_span`];
+      const legacy_width_value = format_bucket[`${legacy_slot}_max_width_px`];
+      const legacy_y_value = format_bucket[`${legacy_slot}_y_baselines`];
+
+      if (!Number.isFinite(Number(field_bucket.keyline_index))) {
+        if (Number.isFinite(Number(legacy_keyline_value))) {
+          field_bucket.keyline_index = Number(legacy_keyline_value);
+        } else {
+          field_bucket.keyline_index = derive_keyline_index_from_legacy_x(target, legacy_x_value);
+        }
+      }
+
+      if (!Number.isFinite(Number(field_bucket.column_span))) {
+        if (Number.isFinite(Number(legacy_span_value))) {
+          field_bucket.column_span = Number(legacy_span_value);
+        } else {
+          field_bucket.column_span = derive_column_span_from_legacy_width(target, legacy_width_value);
+        }
+      }
+
+      if (!Number.isFinite(Number(field_bucket.y_baselines))) {
+        if (Number.isFinite(Number(legacy_y_value))) {
+          field_bucket.y_baselines = Number(legacy_y_value);
+        } else if (Number.isFinite(Number(target.overlay_text[`${legacy_slot}_y_baselines`]))) {
+          field_bucket.y_baselines = Number(target.overlay_text[`${legacy_slot}_y_baselines`]);
+        } else {
+          field_bucket.y_baselines = 0;
+        }
       }
     }
   }
@@ -306,10 +388,9 @@ export function sync_overlay_content_format_runtime_fields(target) {
   target.overlay_text.content_format = format_key;
   const format_bucket = get_overlay_format_bucket(target, format_key);
   for (const [runtime_key, format_key_name] of OVERLAY_FORMAT_RUNTIME_MAPPING) {
-    if (typeof format_bucket[format_key_name] === "undefined") {
-      continue;
+    if (typeof format_bucket[format_key_name] !== "undefined") {
+      target.overlay_text[runtime_key] = deep_clone(format_bucket[format_key_name]);
     }
-    target.overlay_text[runtime_key] = deep_clone(format_bucket[format_key_name]);
   }
 }
 
@@ -321,7 +402,9 @@ export function write_overlay_runtime_fields_to_active_format(target) {
   target.overlay_text.content_format = format_key;
   const format_bucket = get_overlay_format_bucket(target, format_key);
   for (const [runtime_key, format_key_name] of OVERLAY_FORMAT_RUNTIME_MAPPING) {
-    format_bucket[format_key_name] = deep_clone(target.overlay_text[runtime_key]);
+    if (typeof target.overlay_text[runtime_key] !== "undefined") {
+      format_bucket[format_key_name] = deep_clone(target.overlay_text[runtime_key]);
+    }
   }
 }
 
@@ -473,11 +556,24 @@ export const CONFIG_FIELD_META = Object.freeze({
       "Minimum bottom margin for the composition grid, expressed in baseline units. Any leftover height from row subdivision is added on top of this.",
     numeric: { min: 0, max: 200, step: 1 }
   },
+  "layout_grid.margin_left_baselines": {
+    label: "Left Margin (Baselines)",
+    help_text:
+      "Left margin for the composition grid, expressed in baseline units.",
+    numeric: { min: 0, max: 200, step: 1 }
+  },
+  "layout_grid.margin_right_baselines": {
+    label: "Right Margin (Baselines)",
+    help_text:
+      "Right margin for the composition grid, expressed in baseline units.",
+    numeric: { min: 0, max: 200, step: 1 }
+  },
   "layout_grid.margin_side_baselines": {
     label: "Side Margin (Baselines)",
     help_text:
       "Shared left and right margin for the composition grid, expressed in baseline units.",
-    numeric: { min: 0, max: 200, step: 1 }
+    numeric: { min: 0, max: 200, step: 1 },
+    hidden: true
   },
   "layout_grid.row_gutter_baselines": {
     label: "Row Gutter (Baselines)",
@@ -1394,6 +1490,7 @@ export function merge_known_config_values(target, source) {
 
 export function normalize_config_snapshot(source, default_config) {
   const snapshot = deep_clone(default_config);
+  ensure_editor_schema_defaults(snapshot);
   merge_known_config_values(snapshot, source);
   ensure_editor_schema_defaults(snapshot);
   if (is_plain_object(snapshot.layout_grid)) {
@@ -1424,6 +1521,17 @@ export function normalize_config_snapshot(source, default_config) {
         0,
         Math.round(Number(source.layout_grid.margin_side_px) / baseline_step_px)
       );
+    }
+    const legacy_side_margin_baselines = Number.isFinite(Number(source?.layout_grid?.margin_side_baselines))
+      ? Math.max(0, Number(source.layout_grid.margin_side_baselines))
+      : Number.isFinite(Number(snapshot.layout_grid.margin_side_baselines))
+        ? Math.max(0, Number(snapshot.layout_grid.margin_side_baselines))
+        : 0;
+    if (!Number.isFinite(Number(source?.layout_grid?.margin_left_baselines))) {
+      snapshot.layout_grid.margin_left_baselines = legacy_side_margin_baselines;
+    }
+    if (!Number.isFinite(Number(source?.layout_grid?.margin_right_baselines))) {
+      snapshot.layout_grid.margin_right_baselines = legacy_side_margin_baselines;
     }
     if (
       !Number.isFinite(Number(source?.layout_grid?.row_gutter_baselines)) &&
