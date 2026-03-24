@@ -1184,6 +1184,17 @@ export function createRenderer({
         continue;
       }
 
+      // Flash-on-capture: brief alpha spike as the dot locks into its target spoke position.
+      // Applies a sine-bell envelope over the last 20% of the capture window.
+      if (!force_final) {
+        const _flash_cap_dur = Math.max(0.0001, runtime.dot_end_sec - point.capture_start_sec);
+        const _flash_raw_u = clamp((time_sec - point.capture_start_sec) / _flash_cap_dur, 0, 1);
+        if (_flash_raw_u >= 0.8) {
+          const flash_u = (_flash_raw_u - 0.8) / 0.2;
+          point_alpha = Math.min(1, point_alpha * (1 + 1.8 * Math.sin(flash_u * Math.PI)));
+        }
+      }
+
       runtime.layers.points.push(
         point_x,
         point_y,
@@ -1369,9 +1380,13 @@ export function createRenderer({
       return "dots";
     }
 
-    return hash_01(shape_seed + spoke_seed + 5.173, marker_seed + 8.411) < 0.5
-      ? "plus"
-      : "triangles";
+    const shape_h = hash_01(shape_seed + spoke_seed + 5.173, marker_seed + 8.411);
+    if (shape_h < 1 / 6) return "plus";
+    if (shape_h < 2 / 6) return "triangles";
+    if (shape_h < 3 / 6) return "diamond";
+    if (shape_h < 4 / 6) return "radial_dash";
+    if (shape_h < 5 / 6) return "star";
+    return "hexagon";
   }
 
   function push_plus_marker(center_x, center_y, size_px, width_px, alpha, axis_angle_rad) {
@@ -1417,6 +1432,60 @@ export function createRenderer({
     runtime.layers.haloEchoMarks.push(tip_x, tip_y, left_x, left_y, width_px, alpha);
     runtime.layers.haloEchoMarks.push(left_x, left_y, right_x, right_y, width_px, alpha);
     runtime.layers.haloEchoMarks.push(right_x, right_y, tip_x, tip_y, width_px, alpha);
+  }
+
+  function push_diamond_marker(center_x, center_y, size_px, width_px, alpha, axis_angle_rad) {
+    const half = size_px * 0.5;
+    const dir_x = Math.cos(axis_angle_rad);
+    const dir_y = Math.sin(axis_angle_rad);
+    const perp_x = -dir_y;
+    const perp_y = dir_x;
+    const top_x = center_x + dir_x * half;
+    const top_y = center_y + dir_y * half;
+    const right_x = center_x + perp_x * half;
+    const right_y = center_y + perp_y * half;
+    const bot_x = center_x - dir_x * half;
+    const bot_y = center_y - dir_y * half;
+    const left_x = center_x - perp_x * half;
+    const left_y = center_y - perp_y * half;
+    runtime.layers.haloEchoMarks.push(top_x, top_y, right_x, right_y, width_px, alpha);
+    runtime.layers.haloEchoMarks.push(right_x, right_y, bot_x, bot_y, width_px, alpha);
+    runtime.layers.haloEchoMarks.push(bot_x, bot_y, left_x, left_y, width_px, alpha);
+    runtime.layers.haloEchoMarks.push(left_x, left_y, top_x, top_y, width_px, alpha);
+  }
+
+  function push_radial_dash_marker(center_x, center_y, length_px, width_px, alpha, axis_angle_rad) {
+    const half = length_px * 0.5;
+    const dir_x = Math.cos(axis_angle_rad);
+    const dir_y = Math.sin(axis_angle_rad);
+    runtime.layers.haloEchoMarks.push(
+      center_x - dir_x * half,
+      center_y - dir_y * half,
+      center_x + dir_x * half,
+      center_y + dir_y * half,
+      width_px,
+      alpha
+    );
+  }
+
+  function push_star_marker(center_x, center_y, size_px, width_px, alpha, axis_angle_rad) {
+    push_plus_marker(center_x, center_y, size_px, width_px, alpha, axis_angle_rad);
+    push_plus_marker(center_x, center_y, size_px * 0.62, width_px, alpha, axis_angle_rad + Math.PI * 0.25);
+  }
+
+  function push_hexagon_marker(center_x, center_y, size_px, width_px, alpha, axis_angle_rad) {
+    const circumradius = size_px * 0.5;
+    const vx = [];
+    const vy = [];
+    for (let i = 0; i < 6; i++) {
+      const a = axis_angle_rad + (i * Math.PI) / 3;
+      vx.push(center_x + Math.cos(a) * circumradius);
+      vy.push(center_y + Math.sin(a) * circumradius);
+    }
+    for (let i = 0; i < 6; i++) {
+      const j = (i + 1) % 6;
+      runtime.layers.haloEchoMarks.push(vx[i], vy[i], vx[j], vy[j], width_px, alpha);
+    }
   }
 
   function draw_ubuntu_release_overlay({
@@ -1881,14 +1950,19 @@ export function createRenderer({
         let marker_outer_extent_px = dot_radius_px;
         let plus_size_px = 0;
         let triangle_side_px = 0;
+        let diamond_size_px = 0;
+        let dash_length_px = 0;
+        let star_size_px = 0;
+        let hexagon_size_px = 0;
+        const _echo_scale_factor =
+          ECHO_PLUS_SIZE_PX *
+          halo_geometry_scale *
+          clamp(dot_radius_px / Math.max(0.0001, template_dot.radius_px), 0.25, 4) *
+          echo_marker_scale_mult *
+          echo_sparse_scale_mult;
 
         if (echo_marker_variant === "plus") {
-          plus_size_px =
-            ECHO_PLUS_SIZE_PX *
-            halo_geometry_scale *
-            clamp(dot_radius_px / Math.max(0.0001, template_dot.radius_px), 0.25, 4) *
-            echo_marker_scale_mult *
-            echo_sparse_scale_mult;
+          plus_size_px = _echo_scale_factor;
           marker_outer_extent_px = plus_size_px * 0.5 + echo_marker_width_px * 0.5;
         } else if (echo_marker_variant === "triangles") {
           triangle_side_px = Math.max(
@@ -1897,6 +1971,18 @@ export function createRenderer({
           );
           marker_outer_extent_px =
             triangle_side_px / Math.sqrt(3) + echo_marker_width_px * 0.5;
+        } else if (echo_marker_variant === "diamond") {
+          diamond_size_px = _echo_scale_factor;
+          marker_outer_extent_px = diamond_size_px * 0.5 + echo_marker_width_px * 0.5;
+        } else if (echo_marker_variant === "radial_dash") {
+          dash_length_px = _echo_scale_factor * 0.75;
+          marker_outer_extent_px = dash_length_px * 0.5 + echo_marker_width_px * 0.5;
+        } else if (echo_marker_variant === "star") {
+          star_size_px = _echo_scale_factor;
+          marker_outer_extent_px = star_size_px * 0.5 + echo_marker_width_px * 0.5;
+        } else if (echo_marker_variant === "hexagon") {
+          hexagon_size_px = _echo_scale_factor * 1.1;
+          marker_outer_extent_px = hexagon_size_px * 0.5 + echo_marker_width_px * 0.5;
         }
 
         if (
@@ -1926,6 +2012,54 @@ export function createRenderer({
             echo_marker_width_px,
             dot_alpha,
             spoke.angle + Math.PI
+          );
+          continue;
+        }
+
+        if (echo_marker_variant === "diamond") {
+          push_diamond_marker(
+            local_dot_x,
+            local_dot_y,
+            diamond_size_px,
+            echo_marker_width_px,
+            dot_alpha,
+            spoke.angle
+          );
+          continue;
+        }
+
+        if (echo_marker_variant === "radial_dash") {
+          push_radial_dash_marker(
+            local_dot_x,
+            local_dot_y,
+            dash_length_px,
+            echo_marker_width_px,
+            dot_alpha,
+            spoke.angle
+          );
+          continue;
+        }
+
+        if (echo_marker_variant === "star") {
+          push_star_marker(
+            local_dot_x,
+            local_dot_y,
+            star_size_px,
+            echo_marker_width_px,
+            dot_alpha,
+            spoke.angle
+          );
+          continue;
+        }
+
+        if (echo_marker_variant === "hexagon") {
+          push_hexagon_marker(
+            local_dot_x,
+            local_dot_y,
+            hexagon_size_px,
+            echo_marker_width_px,
+            dot_alpha,
+            spoke.angle
           );
           continue;
         }

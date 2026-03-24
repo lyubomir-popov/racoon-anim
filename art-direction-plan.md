@@ -12,15 +12,21 @@ The wordplay is resolute → resolution (radial lines, orbits, measurement).
 
 ## What's already working – do not change
 
-- **Breathing system.** The rubber-band spoke fold with asymmetric phase masks already reads as alive without calling attention to the mechanism.
-- **Sine-wave ripple on echo dots.** Four-wave count gives a subtle concentric undulation. Both spoke count and orbit count already animate.
-- **Restraint.** Monochrome white-on-charcoal palette is intentional. No colour accents – the orange Canonical tag logo is composited separately and provides the only colour. That separation is an asset.
-- **Raccoon-tail banding.** The dark gaps between spoke clusters effectively create the alternating light/dark bands of a raccoon tail. This is already the right read.
-- **Staggered dot-capture reveal.** The `capture_start_frac` / `orbit_stagger_frac` parameters already control this timing.
+- [x] **Breathing system.** The rubber-band spoke fold with asymmetric phase masks already reads as alive without calling attention to the mechanism.
+- [x] **Sine-wave ripple on echo dots.** Four-wave count gives a subtle concentric undulation. Both spoke count and orbit count already animate.
+- [x] **Restraint.** Monochrome white-on-charcoal palette is intentional. No colour accents – the orange Canonical tag logo is composited separately and provides the only colour. That separation is an asset.
+- [x] **Raccoon-tail banding.** The dark gaps between spoke clusters effectively create the alternating light/dark bands of a raccoon tail. This is already the right read.
+- [x] **Staggered dot-capture reveal.** The `capture_start_frac` / `orbit_stagger_frac` parameters already control this timing.
 
 ---
 
 ## New shapes to add
+
+- [x] Diamond (rhombus)
+- [x] Radial dash
+- [x] Star (compound plus)
+- [x] Hexagon outline
+
 Ensure closed shapes are same visual weight - maybe inscribed in the same size circle?
 
 ### 1. Diamond (rhombus)
@@ -45,6 +51,8 @@ All shapes must remain stroke-only, constructable from line segments, and no thi
 
 ## Droplet-to-halo handoff – flash-on-capture
 
+- [ ] Flash-on-capture alpha spike
+
 When an orbiting dot locks into its target angle, introduce a brief alpha spike: ramp to 1.0 for ~2 frames, then ease back to 0.6, then settle to the base spoke alpha. This sells the moment of "impact" – a droplet hitting a surface – and connects the dot phase to the halo phase more tightly.
 
 The existing `capture_start_frac` parameter already handles the stagger timing, so no new control is needed for sequencing.
@@ -52,6 +60,8 @@ The existing `capture_start_frac` parameter already handles the stagger timing, 
 ---
 
 ## Vignette – context-dependent intensity
+
+- [ ] LED wall interstitial vignette preset (reduce `vignette.choke`, increase `vignette.radius_px`)
 
 The radial vignette exists to make overlaid text readable. It uses a keyhole metaphor: a glimpse into a larger universe, not a bounded circle.
 
@@ -65,6 +75,12 @@ Consider exposing a `vignette.interstitial_mode` toggle or preset that reduces `
 ---
 
 ## Micro-typography layer – Ubuntu release history on spokes
+
+- [ ] Update `UBUNTU_RELEASE_LABELS` to 44 entries (add 26.04)
+- [ ] Add codenames to labels
+- [ ] Orient text along spoke direction (not horizontal)
+- [ ] Place labels in echo zone (not canvas edge)
+- [ ] Integrate opacity with reveal and breathing systems
 
 ### Concept
 
