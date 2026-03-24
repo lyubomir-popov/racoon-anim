@@ -118,6 +118,8 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "spoke_lines.inner_width_px",
   "spoke_lines.phase_start_scale",
   "spoke_lines.reverse_inner_spoke_thickness_scale",
+  "spoke_lines.text_labels_enabled",
+  "spoke_lines.text_radial_offset_px",
   "spoke_lines.echo_count",
   "spoke_lines.echo_style",
   "spoke_lines.echo_mix_shape_pct",

@@ -420,16 +420,26 @@ export const CONFIG_FIELD_META = Object.freeze({
       "Adds extra clipped copies of the thick spoke pass to push the pattern outward across the widescreen frame.",
     numeric: { min: 0, max: 24, step: 1 }
   },
+  "spoke_lines.text_labels_enabled": {
+    label: "Release Labels",
+    help_text:
+      "Overlays Ubuntu release names along each spoke as micro-typography. Renders independently of the echo marker style."
+  },
+  "spoke_lines.text_radial_offset_px": {
+    label: "Label Radial Offset",
+    help_text:
+      "Distance in pixels beyond the halo boundary at which spoke release labels start. Increase to push labels outward past the shape markers.",
+    numeric: { min: 0, max: 400, step: 4 }
+  },
   "spoke_lines.echo_style": {
     label: "Echo Marker Style",
     help_text:
-      "Chooses how the echoed halo markers render: circles, plus signs, outlined triangles, a deterministic mix, or Ubuntu release labels near the canvas edge.",
+      "Chooses how the echoed halo markers render: circles, plus signs, outlined triangles, or a deterministic mix.",
     options: Object.freeze([
       Object.freeze({ value: "dots", label: "Dots" }),
       Object.freeze({ value: "plus", label: "Plus Signs" }),
       Object.freeze({ value: "triangles", label: "Outlined Triangles" }),
-      Object.freeze({ value: "mixed", label: "Mixed Shapes" }),
-      Object.freeze({ value: "ubuntu_releases", label: "Ubuntu Releases" })
+      Object.freeze({ value: "mixed", label: "Mixed Shapes" })
     ])
   },
   "spoke_lines.echo_shape_seed": {

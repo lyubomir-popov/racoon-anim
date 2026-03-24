@@ -1350,7 +1350,6 @@ export function createRenderer({
       case "plus":
       case "triangles":
       case "mixed":
-      case "ubuntu_releases":
       case "dots":
         return echo_style;
       default:
@@ -1367,7 +1366,7 @@ export function createRenderer({
   }
 
   function get_echo_marker_variant(echo_style, spoke_seed, marker_seed) {
-    if (echo_style === "plus" || echo_style === "triangles" || echo_style === "ubuntu_releases") {
+    if (echo_style === "plus" || echo_style === "triangles") {
       return echo_style;
     }
 
@@ -1501,7 +1500,7 @@ export function createRenderer({
       !text_overlay_canvas ||
       !box ||
       base_alpha <= 0 ||
-      get_echo_style() !== "ubuntu_releases"
+      !config.spoke_lines.text_labels_enabled
     ) {
       return;
     }
@@ -1512,8 +1511,9 @@ export function createRenderer({
       ECHO_TEXT_BASE_FONT_SIZE_PX,
       Math.round(ECHO_TEXT_BASE_FONT_SIZE_PX * Math.min(stage_width_px, stage_height_px) / 1080)
     );
-    // Place labels just inside the echo zone, immediately beyond the halo boundary.
-    const text_start_radius = (halo_outer_radius_px ?? 0) + ECHO_MARKER_HALO_GAP_PX + font_size_px * 0.5;
+    // Place labels along the spoke at a user-controlled radial offset beyond the halo boundary.
+    const text_radial_offset_px = Math.max(0, Number(config.spoke_lines.text_radial_offset_px ?? 80));
+    const text_start_radius = (halo_outer_radius_px ?? 0) + text_radial_offset_px;
     const label_count = UBUNTU_RELEASE_LABELS.length;
 
     text_overlay_context.save();
@@ -1871,13 +1871,9 @@ export function createRenderer({
         spoke.seam_overlay_only ||
         !dot_templates.length ||
         orbit_step_px <= 0 ||
-        (echo_style !== "ubuntu_releases" && echo_count <= 0) ||
+        echo_count <= 0 ||
         spoke.inner_clip_offset_px <= 0
       ) {
-        continue;
-      }
-
-      if (echo_style === "ubuntu_releases") {
         continue;
       }
 

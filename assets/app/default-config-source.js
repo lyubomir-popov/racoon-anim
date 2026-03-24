@@ -82,6 +82,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "echo_count": 16,
     "echo_style": "mixed",
     "echo_shape_seed": 0,
+    "text_labels_enabled": true,
+    "text_radial_offset_px": 80,
     "echo_mix_shape_pct": 0.56,
     "echo_width_mult": 0.88,
     "echo_wave_count": 4,
