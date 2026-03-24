@@ -289,28 +289,6 @@ function ensure_overlay_text_keyline_defaults(target) {
     return;
   }
 
-  const runtime_specs = [
-    ["main_heading_keyline_index", "main_heading_x_px", "main_heading_column_span", "main_heading_max_width_px"],
-    ["text_1_keyline_index", "text_1_x_px", "text_1_column_span", "text_1_max_width_px"],
-    ["text_2_keyline_index", "text_2_x_px", "text_2_column_span", "text_2_max_width_px"],
-    ["text_3_keyline_index", "text_3_x_px", "text_3_column_span", "text_3_max_width_px"]
-  ];
-
-  for (const [keyline_key, legacy_key, span_key, legacy_width_key] of runtime_specs) {
-    if (!Number.isFinite(Number(target.overlay_text[keyline_key]))) {
-      target.overlay_text[keyline_key] = derive_keyline_index_from_legacy_x(
-        target,
-        target.overlay_text[legacy_key]
-      );
-    }
-    if (!Number.isFinite(Number(target.overlay_text[span_key]))) {
-      target.overlay_text[span_key] = derive_column_span_from_legacy_width(
-        target,
-        target.overlay_text[legacy_width_key]
-      );
-    }
-  }
-
   if (!is_plain_object(target.overlay_content_formats)) {
     return;
   }
@@ -704,72 +682,6 @@ export const CONFIG_FIELD_META = Object.freeze({
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.main_heading_max_width_px": {
-    hidden: true,
-    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
-  },
-  "overlay_text.text_1_x_px": {
-    hidden: true,
-    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
-  },
-  "overlay_text.text_1_keyline_index": {
-    label: "Column",
-    help_text: "Aligns the B-head to a grid keyline based on the current column layout.",
-    numeric: { min: 1, max: 24, step: 1 }
-  },
-  "overlay_text.text_1_column_span": {
-    label: "Span (Columns)",
-    help_text: "How many grid columns the B-head can occupy before wrapping.",
-    numeric: { min: 1, max: 24, step: 1 }
-  },
-  "overlay_text.text_1_y_baselines": {
-    label: "B-head Y (Baselines)",
-    numeric: { min: -200, max: 2000, step: 1 }
-  },
-  "overlay_text.text_1_max_width_px": {
-    hidden: true,
-    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
-  },
-  "overlay_text.text_2_x_px": {
-    hidden: true,
-    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
-  },
-  "overlay_text.text_2_keyline_index": {
-    label: "Column",
-    help_text: "Aligns paragraph text to a grid keyline based on the current column layout.",
-    numeric: { min: 1, max: 24, step: 1 }
-  },
-  "overlay_text.text_2_column_span": {
-    label: "Span (Columns)",
-    help_text: "How many grid columns Paragraph 1 can occupy before wrapping.",
-    numeric: { min: 1, max: 24, step: 1 }
-  },
-  "overlay_text.text_2_y_baselines": {
-    label: "Paragraph 1 Y (Baselines)",
-    numeric: { min: -200, max: 2000, step: 1 }
-  },
-  "overlay_text.text_2_max_width_px": {
-    hidden: true,
-    numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
-  },
-  "overlay_text.text_3_x_px": {
-    hidden: true,
-    numeric: { min: -MAX_OUTPUT_PROFILE_WIDTH_PX, max: MAX_OUTPUT_PROFILE_WIDTH_PX * 2, step: 1 }
-  },
-  "overlay_text.text_3_keyline_index": {
-    label: "Column",
-    help_text: "Aligns paragraph text to a grid keyline based on the current column layout.",
-    numeric: { min: 1, max: 24, step: 1 }
-  },
-  "overlay_text.text_3_column_span": {
-    label: "Span (Columns)",
-    help_text: "How many grid columns Paragraph 2 can occupy before wrapping.",
-    numeric: { min: 1, max: 24, step: 1 }
-  },
-  "overlay_text.text_3_y_baselines": {
-    label: "Paragraph 2 Y (Baselines)",
-    numeric: { min: -200, max: 2000, step: 1 }
-  },
-  "overlay_text.text_3_max_width_px": {
     hidden: true,
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_WIDTH_PX, step: 1 }
   },
@@ -1673,66 +1585,12 @@ export function normalize_config_snapshot(source, default_config) {
       );
     }
     if (
-      !Number.isFinite(Number(source?.overlay_text?.text_1_keyline_index)) &&
-      Number.isFinite(Number(source?.overlay_text?.text_1_x_px))
-    ) {
-      snapshot.overlay_text.text_1_keyline_index = derive_keyline_index_from_legacy_x(
-        snapshot,
-        source.overlay_text.text_1_x_px
-      );
-    }
-    if (
-      !Number.isFinite(Number(source?.overlay_text?.text_2_keyline_index)) &&
-      Number.isFinite(Number(source?.overlay_text?.text_2_x_px))
-    ) {
-      snapshot.overlay_text.text_2_keyline_index = derive_keyline_index_from_legacy_x(
-        snapshot,
-        source.overlay_text.text_2_x_px
-      );
-    }
-    if (
-      !Number.isFinite(Number(source?.overlay_text?.text_3_keyline_index)) &&
-      Number.isFinite(Number(source?.overlay_text?.text_3_x_px))
-    ) {
-      snapshot.overlay_text.text_3_keyline_index = derive_keyline_index_from_legacy_x(
-        snapshot,
-        source.overlay_text.text_3_x_px
-      );
-    }
-    if (
       !Number.isFinite(Number(source?.overlay_text?.main_heading_column_span)) &&
       Number.isFinite(Number(source?.overlay_text?.main_heading_max_width_px))
     ) {
       snapshot.overlay_text.main_heading_column_span = derive_column_span_from_legacy_width(
         snapshot,
         source.overlay_text.main_heading_max_width_px
-      );
-    }
-    if (
-      !Number.isFinite(Number(source?.overlay_text?.text_1_column_span)) &&
-      Number.isFinite(Number(source?.overlay_text?.text_1_max_width_px))
-    ) {
-      snapshot.overlay_text.text_1_column_span = derive_column_span_from_legacy_width(
-        snapshot,
-        source.overlay_text.text_1_max_width_px
-      );
-    }
-    if (
-      !Number.isFinite(Number(source?.overlay_text?.text_2_column_span)) &&
-      Number.isFinite(Number(source?.overlay_text?.text_2_max_width_px))
-    ) {
-      snapshot.overlay_text.text_2_column_span = derive_column_span_from_legacy_width(
-        snapshot,
-        source.overlay_text.text_2_max_width_px
-      );
-    }
-    if (
-      !Number.isFinite(Number(source?.overlay_text?.text_3_column_span)) &&
-      Number.isFinite(Number(source?.overlay_text?.text_3_max_width_px))
-    ) {
-      snapshot.overlay_text.text_3_column_span = derive_column_span_from_legacy_width(
-        snapshot,
-        source.overlay_text.text_3_max_width_px
       );
     }
   }

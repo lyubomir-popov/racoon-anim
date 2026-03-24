@@ -8,11 +8,11 @@ This file is the forward-looking plan. It is organized by theme rather than by c
 
 Finish the move from a partially projected overlay system to a clean data-driven model.
 
-- [ ] Remove the fixed internal assumption that every format resolves to `main_heading`, `text_1`, `text_2`, `text_3`.
-- [ ] Make content formats declare their own field list and style mapping in a fully data-driven way.
-- [ ] Keep the summit heading/logo as fixed brand content while variable content comes from the selected CSV format.
-- [ ] Preserve migration for older presets/source defaults.
-- [ ] Verify the text-block subtabs after the recent dynamic-field refactor.
+- [x] Remove the fixed internal assumption that every format resolves to `main_heading`, `text_1`, `text_2`, `text_3`. (dead `runtime_specs` loop + 15 dead `CONFIG_FIELD_META` entries removed; dead `overlay_text.text_1/2/3_*` migration writes removed)
+- [x] Make content formats declare their own field list and style mapping in a fully data-driven way. (done in prior refactor – `OVERLAY_CONTENT_FORMATS.fields`, `get_overlay_content_record()`, `draw_overlay_text_block()` all iterate field list)
+- [x] Keep the summit heading/logo as fixed brand content while variable content comes from the selected CSV format. (`main_heading` reads `overlay_text.title_text` directly; variable fields come from `format_spec.fields`)
+- [x] Preserve migration for older presets/source defaults. (Loop 2 in `ensure_overlay_text_keyline_defaults` + `legacy_slot` references in format-bucket migration are untouched)
+- [x] Verify the text-block subtabs after the recent dynamic-field refactor. (`build_tabbed_control_section` confirmed: `aria-controls`, `aria-labelledby`, `role="tabpanel"`, `tabindex` management, active-on-focus/click, arrow key nav – Vanilla model correct)
   - The subtab UI must follow the Vanilla tabs interaction model: real `aria-controls`, `aria-labelledby`, active-on-focus/click, hidden tabpanels.
   - Local reference: `h:\WSL_dev_projects\vanilla-framework`, especially `templates/static/js/tabs.js`.
 
@@ -188,7 +188,7 @@ The project may move to a Linux or macOS machine. The scripts are structurally c
 If another model needs a practical order, use this:
 
 - [x] Move safe area into output profile metadata (B)
-- [ ] Finish overlay data model cleanup (A)
+- [x] Finish overlay data model cleanup (A)
 - [ ] Add requirements.txt and cross-platform setup docs (K)
 - [ ] Finish stakeholder-friendly CSV flow (D)
 - [ ] Debug local MP4 export button end to end (F)
