@@ -55,7 +55,7 @@
                   </div>
                 </div>
                 <p class="p-form-help-text main-actions-help u-no-margin--bottom">
-                  Presets are temporary browser-stored test states. The source default lives in
+                  Write Source Default persists the current global settings and the currently selected output format settings to
                   <code>assets/app/default-config-source.js</code>.
                 </p>
                 <div class="p-form__group">
@@ -79,7 +79,7 @@
                 <div class="preset-section-header">
                   <h2 class="p-muted-heading u-no-margin--bottom">Output Format</h2>
                   <p class="p-form-help-text u-no-margin--bottom">
-                    Switching format rebuilds the stage at that exact size and swaps in the layout, scale, safe-area, and text settings stored for that screen size.
+                    Switching format rebuilds the stage at that exact size and swaps in the layout, scale, safe-area, and text settings stored for that screen size. Edits affect the selected format immediately; use Write Source Default to keep them after refresh.
                   </p>
                 </div>
                 <div class="preset-selection">
@@ -87,34 +87,29 @@
                 </div>
               </div>
 
-              <div class="preset-section-header">
-                <h2 class="p-muted-heading u-no-margin--bottom">Temporary Presets</h2>
-                <p class="p-form-help-text u-no-margin--bottom">
-                  Save full-project snapshots for testing. These include the global shared settings and every output-format-specific layout.
-                </p>
-              </div>
-
-              <form class="p-form p-form--stacked preset-editor" onsubmit="return false;">
-                <div class="p-form__group preset-toolbar__name">
-                  <label class="p-form__label u-no-margin--bottom" for="preset-name">Preset name</label>
-                  <div class="p-form__control">
-                    <input class="p-form-validation__input is-dense" id="preset-name" type="text" data-preset-name placeholder="Preset name">
+              <div class="temporary-preset-ui" hidden aria-hidden="true">
+                <form class="p-form p-form--stacked preset-editor" onsubmit="return false;">
+                  <div class="p-form__group preset-toolbar__name">
+                    <label class="p-form__label u-no-margin--bottom" for="preset-name">Preset name</label>
+                    <div class="p-form__control">
+                      <input class="p-form-validation__input is-dense" id="preset-name" type="text" data-preset-name placeholder="Preset name">
+                    </div>
                   </div>
+                </form>
+                <div class="preset-toolbar">
+                  <button class="p-button is-dense" type="button" data-preset-save>Save</button>
+                  <button class="p-button--base is-dense" type="button" data-preset-export>Export</button>
+                  <label class="p-button--base is-dense file-button" for="preset-import">Import
+                    <input class="file-button__input" id="preset-import" type="file" accept=".json,application/json" data-preset-import>
+                  </label>
+                  <button class="p-button--base is-dense" type="button" data-preset-delete>Delete</button>
                 </div>
-              </form>
-              <div class="preset-toolbar">
-                <button class="p-button is-dense" type="button" data-preset-save>Save</button>
-                <button class="p-button--base is-dense" type="button" data-preset-export>Export</button>
-                <label class="p-button--base is-dense file-button" for="preset-import">Import
-                  <input class="file-button__input" id="preset-import" type="file" accept=".json,application/json" data-preset-import>
-                </label>
-                <button class="p-button--base is-dense" type="button" data-preset-delete>Delete</button>
-              </div>
 
-              <div class="preset-selection">
-                <div class="preset-options" data-preset-tabs></div>
+                <div class="preset-selection">
+                  <div class="preset-options" data-preset-tabs></div>
+                </div>
+                <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save adds a preset when the name is new, otherwise it updates that preset.</p>
               </div>
-              <p class="p-form-help-text preset-meta" data-preset-meta>Presets are stored in this browser. Save adds a preset when the name is new, otherwise it updates that preset.</p>
             </div>
             <div class="config-sections" data-config-editor></div>
           </div>

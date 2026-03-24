@@ -49,6 +49,7 @@ const ECHO_MARKER_HALO_GAP_PX = 16;
 const TEXT_LABEL_MARGIN_PX = 16;
 const ECHO_TEXT_BASE_FONT_SIZE_PX = 6;
 const TEXT_LABEL_WIDTH_CACHE = new Map();
+const TEXT_LABEL_MEASURE_CACHE = new Map();
 const TEXT_LABEL_FONT_FAMILY = "\"Ubuntu Sans\", Ubuntu, sans-serif";
 const LINKED_TITLE_BASE_FONT_SIZE_PX = 63;
 const OVERLAY_GRID_COLOR = "rgba(255,0,0,0.2)";
@@ -646,6 +647,9 @@ export function createRenderer({
       layout_width_px - side_margin_px * 2 - column_gutter_px * Math.max(0, column_count - 1)
     );
     const column_width_px = column_count <= 0 ? 0 : content_width_px / column_count;
+    const column_keyline_positions_px = Array.from({ length: column_count }, (_, index) => (
+      layout_left_px + side_margin_px + index * (column_width_px + column_gutter_px)
+    ));
 
     return {
       baseline_step_px,
@@ -666,8 +670,19 @@ export function createRenderer({
       content_left_px: layout_left_px + side_margin_px,
       content_top_px: layout_top_px + top_margin_px,
       content_right_px: layout_right_px - side_margin_px,
-      content_bottom_px: layout_bottom_px - bottom_margin_px
+      content_bottom_px: layout_bottom_px - bottom_margin_px,
+      column_keyline_positions_px
     };
+  }
+
+  function get_overlay_text_keyline_x_px(keyline_index) {
+    const grid = get_layout_grid_metrics();
+    const safe_index = clamp(
+      Math.round(Number.isFinite(Number(keyline_index)) ? Number(keyline_index) : 1),
+      1,
+      Math.max(1, grid.column_count)
+    );
+    return grid.column_keyline_positions_px[safe_index - 1] ?? grid.content_left_px;
   }
 
   function get_overlay_text_color() {
@@ -1858,23 +1873,46 @@ export function createRenderer({
   }
 
   function get_text_label_width_px(label, font_size_px) {
+    return get_text_label_measurements(label, font_size_px).width;
+  }
+
+  function get_text_label_measurements(label, font_size_px) {
     const safe_label = String(label || "");
     const cache_key = `${font_size_px}:${safe_label}`;
-    const cached_width = TEXT_LABEL_WIDTH_CACHE.get(cache_key);
-    if (cached_width != null) {
-      return cached_width;
+    const cached_metrics = TEXT_LABEL_MEASURE_CACHE.get(cache_key);
+    if (cached_metrics) {
+      return cached_metrics;
     }
 
     let measured_width = font_size_px * 0.58 * safe_label.length;
+    let measured_ascent = font_size_px * 0.38;
+    let measured_descent = font_size_px * 0.18;
     if (text_overlay_context && safe_label) {
       text_overlay_context.save();
       text_overlay_context.font = `${font_size_px}px ${TEXT_LABEL_FONT_FAMILY}`;
-      measured_width = text_overlay_context.measureText(safe_label).width;
+      const metrics = text_overlay_context.measureText(safe_label);
+      measured_width = metrics.width;
+      measured_ascent = metrics.actualBoundingBoxAscent || measured_ascent;
+      measured_descent = metrics.actualBoundingBoxDescent || measured_descent;
       text_overlay_context.restore();
     }
 
+    const measured_metrics = {
+      width: measured_width,
+      ascent: measured_ascent,
+      descent: measured_descent,
+      height: measured_ascent + measured_descent
+    };
     TEXT_LABEL_WIDTH_CACHE.set(cache_key, measured_width);
-    return measured_width;
+    TEXT_LABEL_MEASURE_CACHE.set(cache_key, measured_metrics);
+    return measured_metrics;
+  }
+
+  function get_text_label_fill_color() {
+    if (is_overlay_enabled() && config.layout_grid?.fit_within_safe_area) {
+      return get_safe_area_fill_color();
+    }
+    return get_background_color();
   }
 
   function get_text_label_radius_metrics(
@@ -2086,6 +2124,9 @@ export function createRenderer({
     const field_center_y = config.composition.center_y_px;
     const font_size_px = get_text_label_font_size_px();
     const label_count = UBUNTU_RELEASE_LABELS.length;
+    const label_fill_color = get_text_label_fill_color();
+    const label_pad_x = Math.max(4, Math.round(font_size_px * 0.28));
+    const label_pad_y = Math.max(2, Math.round(font_size_px * 0.18));
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
@@ -2114,6 +2155,7 @@ export function createRenderer({
       }
 
       const label = UBUNTU_RELEASE_LABELS[label_index];
+      const label_measure = get_text_label_measurements(label, font_size_px);
       const text_metrics = get_text_label_radius_metrics(
         spoke,
         halo_outer_radius_px,
@@ -2144,6 +2186,14 @@ export function createRenderer({
       text_overlay_context.rotate(label_rotation);
       text_overlay_context.textAlign = should_flip ? "right" : "left";
       text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha;
+      text_overlay_context.fillStyle = label_fill_color;
+      text_overlay_context.fillRect(
+        should_flip ? -label_measure.width - label_pad_x : -label_pad_x,
+        -label_measure.ascent - label_pad_y,
+        label_measure.width + label_pad_x * 2,
+        label_measure.height + label_pad_y * 2
+      );
+      text_overlay_context.fillStyle = config.spoke_lines.reference_color || "#ffffff";
       text_overlay_context.fillText(label, 0, 0);
       text_overlay_context.restore();
     }
@@ -2379,7 +2429,7 @@ export function createRenderer({
 
   function draw_overlay_text_field({
     text,
-    x_px,
+    keyline_index,
     y_baselines,
     max_width_px,
     font,
@@ -2398,7 +2448,7 @@ export function createRenderer({
     }
 
     let baseline_y_px = grid.layout_top_px + Number(y_baselines ?? 0) * baseline_step_px;
-    const draw_x_px = grid.layout_left_px + Number(x_px ?? 0);
+    const draw_x_px = get_overlay_text_keyline_x_px(keyline_index);
 
     text_overlay_context.font = font;
     for (const line of wrapped_lines) {
@@ -2424,8 +2474,18 @@ export function createRenderer({
     );
     const b_head_font_size_px = Math.max(1, Number(config.overlay_text.b_head_font_size_px ?? 32));
     const paragraph_font_size_px = Math.max(1, Number(config.overlay_text.paragraph_font_size_px ?? 32));
-    const title_font = get_overlay_text_font(title_font_size_px, 400);
-    const b_head_font = get_overlay_text_font(b_head_font_size_px, 400);
+    const title_font_weight = clamp(
+      Math.round(Number(config.overlay_text.title_font_weight ?? 400)),
+      100,
+      900
+    );
+    const b_head_font_weight = clamp(
+      Math.round(Number(config.overlay_text.b_head_font_weight ?? 400)),
+      100,
+      900
+    );
+    const title_font = get_overlay_text_font(title_font_size_px, title_font_weight);
+    const b_head_font = get_overlay_text_font(b_head_font_size_px, b_head_font_weight);
     const paragraph_font = get_overlay_text_font(paragraph_font_size_px, 400);
     const title_line_height_px = Math.max(
       baseline_step_px,
@@ -2451,7 +2511,7 @@ export function createRenderer({
     text_overlay_context.textBaseline = "alphabetic";
     draw_overlay_text_field({
       text: content.main_heading,
-      x_px: config.overlay_text.main_heading_x_px,
+      keyline_index: config.overlay_text.main_heading_keyline_index,
       y_baselines: config.overlay_text.main_heading_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.main_heading_max_width_px ?? 0)),
       font: title_font,
@@ -2459,7 +2519,7 @@ export function createRenderer({
     });
     draw_overlay_text_field({
       text: content.text_1,
-      x_px: config.overlay_text.text_1_x_px,
+      keyline_index: config.overlay_text.text_1_keyline_index,
       y_baselines: config.overlay_text.text_1_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.text_1_max_width_px ?? 0)),
       font: b_head_font,
@@ -2467,7 +2527,7 @@ export function createRenderer({
     });
     draw_overlay_text_field({
       text: content.text_2,
-      x_px: config.overlay_text.text_2_x_px,
+      keyline_index: config.overlay_text.text_2_keyline_index,
       y_baselines: config.overlay_text.text_2_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.text_2_max_width_px ?? 0)),
       font: paragraph_font,
@@ -2475,7 +2535,7 @@ export function createRenderer({
     });
     draw_overlay_text_field({
       text: content.text_3,
-      x_px: config.overlay_text.text_3_x_px,
+      keyline_index: config.overlay_text.text_3_keyline_index,
       y_baselines: config.overlay_text.text_3_y_baselines,
       max_width_px: Math.max(0, Number(config.overlay_text.text_3_max_width_px ?? 0)),
       font: paragraph_font,

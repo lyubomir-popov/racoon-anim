@@ -171,8 +171,14 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "overlay_text.text_3_max_width_px",
   "overlay_text.title_font_size_px",
   "overlay_text.title_line_height_px",
+  "overlay_text.title_font_weight",
+  "overlay_text.main_heading_keyline_index",
   "overlay_text.b_head_font_size_px",
   "overlay_text.b_head_line_height_px",
+  "overlay_text.b_head_font_weight",
+  "overlay_text.text_1_keyline_index",
+  "overlay_text.text_2_keyline_index",
+  "overlay_text.text_3_keyline_index",
   "overlay_text.paragraph_font_size_px",
   "overlay_text.paragraph_line_height_px",
   "overlay_text.link_title_size_to_logo_height",
@@ -253,49 +259,109 @@ const OVERLAY_CONTENT_CONTROL_ROWS = Object.freeze([
   Object.freeze({ path: "overlay_text.content_csv_path" })
 ]);
 
-const OVERLAY_TEXT_STYLE_CONTROL_ROWS = Object.freeze([
-  Object.freeze({ path: "overlay_text.title_font_size_px" }),
-  Object.freeze({ path: "overlay_text.title_line_height_px" }),
-  Object.freeze({ path: "overlay_text.b_head_font_size_px" }),
-  Object.freeze({ path: "overlay_text.b_head_line_height_px" }),
-  Object.freeze({ path: "overlay_text.paragraph_font_size_px" }),
-  Object.freeze({ path: "overlay_text.paragraph_line_height_px" })
+const OVERLAY_VISIBILITY_CONTROL_ROWS = Object.freeze([
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.show_composition_grid", suppress_help: true }),
+      Object.freeze({ path: "layout_grid.show_baseline_grid", suppress_help: true })
+    ]),
+    suppress_help: true
+  })
+]);
+
+const OVERLAY_TEXT_STYLE_TAB_SPECS = Object.freeze([
+  Object.freeze({
+    key: "a_head_style",
+    label: "A Head",
+    rows: Object.freeze([
+      Object.freeze({ path: "overlay_text.title_font_size_px" }),
+      Object.freeze({ path: "overlay_text.title_line_height_px" }),
+      Object.freeze({ path: "overlay_text.title_font_weight" })
+    ])
+  }),
+  Object.freeze({
+    key: "b_head_style",
+    label: "B Head",
+    rows: Object.freeze([
+      Object.freeze({ path: "overlay_text.b_head_font_size_px" }),
+      Object.freeze({ path: "overlay_text.b_head_line_height_px" }),
+      Object.freeze({ path: "overlay_text.b_head_font_weight" })
+    ])
+  }),
+  Object.freeze({
+    key: "paragraph_style",
+    label: "P",
+    rows: Object.freeze([
+      Object.freeze({ path: "overlay_text.paragraph_font_size_px" }),
+      Object.freeze({ path: "overlay_text.paragraph_line_height_px" })
+    ])
+  })
 ]);
 
 const OVERLAY_LOGO_CONTROL_ROWS = Object.freeze([
   Object.freeze({ path: "overlay_logo.asset_path" }),
-  Object.freeze({ path: "overlay_logo.x_px" }),
-  Object.freeze({ path: "overlay_logo.y_px" }),
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "overlay_logo.x_px", label: "X (px)" }),
+      Object.freeze({ path: "overlay_logo.y_px", label: "Y (px)" })
+    ])
+  }),
   Object.freeze({ path: "overlay_logo.height_px" })
 ]);
 
 const OVERLAY_GRID_CONTROL_ROWS = Object.freeze([
-  Object.freeze({ path: "layout_grid.show_composition_grid" }),
-  Object.freeze({ path: "layout_grid.show_baseline_grid" }),
-  Object.freeze({ path: "layout_grid.fit_within_safe_area" }),
-  Object.freeze({ path: "layout_grid.safe_area_fill_above_animation" }),
   Object.freeze({ path: "layout_grid.baseline_step_px" }),
-  Object.freeze({ path: "layout_grid.row_count" }),
-  Object.freeze({ path: "layout_grid.column_count" }),
-  Object.freeze({ path: "layout_grid.margin_top_baselines" }),
-  Object.freeze({ path: "layout_grid.margin_bottom_baselines" }),
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.row_count" }),
+      Object.freeze({ path: "layout_grid.column_count" })
+    ]),
+    suppress_help: true
+  }),
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.margin_top_baselines" }),
+      Object.freeze({ path: "layout_grid.margin_bottom_baselines" })
+    ])
+  }),
   Object.freeze({ path: "layout_grid.margin_side_baselines" }),
-  Object.freeze({ path: "layout_grid.row_gutter_baselines" }),
-  Object.freeze({ path: "layout_grid.column_gutter_baselines" }),
-  Object.freeze({ path: "layout_grid.safe_top_px" }),
-  Object.freeze({ path: "layout_grid.safe_right_px" }),
-  Object.freeze({ path: "layout_grid.safe_bottom_px" }),
-  Object.freeze({ path: "layout_grid.safe_left_px" })
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.row_gutter_baselines" }),
+      Object.freeze({ path: "layout_grid.column_gutter_baselines" })
+    ]),
+    suppress_help: true
+  }),
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.fit_within_safe_area" }),
+      Object.freeze({ path: "layout_grid.safe_area_fill_above_animation" })
+    ]),
+    suppress_help: true
+  }),
+  Object.freeze({
+    columns: Object.freeze([
+      Object.freeze({ path: "layout_grid.safe_top_px", label: "Top", number_input_only: true }),
+      Object.freeze({ path: "layout_grid.safe_right_px", label: "Right", number_input_only: true }),
+      Object.freeze({ path: "layout_grid.safe_bottom_px", label: "Bottom", number_input_only: true }),
+      Object.freeze({ path: "layout_grid.safe_left_px", label: "Left", number_input_only: true })
+    ]),
+    suppress_help: true
+  })
 ]);
 
 const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
   generic_social: Object.freeze([
     Object.freeze({
       key: "a_head",
-      label: "A-head",
+      label: "A Head",
       rows: Object.freeze([
-        Object.freeze({ path: "overlay_text.main_heading_x_px", label: "X (px)" }),
-        Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Column" }),
+            Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.main_heading_max_width_px", label: "Max Width (px)" })
       ])
     }),
@@ -303,8 +369,12 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
       key: "paragraph_1",
       label: "Paragraph 1",
       rows: Object.freeze([
-        Object.freeze({ path: "overlay_text.text_3_x_px", label: "X (px)" }),
-        Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.text_3_keyline_index", label: "Column" }),
+            Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.text_3_max_width_px", label: "Max Width (px)" })
       ])
     }),
@@ -312,11 +382,19 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
       key: "paragraph_2",
       label: "Paragraph 2",
       rows: Object.freeze([
-        Object.freeze({ path: "overlay_text.text_1_x_px", label: "Line 1 X (px)" }),
-        Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Line 1 Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.text_1_keyline_index", label: "Line 1 Column" }),
+            Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Line 1 Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.text_1_max_width_px", label: "Line 1 Max Width (px)" }),
-        Object.freeze({ path: "overlay_text.text_2_x_px", label: "Line 2 X (px)" }),
-        Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Line 2 Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.text_2_keyline_index", label: "Line 2 Column" }),
+            Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Line 2 Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.text_2_max_width_px", label: "Line 2 Max Width (px)" })
       ])
     })
@@ -324,31 +402,47 @@ const OVERLAY_FIELD_TAB_SPECS_BY_FORMAT = Object.freeze({
   speaker_highlight: Object.freeze([
     Object.freeze({
       key: "a_head",
-      label: "A-head",
+      label: "A Head",
       rows: Object.freeze([
-        Object.freeze({ path: "overlay_text.main_heading_x_px", label: "X (px)" }),
-        Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Column" }),
+            Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.main_heading_max_width_px", label: "Max Width (px)" })
       ])
     }),
     Object.freeze({
       key: "b_head",
-      label: "B-head",
+      label: "B Head",
       rows: Object.freeze([
-        Object.freeze({ path: "overlay_text.text_1_x_px", label: "X (px)" }),
-        Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.text_1_keyline_index", label: "Column" }),
+            Object.freeze({ path: "overlay_text.text_1_y_baselines", label: "Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.text_1_max_width_px", label: "Max Width (px)" })
       ])
     }),
     Object.freeze({
       key: "paragraphs",
-      label: "Paragraphs",
+      label: "Paragraph",
       rows: Object.freeze([
-        Object.freeze({ path: "overlay_text.text_2_x_px", label: "Paragraph 1 X (px)" }),
-        Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Paragraph 1 Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.text_2_keyline_index", label: "Paragraph 1 Column" }),
+            Object.freeze({ path: "overlay_text.text_2_y_baselines", label: "Paragraph 1 Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.text_2_max_width_px", label: "Paragraph 1 Max Width (px)" }),
-        Object.freeze({ path: "overlay_text.text_3_x_px", label: "Paragraph 2 X (px)" }),
-        Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Paragraph 2 Y (Baselines)" }),
+        Object.freeze({
+          columns: Object.freeze([
+            Object.freeze({ path: "overlay_text.text_3_keyline_index", label: "Paragraph 2 Column" }),
+            Object.freeze({ path: "overlay_text.text_3_y_baselines", label: "Paragraph 2 Y (Baselines)" })
+          ])
+        }),
         Object.freeze({ path: "overlay_text.text_3_max_width_px", label: "Paragraph 2 Max Width (px)" })
       ])
     })
@@ -814,9 +908,11 @@ function sync_editor_values() {
   for (const [path_key, control] of state.editor_controls.entries()) {
     const value = get_config_value(path_key.split("."));
     if (control.type === "number") {
-      control.range_input.value = String(
-        clamp(value, Number(control.range_input.min), Number(control.range_input.max))
-      );
+      if (control.range_input) {
+        control.range_input.value = String(
+          clamp(value, Number(control.range_input.min), Number(control.range_input.max))
+        );
+      }
       control.number_input.value = String(value);
       continue;
     }
@@ -1485,22 +1581,33 @@ function render_preset_tabs() {
   update_preset_controls();
 }
 
-function create_control_input(path_key, value) {
+function create_control_input(path_key, value, options = {}) {
   const field_meta = get_field_meta(path_key);
+  const number_input_only = Boolean(options.number_input_only);
   if (typeof value === "number") {
-    const numeric_spec = get_numeric_control_spec(path_key, value);
+    let numeric_spec = get_numeric_control_spec(path_key, value);
+    if (path_key.endsWith("_keyline_index")) {
+      const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 1)));
+      numeric_spec = { min: 1, max: column_count, step: 1 };
+    }
     const field = document.createElement("div");
-    field.className = "p-slider__wrapper control-composite";
+    field.className = number_input_only
+      ? "control-number-only"
+      : "p-slider__wrapper control-composite";
 
-    const range_input = document.createElement("input");
-    range_input.type = "range";
-    range_input.className = "u-no-margin--bottom";
-    range_input.min = String(numeric_spec.min);
-    range_input.max = String(numeric_spec.max);
-    range_input.step = String(numeric_spec.step);
-    range_input.value = String(clamp(value, numeric_spec.min, numeric_spec.max));
-    range_input.dataset.configPath = path_key;
-    range_input.addEventListener("input", handle_control_commit);
+    let range_input = null;
+    if (!number_input_only) {
+      range_input = document.createElement("input");
+      range_input.type = "range";
+      range_input.className = "u-no-margin--bottom";
+      range_input.min = String(numeric_spec.min);
+      range_input.max = String(numeric_spec.max);
+      range_input.step = String(numeric_spec.step);
+      range_input.value = String(clamp(value, numeric_spec.min, numeric_spec.max));
+      range_input.dataset.configPath = path_key;
+      range_input.addEventListener("input", handle_control_commit);
+      field.appendChild(range_input);
+    }
 
     const number_input = document.createElement("input");
     number_input.type = "number";
@@ -1513,7 +1620,6 @@ function create_control_input(path_key, value) {
     number_input.dataset.configPath = path_key;
     number_input.addEventListener("change", handle_control_commit);
 
-    field.appendChild(range_input);
     field.appendChild(number_input);
 
     return {
@@ -1615,12 +1721,12 @@ function create_control_row(path_parts, value, options = {}) {
     return null;
   }
 
-  const help_text = get_control_help_text(path_key);
+  const help_text = options.suppress_help ? "" : get_control_help_text(path_key);
   const row = document.createElement("div");
   row.className = "p-form__group";
 
   if (typeof value === "boolean") {
-    const input_bundle = create_control_input(path_key, value);
+    const input_bundle = create_control_input(path_key, value, options);
     state.editor_controls.set(path_key, input_bundle.control);
     const control = document.createElement("div");
     control.className = "p-form__control";
@@ -1640,11 +1746,13 @@ function create_control_row(path_parts, value, options = {}) {
   label.htmlFor = `control-${path_key.replace(/\./g, "-")}`;
   label.textContent = options.label_override || get_control_label(path_key);
 
-  const input_bundle = create_control_input(path_key, value);
+  const input_bundle = create_control_input(path_key, value, options);
   state.editor_controls.set(path_key, input_bundle.control);
-  if (input_bundle.control.type === "number") {
+  if (input_bundle.control.type === "number" && input_bundle.control.range_input) {
     input_bundle.control.range_input.id = label.htmlFor;
     input_bundle.control.number_input.id = `${label.htmlFor}-value`;
+  } else if (input_bundle.control.type === "number") {
+    input_bundle.control.number_input.id = label.htmlFor;
   } else {
     input_bundle.control.input.id = label.htmlFor;
   }
@@ -1661,6 +1769,48 @@ function create_control_row(path_parts, value, options = {}) {
     help.textContent = help_text;
     row.appendChild(help);
   }
+  return row;
+}
+
+function create_compound_control_row(row_spec, options = {}) {
+  if (!Array.isArray(row_spec.columns) || row_spec.columns.length === 0) {
+    return null;
+  }
+
+  const row = document.createElement("div");
+  row.className = "p-form__group";
+
+  const grid = document.createElement("div");
+  grid.className = "grid-row overlay-control-grid";
+
+  const column_class = row_spec.columns.length >= 4 ? "col-1" : "col-2";
+  let field_count = 0;
+
+  for (const column_spec of row_spec.columns) {
+    const path_key = column_spec.path;
+    const value = get_config_value(path_key.split("."));
+    const column_row = create_control_row(path_key.split("."), value, {
+      ...options,
+      label_override: column_spec.label,
+      number_input_only: column_spec.number_input_only,
+      suppress_help: column_spec.suppress_help ?? row_spec.suppress_help ?? options.suppress_help
+    });
+    if (!column_row) {
+      continue;
+    }
+
+    const column = document.createElement("div");
+    column.className = column_class;
+    column.appendChild(column_row);
+    grid.appendChild(column);
+    field_count += 1;
+  }
+
+  if (field_count === 0) {
+    return null;
+  }
+
+  row.appendChild(grid);
   return row;
 }
 
@@ -1733,11 +1883,25 @@ function build_control_rows_section(title_text, rows) {
 
   let field_count = 0;
   for (const row_spec of rows) {
+    if (Array.isArray(row_spec.columns)) {
+      const compound_row = create_compound_control_row(row_spec, {
+        excluded_paths: COLOR_CONTROL_PATH_SET
+      });
+      if (!compound_row) {
+        continue;
+      }
+      section.appendChild(compound_row);
+      field_count += 1;
+      continue;
+    }
+
     const path_key = row_spec.path;
     const value = get_config_value(path_key.split("."));
     const row = create_control_row(path_key.split("."), value, {
       excluded_paths: COLOR_CONTROL_PATH_SET,
-      label_override: row_spec.label
+      label_override: row_spec.label,
+      suppress_help: row_spec.suppress_help,
+      number_input_only: row_spec.number_input_only
     });
     if (!row) {
       continue;
@@ -1763,8 +1927,7 @@ function get_overlay_field_tab_specs() {
     || OVERLAY_FIELD_TAB_SPECS_BY_FORMAT.generic_social;
 }
 
-function build_overlay_field_tabs_section() {
-  const tab_specs = get_overlay_field_tab_specs();
+function build_tabbed_control_section(title_text, tab_specs, aria_label) {
   if (!tab_specs.length) {
     return null;
   }
@@ -1774,7 +1937,7 @@ function build_overlay_field_tabs_section() {
 
   const title = document.createElement("h2");
   title.className = "p-muted-heading u-no-margin--bottom";
-  title.textContent = "Text Blocks";
+  title.textContent = title_text;
   section.appendChild(title);
 
   const tabs = document.createElement("div");
@@ -1783,7 +1946,7 @@ function build_overlay_field_tabs_section() {
   const list = document.createElement("div");
   list.className = "p-tabs__list";
   list.setAttribute("role", "tablist");
-  list.setAttribute("aria-label", "Overlay text blocks");
+  list.setAttribute("aria-label", aria_label);
 
   const panels = document.createElement("div");
   panels.className = "config-panels";
@@ -1827,11 +1990,26 @@ function build_overlay_field_tabs_section() {
 
     let field_count = 0;
     for (const row_spec of spec.rows) {
+      if (Array.isArray(row_spec.columns)) {
+        const compound_row = create_compound_control_row(row_spec, {
+          excluded_paths: COLOR_CONTROL_PATH_SET,
+          suppress_help: row_spec.suppress_help
+        });
+        if (!compound_row) {
+          continue;
+        }
+        panel.appendChild(compound_row);
+        field_count += 1;
+        continue;
+      }
+
       const path_key = row_spec.path;
       const value = get_config_value(path_key.split("."));
       const row = create_control_row(path_key.split("."), value, {
         excluded_paths: COLOR_CONTROL_PATH_SET,
-        label_override: row_spec.label
+        label_override: row_spec.label,
+        suppress_help: row_spec.suppress_help,
+        number_input_only: row_spec.number_input_only
       });
       if (!row) {
         continue;
@@ -1859,13 +2037,34 @@ function build_overlay_field_tabs_section() {
   return section;
 }
 
+function build_overlay_field_tabs_section() {
+  return build_tabbed_control_section(
+    "Text Blocks",
+    get_overlay_field_tab_specs(),
+    "Overlay text blocks"
+  );
+}
+
+function build_overlay_style_tabs_section() {
+  return build_tabbed_control_section(
+    "Text Styles",
+    OVERLAY_TEXT_STYLE_TAB_SPECS,
+    "Overlay text styles"
+  );
+}
+
 function build_overlay_form(panel, form) {
+  const visibility_section = build_control_rows_section("Visibility", OVERLAY_VISIBILITY_CONTROL_ROWS);
+  if (visibility_section) {
+    form.appendChild(visibility_section);
+  }
+
   const content_section = build_control_rows_section("Content", OVERLAY_CONTENT_CONTROL_ROWS);
   if (content_section) {
     form.appendChild(content_section);
   }
 
-  const style_section = build_control_rows_section("Text Styles", OVERLAY_TEXT_STYLE_CONTROL_ROWS);
+  const style_section = build_overlay_style_tabs_section();
   if (style_section) {
     form.appendChild(style_section);
   }
@@ -1892,7 +2091,7 @@ function build_global_presets_form(panel, form) {
   const intro = document.createElement("p");
   intro.className = "p-form-help-text u-no-margin--bottom";
   intro.textContent =
-    "These settings are shared across every output format. Switch to Output to tune size-specific layout, scale, and export values.";
+    "These settings are shared across every output format. Use Output to switch screen size, then edit that format's local layout and scale. Use Write Source Default to persist both global and selected output settings across refresh.";
   form.appendChild(intro);
 
   const brand_section = build_control_rows_section(
@@ -2050,6 +2249,11 @@ function parse_control_value(input, current_value, path_key) {
       return undefined;
     }
 
+    if (path_key.endsWith("_keyline_index")) {
+      const column_count = Math.max(1, Math.round(Number(config.layout_grid?.column_count ?? 1)));
+      return clamp(Math.round(next_value), 1, column_count);
+    }
+
     const numeric_spec = get_numeric_control_spec(path_key, current_value);
     return clamp(next_value, numeric_spec.min, numeric_spec.max);
   }
@@ -2086,10 +2290,12 @@ async function handle_control_commit(event) {
   const control = state.editor_controls.get(path_key);
   if (!should_rebuild_editor && control && control.type === "number") {
     control.number_input.value = String(next_value);
-    control.range_input.value = String(
-      clamp(next_value, Number(control.range_input.min), Number(control.range_input.max))
-    );
-    render_slider_track(control.range_input);
+    if (control.range_input) {
+      control.range_input.value = String(
+        clamp(next_value, Number(control.range_input.min), Number(control.range_input.max))
+      );
+      render_slider_track(control.range_input);
+    }
   }
 
   if (should_rebuild_editor) {

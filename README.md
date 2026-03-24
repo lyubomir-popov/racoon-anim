@@ -83,8 +83,7 @@ Each output size keeps separate text-block layout for each content format. So `S
 2. Open `Overlay` and choose the content format.
 3. Tune the local layout for that screen size.
 4. Open `Presets` and adjust any global shared colors/brand settings if needed.
-5. Save a temporary preset if you want a full-project snapshot.
-6. If you want the current state to become the tracked repo default, use `Write Source Default`.
+5. If you want the current state to become the tracked repo default, use `Write Source Default`.
 
 ### Generic social layout
 
