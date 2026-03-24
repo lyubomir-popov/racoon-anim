@@ -51,7 +51,7 @@ All shapes must remain stroke-only, constructable from line segments, and no thi
 
 ## Droplet-to-halo handoff – flash-on-capture
 
-- [ ] Flash-on-capture alpha spike
+- [x] Flash-on-capture alpha spike
 
 When an orbiting dot locks into its target angle, introduce a brief alpha spike: ramp to 1.0 for ~2 frames, then ease back to 0.6, then settle to the base spoke alpha. This sells the moment of "impact" – a droplet hitting a surface – and connects the dot phase to the halo phase more tightly.
 
@@ -59,28 +59,13 @@ The existing `capture_start_frac` parameter already handles the stagger timing, 
 
 ---
 
-## Vignette – context-dependent intensity
-
-- [ ] LED wall interstitial vignette preset (reduce `vignette.choke`, increase `vignette.radius_px`)
-
-The radial vignette exists to make overlaid text readable. It uses a keyhole metaphor: a glimpse into a larger universe, not a bounded circle.
-
-- **Social media frames with text overlay:** keep the current vignette intensity. The text needs that contrast.
-- **LED wall interstitial (no text):** tone the vignette down significantly. The animation can breathe into a wider field when there's no typography to protect.
-
-No concentric boundary ring. The vignette *is* the outer boundary, and it should stay soft. Adding a defined edge contradicts the keyhole metaphor.
-
-Consider exposing a `vignette.interstitial_mode` toggle or preset that reduces `vignette.choke` and increases `vignette.radius_px` for the LED wall profile.
-
----
-
 ## Micro-typography layer – Ubuntu release history on spokes
 
-- [ ] Update `UBUNTU_RELEASE_LABELS` to 44 entries (add 26.04)
-- [ ] Add codenames to labels
-- [ ] Orient text along spoke direction (not horizontal)
-- [ ] Place labels in echo zone (not canvas edge)
-- [ ] Integrate opacity with reveal and breathing systems
+- [x] Update `UBUNTU_RELEASE_LABELS` to 44 entries (add 26.04)
+- [x] Add codenames to labels
+- [x] Orient text along spoke direction (not horizontal)
+- [x] Place labels in echo zone (not canvas edge)
+- [x] Integrate opacity with reveal and breathing systems
 
 ### Concept
 

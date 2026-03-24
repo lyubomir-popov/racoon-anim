@@ -44,51 +44,52 @@ const DEBUG_MASK_COLOR = "#22d3ee";
 const DEBUG_MASK_SEGMENT_COUNT = 96;
 const ECHO_PLUS_SIZE_PX = 9.6;
 const ECHO_MARKER_HALO_GAP_PX = 16;
-const ECHO_TEXT_BASE_FONT_SIZE_PX = 4;
+const ECHO_TEXT_BASE_FONT_SIZE_PX = 6;
 const UBUNTU_RELEASE_LABELS = Object.freeze([
-  "25.10",
-  "25.04",
-  "24.10",
-  "24.04",
-  "23.10",
-  "23.04",
-  "22.10",
-  "22.04",
-  "21.10",
-  "21.04",
-  "20.10",
-  "20.04",
-  "19.10",
-  "19.04",
-  "18.10",
-  "18.04",
-  "17.10",
-  "17.04",
-  "16.10",
-  "16.04",
-  "15.10",
-  "15.04",
-  "14.10",
-  "14.04",
-  "13.10",
-  "13.04",
-  "12.10",
-  "12.04",
-  "11.10",
-  "11.04",
-  "10.10",
-  "10.04",
-  "9.10",
-  "9.04",
-  "8.10",
-  "8.04",
-  "7.10",
-  "7.04",
-  "6.10",
-  "6.06",
-  "5.10",
-  "5.04",
-  "4.10"
+  "26.04 Resolute Raccoon",
+  "25.10 Questing Quokka",
+  "25.04 Plucky Puffin",
+  "24.10 Oracular Oriole",
+  "24.04 Noble Numbat",
+  "23.10 Mantic Minotaur",
+  "23.04 Lunar Lobster",
+  "22.10 Kinetic Kudu",
+  "22.04 Jammy Jellyfish",
+  "21.10 Impish Indri",
+  "21.04 Hirsute Hippo",
+  "20.10 Groovy Gorilla",
+  "20.04 Focal Fossa",
+  "19.10 Eoan Ermine",
+  "19.04 Disco Dingo",
+  "18.10 Cosmic Cuttlefish",
+  "18.04 Bionic Beaver",
+  "17.10 Artful Aardvark",
+  "17.04 Zesty Zapus",
+  "16.10 Yakkety Yak",
+  "16.04 Xenial Xerus",
+  "15.10 Wily Werewolf",
+  "15.04 Vivid Vervet",
+  "14.10 Utopic Unicorn",
+  "14.04 Trusty Tahr",
+  "13.10 Saucy Salamander",
+  "13.04 Raring Ringtail",
+  "12.10 Quantal Quetzal",
+  "12.04 Precise Pangolin",
+  "11.10 Oneiric Ocelot",
+  "11.04 Natty Narwhal",
+  "10.10 Maverick Meerkat",
+  "10.04 Lucid Lynx",
+  "9.10 Karmic Koala",
+  "9.04 Jaunty Jackalope",
+  "8.10 Intrepid Ibex",
+  "8.04 Hardy Heron",
+  "7.10 Gutsy Gibbon",
+  "7.04 Feisty Fawn",
+  "6.10 Edgy Eft",
+  "6.06 Dapper Drake",
+  "5.10 Breezy Badger",
+  "5.04 Hoary Hedgehog",
+  "4.10 Warty Warthog"
 ]);
 
 const MASCOT_NOSE_PATH = new Path2D(MASCOT_NOSE_PATH_DATA);
@@ -1492,7 +1493,8 @@ export function createRenderer({
     spokes,
     box,
     base_alpha,
-    reveal_state
+    reveal_state,
+    halo_outer_radius_px
   }) {
     if (
       !text_overlay_context ||
@@ -1510,21 +1512,25 @@ export function createRenderer({
       ECHO_TEXT_BASE_FONT_SIZE_PX,
       Math.round(ECHO_TEXT_BASE_FONT_SIZE_PX * Math.min(stage_width_px, stage_height_px) / 1080)
     );
-    const label_radius_px = Math.max(
-      0,
-      Math.min(stage_width_px, stage_height_px) * 0.5 - font_size_px
-    );
+    // Place labels just inside the echo zone, immediately beyond the halo boundary.
+    const text_start_radius = (halo_outer_radius_px ?? 0) + ECHO_MARKER_HALO_GAP_PX + font_size_px * 0.5;
     const label_count = UBUNTU_RELEASE_LABELS.length;
 
     text_overlay_context.save();
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
     text_overlay_context.fillStyle = get_echo_color();
-    text_overlay_context.font =
-      `${font_size_px}px "Ubuntu Sans", Ubuntu, "DejaVu Sans", sans-serif`;
+    text_overlay_context.font = `${font_size_px}px "Ubuntu Sans", Ubuntu, sans-serif`;
+    text_overlay_context.textBaseline = "middle";
 
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
       if (spoke.seam_overlay_only) {
+        continue;
+      }
+
+      // Spokes 44–59 carry geometric shapes only – no text label.
+      const label_index = spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index;
+      if (label_index >= label_count) {
         continue;
       }
 
@@ -1536,8 +1542,8 @@ export function createRenderer({
         continue;
       }
 
-      const world_x = field_center_x + Math.cos(spoke.angle) * label_radius_px;
-      const world_y = field_center_y + Math.sin(spoke.angle) * label_radius_px;
+      const world_x = field_center_x + Math.cos(spoke.angle) * text_start_radius;
+      const world_y = field_center_y + Math.sin(spoke.angle) * text_start_radius;
       const local_x = world_x - box.center_x_px;
       const local_y = world_y - box.center_y_px;
       const reveal_alpha = get_reveal_local_alpha(local_x, local_y, reveal_state);
@@ -1545,12 +1551,13 @@ export function createRenderer({
         continue;
       }
 
+      // Convert from world space (Y-up, CCW angles) to canvas space (Y-down, CW angles).
       const canvas_x = world_x;
       const canvas_y = stage_height_px - world_y;
-      const label_index = (spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index) % label_count;
       const label = UBUNTU_RELEASE_LABELS[label_index];
       text_overlay_context.save();
       text_overlay_context.translate(canvas_x, canvas_y);
+      text_overlay_context.rotate(-spoke.angle);
       text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha;
       text_overlay_context.fillText(label, 0, 0);
       text_overlay_context.restore();
@@ -2078,7 +2085,8 @@ export function createRenderer({
       spokes,
       box,
       base_alpha,
-      reveal_state
+      reveal_state,
+      halo_outer_radius_px
     });
   }
 
