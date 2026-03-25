@@ -1206,10 +1206,10 @@ export function createRenderer({
     runtime.layer_capacities = next_capacities;
   }
 
-  let vignette_cache = null;  // { canvas, key }
+  const vignette_cache = new Map();  // cache_key → offscreen canvas
 
   function invalidate_layer_caches() {
-    vignette_cache = null;
+    vignette_cache.clear();
   }
 
   function build_scene_data() {
@@ -2347,7 +2347,7 @@ export function createRenderer({
         rgba_fn(1)  // encodes the colour
       ].join("|");
 
-      if (!vignette_cache || vignette_cache.key !== cache_key) {
+      if (!vignette_cache.has(cache_key)) {
         const phys_cx = center_x_px * dpr;
         const phys_cy = center_y_px * dpr;
         const phys_outer_r = outer_radius_px * dpr;
@@ -2389,7 +2389,7 @@ export function createRenderer({
           off_ctx.putImageData(img_data, 0, 0);
         }
 
-        vignette_cache = { canvas: offscreen, key: cache_key };
+        vignette_cache.set(cache_key, offscreen);
       }
 
       // Composite the cached canvas. Clip in physical-pixel space.
@@ -2415,7 +2415,7 @@ export function createRenderer({
           text_overlay_context.clip(clip_mode === "outside-safe-area" ? "evenodd" : "nonzero");
         }
       }
-      text_overlay_context.drawImage(vignette_cache.canvas, 0, 0);
+      text_overlay_context.drawImage(vignette_cache.get(cache_key), 0, 0);
       text_overlay_context.restore();
     };
 
