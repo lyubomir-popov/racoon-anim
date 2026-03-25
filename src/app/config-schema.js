@@ -518,8 +518,7 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "layout_grid.baseline_step_px": {
     label: "Baseline Step (px)",
-    help_text:
-      "Vertical baseline spacing for the layout overlay. Text baselines and row heights snap to this step.",
+    help_text: "Text baselines and grid row heights snap to this step.",
     numeric: { min: 2, max: 64, step: 1 }
   },
   "layout_grid.show_composition_grid": {
@@ -535,51 +534,36 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "layout_grid.column_count": {
     label: "Columns",
-    help_text:
-      "Number of equal-width columns between the left and right margins.",
     numeric: { min: 1, max: 24, step: 1 }
   },
   "layout_grid.margin_top_baselines": {
     label: "Top Margin (Baselines)",
-    help_text:
-      "Top margin for the composition grid, expressed in baseline units.",
     numeric: { min: 0, max: 200, step: 1 }
   },
   "layout_grid.margin_bottom_baselines": {
     label: "Bottom Margin (Baselines)",
-    help_text:
-      "Minimum bottom margin for the composition grid, expressed in baseline units. Any leftover height from row subdivision is added on top of this.",
+    help_text: "Any leftover height from row subdivision is added here.",
     numeric: { min: 0, max: 200, step: 1 }
   },
   "layout_grid.margin_left_baselines": {
     label: "Left Margin (Baselines)",
-    help_text:
-      "Left margin for the composition grid, expressed in baseline units.",
     numeric: { min: 0, max: 200, step: 1 }
   },
   "layout_grid.margin_right_baselines": {
     label: "Right Margin (Baselines)",
-    help_text:
-      "Right margin for the composition grid, expressed in baseline units.",
     numeric: { min: 0, max: 200, step: 1 }
   },
   "layout_grid.margin_side_baselines": {
     label: "Side Margin (Baselines)",
-    help_text:
-      "Shared left and right margin for the composition grid, expressed in baseline units.",
     numeric: { min: 0, max: 200, step: 1 },
     hidden: true
   },
   "layout_grid.row_gutter_baselines": {
     label: "Row Gutter (Baselines)",
-    help_text:
-      "Vertical gutter between grid rows, expressed in baseline units.",
     numeric: { min: 0, max: 24, step: 1 }
   },
   "layout_grid.column_gutter_baselines": {
     label: "Column Gutter (Baselines)",
-    help_text:
-      "Horizontal gutter between grid columns, expressed in baseline units.",
     numeric: { min: 0, max: 24, step: 1 }
   },
   "layout_grid.fit_within_safe_area": {
@@ -685,13 +669,11 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "overlay_text.main_heading_column_span": {
     label: "Span (Columns)",
-    help_text: "How many grid columns the A-head can occupy before wrapping.",
     numeric: { min: 1, max: 24, step: 1 }
   },
   "overlay_text.main_heading_y_baselines": {
     label: "A-head Y (Baselines)",
-    help_text:
-      "Vertical A-head offset expressed in baseline units. Moving this value always keeps the heading on the baseline grid.",
+    help_text: "Always snaps to the baseline grid.",
     numeric: { min: -200, max: 2000, step: 1 }
   },
   "overlay_text.main_heading_max_width_px": {
@@ -700,50 +682,38 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "overlay_text.title_font_size_px": {
     label: "A-head / Logo Size (px)",
-    help_text:
-      "Exact A-head font size. The logo scales with it using the 63 px title to logo-height ratio.",
+    help_text: "The logo scales with it using the 63 px title to logo-height ratio.",
     numeric: { min: 4, max: 320, step: 1 }
   },
   "overlay_text.title_line_height_px": {
     label: "A-head Line Height (px)",
-    help_text:
-      "A-head line height. It is snapped up to the baseline grid so multiline titles stay aligned.",
+    help_text: "Snapped up to the baseline grid so multiline headings stay aligned.",
     numeric: { min: 4, max: 512, step: 1 }
   },
   "overlay_text.title_font_weight": {
     label: "A-head Weight",
-    help_text:
-      "Variable-font weight for the A-head style.",
     numeric: { min: 100, max: 900, step: 1 }
   },
   "overlay_text.b_head_font_size_px": {
     label: "B-head Size (px)",
-    help_text:
-      "Shared font size for the B-head text style.",
     numeric: { min: 4, max: 320, step: 1 }
   },
   "overlay_text.b_head_line_height_px": {
     label: "B-head Line Height (px)",
-    help_text:
-      "Line height for the B-head style. It is snapped up to the baseline grid so multiline text stays aligned.",
+    help_text: "Snapped up to the baseline grid so multiline text stays aligned.",
     numeric: { min: 4, max: 512, step: 1 }
   },
   "overlay_text.b_head_font_weight": {
     label: "B-head Weight",
-    help_text:
-      "Variable-font weight for the B-head style.",
     numeric: { min: 100, max: 900, step: 1 }
   },
   "overlay_text.paragraph_font_size_px": {
     label: "Paragraph Size (px)",
-    help_text:
-      "Shared font size for the paragraph text style.",
     numeric: { min: 4, max: 320, step: 1 }
   },
   "overlay_text.paragraph_line_height_px": {
     label: "Paragraph Line Height (px)",
-    help_text:
-      "Line height for the paragraph style. It is snapped up to the baseline grid so multiline text stays aligned.",
+    help_text: "Snapped up to the baseline grid so multiline text stays aligned.",
     numeric: { min: 4, max: 512, step: 1 }
   },
   "overlay_text.link_title_size_to_logo_height": {
@@ -858,8 +828,7 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "point_style.base_pscale_px_per_unit": {
     label: "Base Dot Size Multiplier",
-    help_text:
-      "This multiplies transition_wrangle.base_pscale into the actual on-canvas dot diameter before the min-size and frontier effects are applied.",
+    help_text: "Scales base_pscale into the on-canvas dot diameter; applied before min-size and frontier effects.",
     numeric: { min: 0, max: 20, step: 0.1 }
   },
   "point_style.min_scale": {
@@ -883,13 +852,10 @@ export const CONFIG_FIELD_META = Object.freeze({
       "Draws the actual horizontal phase boundary plus both clipping-mask circles and their centers, using the same geometry as the live spoke masking."
   },
   "spoke_lines.construction_color": {
-    label: "Construction Plane Color",
-    help_text:
-      "Sets the color of the faint full-frame radial construction lines behind the mascot and halo spokes."
+    label: "Construction Plane Color"
   },
   "spoke_lines.reference_color": {
-    label: "Reference Spoke Color",
-    help_text: "Sets the color of the thin reference spokes that define the mascot halo boundary."
+    label: "Reference Spoke Color"
   },
   "spoke_lines.color": {
     hidden: true,
@@ -926,14 +892,12 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "spoke_lines.phase_start_width_px": {
     label: "Inner Spoke Start Thickness (px)",
-    help_text:
-      "Thickness of the heavy inner spoke pass at the start of each phase. Linearly interpolates to the end thickness as each spoke sweeps through the phase.",
+    help_text: "Thickness of the heavy inner spoke pass at the start of each phase.",
     numeric: { min: 0, max: 20, step: 0.1 }
   },
   "spoke_lines.phase_end_width_px": {
     label: "Inner Spoke End Thickness (px)",
-    help_text:
-      "Thickness of the heavy inner spoke pass at the end of each phase. The spoke interpolates from the start thickness to this value over the phase duration.",
+    help_text: "Thickness of the heavy inner spoke pass at the end of each phase.",
     numeric: { min: 0, max: 20, step: 0.1 }
   },
   "spoke_lines.echo_count": {
@@ -944,8 +908,6 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "spoke_lines.echo_style": {
     label: "Echo Marker Style",
-    help_text:
-      "Chooses how the echoed halo markers render: circles, plus signs, outlined triangles, or a deterministic mix.",
     options: Object.freeze([
       Object.freeze({ value: "dots", label: "Dots" }),
       Object.freeze({ value: "plus", label: "Plus Signs" }),
@@ -961,8 +923,6 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "spoke_lines.echo_mix_shape_pct": {
     label: "Mixed Shape Replacement",
-    help_text:
-      "For Mixed Shapes, controls what percentage of circle echoes get deterministically replaced by plus signs or outlined triangles.",
     numeric: { min: 0, max: 1, step: 0.01 }
   },
   "spoke_lines.echo_width_mult": {
@@ -1062,8 +1022,7 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "spoke_text.font_size_px": {
     label: "Label Font Size (px)",
-    help_text:
-      "Base font size for Ubuntu release labels along the spokes. Scales proportionally for larger output profiles.",
+    help_text: "Scales proportionally for larger output profiles.",
     numeric: { min: 3, max: 24, step: 0.5 }
   },
   "spoke_text.radial_u": {
@@ -1108,9 +1067,7 @@ export const CONFIG_FIELD_META = Object.freeze({
     label: "Show Vignette"
   },
   "vignette.apply_outside_safe_area": {
-    label: "Vignette Outside Safe Area",
-    help_text:
-      "When safe-area mode is active, also apply the vignette to the area outside the safe area. Turn this off to keep the outer background clear."
+    label: "Vignette Outside Safe Area"
   },
   "vignette.radius_px": {
     label: "Safe Area Radius (px)",

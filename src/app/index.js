@@ -309,15 +309,12 @@ const OVERLAY_GRID_CONTROL_ROWS = Object.freeze([
     suppress_help: true
   }),
   Object.freeze({
+    label: "Margins (Baselines)",
     columns: Object.freeze([
-      Object.freeze({ path: "layout_grid.margin_top_baselines" }),
-      Object.freeze({ path: "layout_grid.margin_bottom_baselines" })
-    ])
-  }),
-  Object.freeze({
-    columns: Object.freeze([
-      Object.freeze({ path: "layout_grid.margin_left_baselines", label: "Left Margin (Baselines)" }),
-      Object.freeze({ path: "layout_grid.margin_right_baselines", label: "Right Margin (Baselines)" })
+      Object.freeze({ path: "layout_grid.margin_top_baselines", label: "Top", number_input_only: true }),
+      Object.freeze({ path: "layout_grid.margin_bottom_baselines", label: "Bottom", number_input_only: true }),
+      Object.freeze({ path: "layout_grid.margin_left_baselines", label: "Left", number_input_only: true }),
+      Object.freeze({ path: "layout_grid.margin_right_baselines", label: "Right", number_input_only: true })
     ])
   }),
   Object.freeze({
