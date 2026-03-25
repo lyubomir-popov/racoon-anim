@@ -524,14 +524,15 @@ function set_preset_meta(message, is_error = false) {
   preset_meta.classList.toggle("is-error", is_error);
 }
 
-function blob_to_data_url(blob) {
+function blob_to_base64(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.addEventListener("load", () => {
-      resolve(String(reader.result || ""));
+      const data_url = String(reader.result || "");
+      resolve(data_url.replace(/^data:image\/png;base64,/, ""));
     });
     reader.addEventListener("error", () => {
-      reject(reader.error || new Error("Failed to read blob as data URL."));
+      reject(reader.error || new Error("Failed to read blob as base64."));
     });
     reader.readAsDataURL(blob);
   });
@@ -622,15 +623,14 @@ async function export_automation_frame(payload = {}) {
     transparent_background,
     hide_overlay_guides: true
   });
-  const png_data_url = await blob_to_data_url(blob);
+  const png_base64 = await blob_to_base64(blob);
   const output_profile_key = get_current_output_profile_key();
   const output_profile = OUTPUT_PROFILES[output_profile_key];
   return {
     frame_rate: Math.max(1, Math.round(config.export_settings.frame_rate || 24)),
     height_px: output_profile?.height_px || 0,
     playback_time_sec,
-    png_data_url,
-    png_base64: png_data_url.replace(/^data:image\/png;base64,/, ""),
+    png_base64,
     output_profile_key,
     transparent_background,
     width_px: output_profile?.width_px || 0

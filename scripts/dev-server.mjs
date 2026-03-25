@@ -26,6 +26,7 @@ const should_open = !process.argv.includes("--no-open");
 const should_watch = !process.argv.includes("--no-watch");
 const live_clients = new Set();
 const max_port_attempts = 20;
+const MAX_SAFE_SUPERSAMPLED_EXPORT_PIXELS = 3840 * 2160;
 
 const mime_types = {
   ".ai": "application/postscript",
@@ -50,7 +51,13 @@ function get_mime_type(file_path) {
   return mime_types[path.extname(file_path).toLowerCase()] || "application/octet-stream";
 }
 
-function inject_live_reload(html) {
+function inject_live_reload(html, request_url = "/") {
+  const request_origin = `http://${host}:${requested_port || 5173}`;
+  const url = new URL(request_url, request_origin);
+  if (url.searchParams.get("automation") === "1") {
+    return html;
+  }
+
   const live_reload_script = `
 <script>
   (() => {
@@ -65,6 +72,12 @@ function inject_live_reload(html) {
   }
 
   return `${html}\n${live_reload_script}`;
+}
+
+function get_export_device_scale_factor(output_width_px, output_height_px) {
+  const pixel_count =
+    Math.max(0, Number(output_width_px || 0)) * Math.max(0, Number(output_height_px || 0));
+  return pixel_count >= MAX_SAFE_SUPERSAMPLED_EXPORT_PIXELS ? 1 : 2;
 }
 
 function resolve_public_path(request_path) {
@@ -342,6 +355,8 @@ const server = http.createServer(async (request, response) => {
           String(frame_rate),
           "--frame-count",
           String(frame_count),
+          "--device-scale-factor",
+          String(get_export_device_scale_factor(output_width_px, output_height_px)),
           "--output-dir",
           output_dir
         ],
@@ -438,7 +453,7 @@ const server = http.createServer(async (request, response) => {
   if (file_path === source_entry && should_watch) {
     const html = fs.readFileSync(file_path, "utf8");
     response.writeHead(200, headers);
-    response.end(inject_live_reload(html));
+    response.end(inject_live_reload(html, request_url));
     return;
   }
 

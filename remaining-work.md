@@ -1,5 +1,17 @@
 # Remaining Work
 
+## 2026-03-25 Audit Snapshot
+
+Cross-checked notes from the Claude Opus repo audit:
+
+- Repo health is strong overall: structure, docs, build tooling, and the main halo animation architecture are in good shape.
+- The main confirmed code issues called out were:
+  - `2.0/demo.js` uses an undefined `OUTER_RADIUS` in `draw_pin_marker()` and should use the full-frame outer radius constant.
+  - `src/app/config-schema.js` should guard `set_object_path_value()` against `__proto__`, `constructor`, and `prototype` path segments.
+  - The app has some refactor debt concentrated in `src/app/rendering.js` and `src/app/index.js`, which are both now very large and carry too much mixed responsibility.
+- Export reliability needed special attention for large outputs: 4K MP4 export was the main risk area because the automation pipeline was still trying to supersample large frames aggressively.
+- The repeated `GET /__live net::ERR_CONNECTION_REFUSED` message seen during export was identified as live-reload noise rather than the actual render failure, but it made diagnosis harder and should be suppressed for automation pages.
+
 This file is the forward-looking plan. It is organized by theme rather than by chronology.
 
 ## A. Overlay Data Model
