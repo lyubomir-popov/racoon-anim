@@ -1206,7 +1206,11 @@ export function createRenderer({
     runtime.layer_capacities = next_capacities;
   }
 
-  function invalidate_layer_caches() {}
+  let vignette_cache = null;  // { canvas, key }
+
+  function invalidate_layer_caches() {
+    vignette_cache = null;
+  }
 
   function build_scene_data() {
     const generator = config.generator_wrangle;
@@ -2291,6 +2295,7 @@ export function createRenderer({
 
     const center_x_px = config.composition.center_x_px;
     const center_y_px = stage_height_px - config.composition.center_y_px;
+    const dither_amount = clamp(Number(config.vignette?.dither ?? 1), 0, 1);
     const use_safe_area = is_overlay_enabled() && config.layout_grid?.fit_within_safe_area;
     const safe_area_fill_above_animation = Boolean(config.layout_grid?.safe_area_fill_above_animation);
     const apply_outside_safe_area_vignette = Boolean(
@@ -2330,54 +2335,64 @@ export function createRenderer({
         return;
       }
 
-      // Rasterize the gradient into an offscreen canvas then apply TPDF dither
-      // noise before compositing. This breaks up 8-bit quantization banding
-      // without relying on the browser's gradient interpolation for accuracy.
       const dpr = runtime.dpr;
       const phys_w = Math.round(stage_width_px * dpr);
       const phys_h = Math.round(stage_height_px * dpr);
-      const phys_cx = center_x_px * dpr;
-      const phys_cy = center_y_px * dpr;
-      const phys_outer_r = outer_radius_px * dpr;
 
-      const offscreen = document.createElement("canvas");
-      offscreen.width = phys_w;
-      offscreen.height = phys_h;
-      const off_ctx = offscreen.getContext("2d", { willReadFrequently: true });
+      // Build a cache key from every parameter that affects the rasterized output.
+      // If nothing changed we reuse the cached canvas – rasterization happens once.
+      const cache_key = [
+        clip_mode, outer_radius_px, safe_feather_px, safe_choke, dither_amount,
+        center_x_px, center_y_px, phys_w, phys_h,
+        rgba_fn(1)  // encodes the colour
+      ].join("|");
 
-      const clear_radius_px = Math.max(0, outer_radius_px - safe_feather_px);
-      const safe_outer_radius_px = Math.max(1, outer_radius_px);
-      const inner_stop = safe_feather_px <= 0
-        ? 0.999
-        : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
-      const gamma = lerp(3.5, 1.2, safe_choke);
-      const STEPS = 24;
-      const feather_span = 1 - inner_stop;
+      if (!vignette_cache || vignette_cache.key !== cache_key) {
+        const phys_cx = center_x_px * dpr;
+        const phys_cy = center_y_px * dpr;
+        const phys_outer_r = outer_radius_px * dpr;
 
-      const gradient = off_ctx.createRadialGradient(phys_cx, phys_cy, 0, phys_cx, phys_cy, phys_outer_r);
-      gradient.addColorStop(0, rgba_fn(0));
-      if (inner_stop > 0.001) {
-        gradient.addColorStop(inner_stop, rgba_fn(0));
+        const offscreen = document.createElement("canvas");
+        offscreen.width = phys_w;
+        offscreen.height = phys_h;
+        const off_ctx = offscreen.getContext("2d", { willReadFrequently: dither_amount > 0 });
+
+        const clear_radius_px = Math.max(0, outer_radius_px - safe_feather_px);
+        const safe_outer_radius_px = Math.max(1, outer_radius_px);
+        const inner_stop = safe_feather_px <= 0
+          ? 0.999
+          : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
+        const gamma = lerp(3.5, 1.2, safe_choke);
+        const STEPS = 24;
+        const feather_span = 1 - inner_stop;
+
+        const gradient = off_ctx.createRadialGradient(phys_cx, phys_cy, 0, phys_cx, phys_cy, phys_outer_r);
+        gradient.addColorStop(0, rgba_fn(0));
+        if (inner_stop > 0.001) {
+          gradient.addColorStop(inner_stop, rgba_fn(0));
+        }
+        for (let s = 1; s <= STEPS; s += 1) {
+          const t = s / STEPS;
+          gradient.addColorStop(clamp(inner_stop + t * feather_span, 0, 1), rgba_fn(Math.pow(t, gamma)));
+        }
+        off_ctx.fillStyle = gradient;
+        off_ctx.fillRect(0, 0, phys_w, phys_h);
+
+        // TPDF dither: α channel only, scaled by dither_amount.
+        if (dither_amount > 0) {
+          const img_data = off_ctx.getImageData(0, 0, phys_w, phys_h);
+          const data = img_data.data;
+          for (let i = 3; i < data.length; i += 4) {
+            const noise = (Math.random() + Math.random() - 1) * dither_amount;
+            data[i] = clamp(Math.round(data[i] + noise), 0, 255);
+          }
+          off_ctx.putImageData(img_data, 0, 0);
+        }
+
+        vignette_cache = { canvas: offscreen, key: cache_key };
       }
-      for (let s = 1; s <= STEPS; s += 1) {
-        const t = s / STEPS;
-        gradient.addColorStop(clamp(inner_stop + t * feather_span, 0, 1), rgba_fn(Math.pow(t, gamma)));
-      }
 
-      off_ctx.fillStyle = gradient;
-      off_ctx.fillRect(0, 0, phys_w, phys_h);
-
-      // TPDF dither: two uniforms summed → triangular PDF, range [-1, +1].
-      // Applied only to the alpha channel since this is a monochrome vignette.
-      const img_data = off_ctx.getImageData(0, 0, phys_w, phys_h);
-      const data = img_data.data;
-      for (let i = 3; i < data.length; i += 4) {
-        data[i] = clamp(Math.round(data[i] + Math.random() + Math.random() - 1), 0, 255);
-      }
-      off_ctx.putImageData(img_data, 0, 0);
-
-      // Composite onto the overlay canvas. Clip in physical pixel space
-      // (setTransform identity → physical coords).
+      // Composite the cached canvas. Clip in physical-pixel space.
       text_overlay_context.save();
       text_overlay_context.setTransform(1, 0, 0, 1, 0, 0);
       if (use_safe_area && clip_mode !== "full") {
@@ -2385,7 +2400,6 @@ export function createRenderer({
         const safe_area_width_px = Math.max(0, grid.layout_right_px - grid.layout_left_px);
         const safe_area_height_px = Math.max(0, grid.layout_bottom_px - grid.layout_top_px);
         if (safe_area_width_px > 0 && safe_area_height_px > 0) {
-          off_ctx.beginPath();
           if (clip_mode === "outside-safe-area") {
             text_overlay_context.beginPath();
             text_overlay_context.rect(0, 0, phys_w, phys_h);
@@ -2401,7 +2415,7 @@ export function createRenderer({
           text_overlay_context.clip(clip_mode === "outside-safe-area" ? "evenodd" : "nonzero");
         }
       }
-      text_overlay_context.drawImage(offscreen, 0, 0);
+      text_overlay_context.drawImage(vignette_cache.canvas, 0, 0);
       text_overlay_context.restore();
     };
 

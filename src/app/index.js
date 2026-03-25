@@ -120,6 +120,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "vignette.outside_radius_px",
   "vignette.outside_feather_px",
   "vignette.outside_choke",
+  "vignette.dither",
   "sneeze.nose_bob_up_px",
   "spoke_lines.show_reference_halo",
   "spoke_lines.show_debug_masks",
@@ -232,7 +233,9 @@ const GLOBAL_BRAND_CONTROL_PATHS = Object.freeze([
 const GLOBAL_SHARED_PATHS = Object.freeze([
   ...COLOR_CONTROL_PATHS,
   ...GLOBAL_BRAND_CONTROL_PATHS,
-  "overlay_text.content_format"
+  "overlay_text.content_format",
+  "spoke_lines.phase_start_width_px",
+  "spoke_lines.phase_end_width_px"
 ]);
 const GLOBAL_SHARED_PATH_SET = new Set(GLOBAL_SHARED_PATHS);
 const GLOBAL_PRESET_CONTROL_PATHS = Object.freeze([

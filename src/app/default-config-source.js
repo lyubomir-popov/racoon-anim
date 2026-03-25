@@ -102,8 +102,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "echo_marker_stroke_px": 2.2,
         "echo_marker_scale_mult": 1.5,
         "echo_sparse_scale_boost": 0.5,
-        "phase_start_width_px": 0.36,
-        "phase_end_width_px": 7.1,
+        "phase_start_width_px": 8,
+        "phase_end_width_px": 4,
         "echo_count": 16,
         "echo_style": "mixed",
         "echo_shape_seed": 0,
@@ -120,7 +120,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "radial_u": 0.6
       },
       "layout_grid": {
-        "show_baseline_grid": true,
+        "show_baseline_grid": false,
         "baseline_step_px": 8,
         "show_composition_grid": true,
         "row_count": 4,
@@ -131,7 +131,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_left_baselines": 4,
         "margin_right_baselines": 4,
         "row_gutter_baselines": 4,
-        "column_gutter_baselines": 4,
+        "column_gutter_baselines": 2,
         "fit_within_safe_area": true,
         "safe_top_px": 0,
         "safe_right_px": 0,
@@ -301,7 +301,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "ramp_in_sec": 2,
         "pulse_orbits": true,
         "pulse_spokes": true,
-        "min_spoke_count": 16,
+        "min_spoke_count": 24,
         "phase_boundary_transition_sec": 0.04
       },
       "vignette": {
@@ -312,7 +312,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "choke": 0.62,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
-        "outside_choke": 1
+        "outside_choke": 1,
+        "dither": 1
       },
       "export_settings": {
         "frame_rate": 24,
@@ -607,7 +608,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "choke": 0.62,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
-        "outside_choke": 1
+        "outside_choke": 1,
+        "dither": 1
       },
       "export_settings": {
         "frame_rate": 30,
@@ -692,8 +694,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "echo_marker_stroke_px": 2.2,
         "echo_marker_scale_mult": 1.5,
         "echo_sparse_scale_boost": 0.5,
-        "phase_start_width_px": 0.4,
-        "phase_end_width_px": 8,
+        "phase_start_width_px": 8,
+        "phase_end_width_px": 4,
         "echo_count": 16,
         "echo_style": "mixed",
         "echo_shape_seed": 0,
@@ -902,7 +904,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "choke": 0.62,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
-        "outside_choke": 1
+        "outside_choke": 1,
+        "dither": 1
       },
       "export_settings": {
         "frame_rate": 30,
@@ -987,8 +990,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "echo_marker_stroke_px": 2.2,
         "echo_marker_scale_mult": 1.5,
         "echo_sparse_scale_boost": 0.5,
-        "phase_start_width_px": 0.36,
-        "phase_end_width_px": 7.1,
+        "phase_start_width_px": 8,
+        "phase_end_width_px": 4,
         "echo_count": 16,
         "echo_style": "mixed",
         "echo_shape_seed": 0,
@@ -1197,7 +1200,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "choke": 0.82,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
-        "outside_choke": 1
+        "outside_choke": 1,
+        "dither": 1
       },
       "export_settings": {
         "frame_rate": 24,
@@ -1282,8 +1286,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "echo_marker_stroke_px": 2.2,
         "echo_marker_scale_mult": 1.5,
         "echo_sparse_scale_boost": 0.5,
-        "phase_start_width_px": 0.36,
-        "phase_end_width_px": 7.1,
+        "phase_start_width_px": 8,
+        "phase_end_width_px": 4,
         "echo_count": 16,
         "echo_style": "mixed",
         "echo_shape_seed": 0,
@@ -1492,7 +1496,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "choke": 0.62,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
-        "outside_choke": 1
+        "outside_choke": 1,
+        "dither": 1
       },
       "export_settings": {
         "frame_rate": 24,
@@ -1577,8 +1582,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "echo_marker_stroke_px": 2.2,
         "echo_marker_scale_mult": 1.5,
         "echo_sparse_scale_boost": 0.5,
-        "phase_start_width_px": 0.36,
-        "phase_end_width_px": 7.1,
+        "phase_start_width_px": 8,
+        "phase_end_width_px": 4,
         "echo_count": 16,
         "echo_style": "mixed",
         "echo_shape_seed": 0,
@@ -1787,7 +1792,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "choke": 0.62,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
-        "outside_choke": 1
+        "outside_choke": 1,
+        "dither": 1
       },
       "export_settings": {
         "frame_rate": 24,
@@ -1872,8 +1878,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "echo_marker_stroke_px": 2.2,
     "echo_marker_scale_mult": 1.5,
     "echo_sparse_scale_boost": 0.5,
-    "phase_start_width_px": 0.36,
-    "phase_end_width_px": 7.1,
+    "phase_start_width_px": 8,
+    "phase_end_width_px": 4,
     "echo_count": 16,
     "echo_style": "mixed",
     "echo_shape_seed": 0,
@@ -1890,7 +1896,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "radial_u": 0.6
   },
   "layout_grid": {
-    "show_baseline_grid": true,
+    "show_baseline_grid": false,
     "baseline_step_px": 8,
     "show_composition_grid": true,
     "row_count": 4,
@@ -1901,7 +1907,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "margin_left_baselines": 4,
     "margin_right_baselines": 4,
     "row_gutter_baselines": 4,
-    "column_gutter_baselines": 4,
+    "column_gutter_baselines": 2,
     "fit_within_safe_area": true,
     "safe_top_px": 0,
     "safe_right_px": 0,
@@ -2083,7 +2089,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "ramp_in_sec": 2,
     "pulse_orbits": true,
     "pulse_spokes": true,
-    "min_spoke_count": 16,
+    "min_spoke_count": 24,
     "phase_boundary_transition_sec": 0.04
   },
   "vignette": {
@@ -2094,8 +2100,9 @@ export const SOURCE_DEFAULT_CONFIG = {
     "choke": 0.62,
     "outside_radius_px": 2160,
     "outside_feather_px": 507,
-    "outside_choke": 1
-  },
+    "outside_choke": 1,
+        "dither": 1
+      },
   "export_settings": {
     "frame_rate": 24,
     "transparent_background": false

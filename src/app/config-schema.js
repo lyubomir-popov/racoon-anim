@@ -1168,6 +1168,11 @@ export const CONFIG_FIELD_META = Object.freeze({
     hidden_if: { path: "vignette.apply_outside_safe_area", equals: false },
     numeric: { min: 0, max: MAX_OUTPUT_PROFILE_HEIGHT_PX, step: 1 }
   },
+  "vignette.dither": {
+    label: "Dither",
+    help_text: "TPDF noise added to the vignette alpha channel to break up gradient banding. 0 = off, 1 = full.",
+    numeric: { min: 0, max: 1, step: 0.05 }
+  },
   "vignette.outside_choke": {
     label: "Outside Choke",
     help_text:
