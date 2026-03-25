@@ -2788,7 +2788,7 @@ async function export_png_sequence() {
         hide_overlay_guides: true
       });
       const file_handle = await output_selection.directory_handle.getFileHandle(
-        `frame-${String(frame_index + 1).padStart(4, "0")}.png`,
+        `${get_preset_export_dimension_folder_name()}-frame-${String(frame_index + 1).padStart(4, "0")}.png`,
         { create: true }
       );
       await write_blob_file(file_handle, blob);
@@ -2857,7 +2857,7 @@ async function export_current_frame_png() {
     return;
   }
   const playback_time_sec = (frame_number - 1) / frame_rate;
-  const frame_label = `frame-${String(frame_number).padStart(4, "0")}`;
+  const frame_label = `${get_preset_export_dimension_folder_name()}-frame-${String(frame_number).padStart(4, "0")}`;
   const was_animating = renderer.isAnimating();
 
   try {

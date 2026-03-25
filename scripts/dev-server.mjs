@@ -363,7 +363,7 @@ const server = http.createServer(async (request, response) => {
         { cwd: project_root, log_prefix: "encode-mp4" }
       );
 
-      const mp4_path = path.join(output_dir, `${path.basename(output_dir)}-master.mp4`);
+      const mp4_path = path.join(output_dir, `${output_width_px}x${output_height_px}-master.mp4`);
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(
         JSON.stringify({
