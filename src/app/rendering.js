@@ -2330,59 +2330,78 @@ export function createRenderer({
         return;
       }
 
+      // Rasterize the gradient into an offscreen canvas then apply TPDF dither
+      // noise before compositing. This breaks up 8-bit quantization banding
+      // without relying on the browser's gradient interpolation for accuracy.
+      const dpr = runtime.dpr;
+      const phys_w = Math.round(stage_width_px * dpr);
+      const phys_h = Math.round(stage_height_px * dpr);
+      const phys_cx = center_x_px * dpr;
+      const phys_cy = center_y_px * dpr;
+      const phys_outer_r = outer_radius_px * dpr;
+
+      const offscreen = document.createElement("canvas");
+      offscreen.width = phys_w;
+      offscreen.height = phys_h;
+      const off_ctx = offscreen.getContext("2d", { willReadFrequently: true });
+
       const clear_radius_px = Math.max(0, outer_radius_px - safe_feather_px);
       const safe_outer_radius_px = Math.max(1, outer_radius_px);
       const inner_stop = safe_feather_px <= 0
         ? 0.999
         : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
-      const gradient = text_overlay_context.createRadialGradient(
-        center_x_px,
-        center_y_px,
-        0,
-        center_x_px,
-        center_y_px,
-        outer_radius_px
-      );
-      // Use many stops with a gamma curve through the feather zone to avoid
-      // the 8-bit banding that appears with a small number of linear stops.
+      const gamma = lerp(3.5, 1.2, safe_choke);
+      const STEPS = 24;
+      const feather_span = 1 - inner_stop;
+
+      const gradient = off_ctx.createRadialGradient(phys_cx, phys_cy, 0, phys_cx, phys_cy, phys_outer_r);
       gradient.addColorStop(0, rgba_fn(0));
       if (inner_stop > 0.001) {
         gradient.addColorStop(inner_stop, rgba_fn(0));
       }
-      // Power curve exponent: controls the shape of the roll-off.
-      // safe_choke maps [0..1] → sharp..soft; mirror that into an exponent.
-      const gamma = lerp(3.5, 1.2, safe_choke);
-      const STEPS = 24;
-      const feather_span = 1 - inner_stop;
       for (let s = 1; s <= STEPS; s += 1) {
-        const t = s / STEPS;                              // 0..1 through feather zone
-        const stop_pos = inner_stop + t * feather_span;
-        const alpha = Math.pow(t, gamma);
-        gradient.addColorStop(clamp(stop_pos, 0, 1), rgba_fn(alpha));
+        const t = s / STEPS;
+        gradient.addColorStop(clamp(inner_stop + t * feather_span, 0, 1), rgba_fn(Math.pow(t, gamma)));
       }
 
+      off_ctx.fillStyle = gradient;
+      off_ctx.fillRect(0, 0, phys_w, phys_h);
+
+      // TPDF dither: two uniforms summed → triangular PDF, range [-1, +1].
+      // Applied only to the alpha channel since this is a monochrome vignette.
+      const img_data = off_ctx.getImageData(0, 0, phys_w, phys_h);
+      const data = img_data.data;
+      for (let i = 3; i < data.length; i += 4) {
+        data[i] = clamp(Math.round(data[i] + Math.random() + Math.random() - 1), 0, 255);
+      }
+      off_ctx.putImageData(img_data, 0, 0);
+
+      // Composite onto the overlay canvas. Clip in physical pixel space
+      // (setTransform identity → physical coords).
       text_overlay_context.save();
-      text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
+      text_overlay_context.setTransform(1, 0, 0, 1, 0, 0);
       if (use_safe_area && clip_mode !== "full") {
         const grid = get_layout_grid_metrics();
         const safe_area_width_px = Math.max(0, grid.layout_right_px - grid.layout_left_px);
         const safe_area_height_px = Math.max(0, grid.layout_bottom_px - grid.layout_top_px);
         if (safe_area_width_px > 0 && safe_area_height_px > 0) {
-          text_overlay_context.beginPath();
+          off_ctx.beginPath();
           if (clip_mode === "outside-safe-area") {
-            text_overlay_context.rect(0, 0, stage_width_px, stage_height_px);
+            text_overlay_context.beginPath();
+            text_overlay_context.rect(0, 0, phys_w, phys_h);
+          } else {
+            text_overlay_context.beginPath();
           }
           text_overlay_context.rect(
-            grid.layout_left_px,
-            grid.layout_top_px,
-            safe_area_width_px,
-            safe_area_height_px
+            grid.layout_left_px * dpr,
+            grid.layout_top_px * dpr,
+            safe_area_width_px * dpr,
+            safe_area_height_px * dpr
           );
           text_overlay_context.clip(clip_mode === "outside-safe-area" ? "evenodd" : "nonzero");
         }
       }
-      text_overlay_context.fillStyle = gradient;
-      text_overlay_context.fillRect(0, 0, stage_width_px, stage_height_px);
+      text_overlay_context.drawImage(offscreen, 0, 0);
       text_overlay_context.restore();
     };
 
