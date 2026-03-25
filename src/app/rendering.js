@@ -49,6 +49,7 @@ const DEBUG_MASK_COLOR = "#22d3ee";
 const DEBUG_MASK_SEGMENT_COUNT = 96;
 const ECHO_PLUS_SIZE_PX = 9.6;
 const ECHO_MARKER_HALO_GAP_PX = 16;
+const BACKGROUND_SPOKE_FADE_SEGMENTS = 16;
 const TEXT_LABEL_MARGIN_PX = 16;
 const ECHO_TEXT_BASE_FONT_SIZE_PX = 6;
 const TEXT_LABEL_WIDTH_CACHE = new Map();
@@ -1092,7 +1093,7 @@ export function createRenderer({
     );
 
     return {
-      background_spokes: Math.max(32, max_spoke_count),
+      background_spokes: Math.max(32, max_spoke_count * BACKGROUND_SPOKE_FADE_SEGMENTS),
       points: Math.max(512, max_spoke_count * max_orbit_count),
       halo_thin_spokes: Math.max(32, max_spoke_count),
       halo_thick_spokes: Math.max(32, max_spoke_count),
@@ -1660,6 +1661,8 @@ export function createRenderer({
 
   function push_background_spokes(spokes, full_frame_outer_radius_px) {
     const background_spoke_width_px = BACKGROUND_SPOKE_WIDTH_PX * get_halo_geometry_scale();
+    const cx = config.composition.center_x_px;
+    const cy = config.composition.center_y_px;
     for (let spoke_index = 0; spoke_index < spokes.length; spoke_index += 1) {
       const spoke = spokes[spoke_index];
       if (spoke.seam_overlay_only) {
@@ -1670,23 +1673,30 @@ export function createRenderer({
         continue;
       }
 
-      const start_x =
-        config.composition.center_x_px + Math.cos(spoke.angle) * spoke.start_radius;
-      const start_y =
-        config.composition.center_y_px + Math.sin(spoke.angle) * spoke.start_radius;
-      const end_x =
-        config.composition.center_x_px + Math.cos(spoke.angle) * full_frame_outer_radius_px;
-      const end_y =
-        config.composition.center_y_px + Math.sin(spoke.angle) * full_frame_outer_radius_px;
+      const cos_a = Math.cos(spoke.angle);
+      const sin_a = Math.sin(spoke.angle);
 
-      runtime.layers.backgroundSpokes.push(
-        start_x,
-        start_y,
-        end_x,
-        end_y,
-        background_spoke_width_px,
-        spoke_alpha
-      );
+      // Subdivide each construction line into short segments so the radial
+      // colour fade can vary smoothly along the line's length.
+      for (let seg = 0; seg < BACKGROUND_SPOKE_FADE_SEGMENTS; seg += 1) {
+        const t0 = seg / BACKGROUND_SPOKE_FADE_SEGMENTS;
+        const t1 = (seg + 1) / BACKGROUND_SPOKE_FADE_SEGMENTS;
+        const r0 = lerp(spoke.start_radius, full_frame_outer_radius_px, t0);
+        const r1 = lerp(spoke.start_radius, full_frame_outer_radius_px, t1);
+        const mid_r = (r0 + r1) * 0.5;
+        const fade = get_radial_fade_alpha(mid_r);
+        if (fade <= 0) {
+          continue;
+        }
+        runtime.layers.backgroundSpokes.push(
+          cx + cos_a * r0,
+          cy + sin_a * r0,
+          cx + cos_a * r1,
+          cy + sin_a * r1,
+          background_spoke_width_px,
+          spoke_alpha * fade
+        );
+      }
     }
   }
 
@@ -1916,6 +1926,23 @@ export function createRenderer({
 
   function get_echo_color() {
     return config.spoke_lines.echo_color || config.spoke_lines.color;
+  }
+
+  // Returns a 0–1 alpha multiplier that fades shapes to the background colour
+  // as radius_from_center approaches the vignette outer edge. Uses the same
+  // outer_radius_px / feather_px / outside_choke values as the vignette so the
+  // two effects are visually coupled without extra config knobs.
+  function get_radial_fade_alpha(radius_from_center) {
+    const outer_r = Number(config.vignette?.outer_radius_px ?? 0);
+    const feather_px = Math.max(0, Number(config.vignette?.feather_px ?? 0));
+    if (outer_r <= 0 || feather_px <= 0) {
+      return 1;
+    }
+    const inner_r = Math.max(0, outer_r - feather_px);
+    const fade_u = clamp((radius_from_center - inner_r) / feather_px, 0, 1);
+    const choke = clamp(Number(config.vignette?.outside_choke ?? 0), 0, 1);
+    const gamma = lerp(3.5, 1.2, choke);
+    return 1 - Math.pow(fade_u, gamma);
   }
 
   function get_echo_shape_seed() {
@@ -2268,7 +2295,7 @@ export function createRenderer({
       }
       text_overlay_context.rotate(label_rotation);
       text_overlay_context.textAlign = should_flip ? "right" : "left";
-      text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha;
+      text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha * get_radial_fade_alpha(text_metrics.start_radius);
       text_overlay_context.fillStyle = label_fill_color;
       text_overlay_context.fillRect(
         should_flip ? -label_measure.width - label_pad_x : -label_pad_x,
@@ -3037,7 +3064,8 @@ export function createRenderer({
         const dot_alpha =
           spoke_alpha *
           reveal_alpha *
-          (1 - smoothstep(ripple_fade_start_u, 1, ripple_u));
+          (1 - smoothstep(ripple_fade_start_u, 1, ripple_u)) *
+          get_radial_fade_alpha(dot_radius);
         if (dot_alpha <= 0) {
           continue;
         }
