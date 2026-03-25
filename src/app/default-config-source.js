@@ -43,8 +43,8 @@ export const SOURCE_DEFAULT_CONFIG = {
       },
       "composition": {
         "center_x_px": 640,
-        "center_y_px": 360,
-        "background_color": "#202020",
+        "center_y_px": 334,
+        "background_color": "#161616",
         "scale": 0.5,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -120,9 +120,9 @@ export const SOURCE_DEFAULT_CONFIG = {
         "radial_u": 0.6
       },
       "layout_grid": {
-        "show_baseline_grid": false,
+        "show_baseline_grid": true,
         "baseline_step_px": 8,
-        "show_composition_grid": false,
+        "show_composition_grid": true,
         "row_count": 4,
         "column_count": 4,
         "margin_top_baselines": 4,
@@ -132,11 +132,11 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_right_baselines": 4,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
-        "fit_within_safe_area": false,
-        "safe_top_px": 250,
-        "safe_right_px": 65,
-        "safe_bottom_px": 250,
-        "safe_left_px": 65,
+        "fit_within_safe_area": true,
+        "safe_top_px": 0,
+        "safe_right_px": 0,
+        "safe_bottom_px": 0,
+        "safe_left_px": 0,
         "safe_area_fill_color": "#161616",
         "safe_area_fill_above_animation": false
       },
@@ -155,7 +155,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_row_index": 1,
-        "main_heading_y_offset_baselines": 4,
+        "main_heading_y_offset_baselines": 0,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -176,7 +176,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "color": "#ffffff",
         "title_font_weight": 200,
         "b_head_font_weight": 400,
-        "main_heading_keyline_index": 3,
+        "main_heading_keyline_index": 2,
         "main_heading_column_span": 1,
         "text_1_keyline_index": 3,
         "text_1_column_span": 1,
@@ -202,22 +202,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_row_index": 4,
-              "y_offset_baselines": 9
+              "y_row_index": 1,
+              "y_offset_baselines": 0
             },
             "detail_primary": {
               "style": "paragraph",
-              "keyline_index": 4,
+              "keyline_index": 2,
               "column_span": 1,
-              "y_row_index": 1,
-              "y_offset_baselines": 4
+              "y_row_index": 4,
+              "y_offset_baselines": 15
             },
             "detail_secondary": {
               "style": "paragraph",
-              "keyline_index": 4,
+              "keyline_index": 3,
               "column_span": 1,
-              "y_row_index": 1,
-              "y_offset_baselines": 8
+              "y_row_index": 4,
+              "y_offset_baselines": 15
             }
           }
         },
@@ -238,21 +238,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 6,
-              "y_offset_baselines": 11
+              "y_offset_baselines": 9
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 7,
-              "y_offset_baselines": 6
+              "y_offset_baselines": 4
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 7,
-              "y_offset_baselines": 16
+              "y_offset_baselines": 14
             }
           }
         }
@@ -339,7 +339,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       "composition": {
         "center_x_px": 540,
         "center_y_px": 554,
-        "background_color": "#161616",
+        "background_color": "#2b2b2b",
         "scale": 0.75,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -415,7 +415,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "radial_u": 0.6
       },
       "layout_grid": {
-        "show_baseline_grid": false,
+        "show_baseline_grid": true,
         "baseline_step_px": 8,
         "show_composition_grid": true,
         "row_count": 8,
@@ -427,11 +427,11 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_right_baselines": 5,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
-        "fit_within_safe_area": false,
-        "safe_top_px": 24,
-        "safe_right_px": 24,
-        "safe_bottom_px": 24,
-        "safe_left_px": 24,
+        "fit_within_safe_area": true,
+        "safe_top_px": 0,
+        "safe_right_px": 0,
+        "safe_bottom_px": 0,
+        "safe_left_px": 0,
         "safe_area_fill_color": "#161616",
         "safe_area_fill_above_animation": false
       },
@@ -450,7 +450,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_row_index": 1,
-        "main_heading_y_offset_baselines": 7,
+        "main_heading_y_offset_baselines": -5,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -498,21 +498,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 3,
-              "y_offset_baselines": 3
+              "y_offset_baselines": 0
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 8,
-              "y_offset_baselines": 3
+              "y_offset_baselines": 0
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 8,
-              "y_offset_baselines": 8
+              "y_offset_baselines": 5
             }
           }
         },
@@ -533,21 +533,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 6,
-              "y_offset_baselines": 15
+              "y_offset_baselines": 12
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 7,
-              "y_offset_baselines": 11
+              "y_offset_baselines": 8
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 8,
-              "y_offset_baselines": 1
+              "y_offset_baselines": -2
             }
           }
         }
@@ -633,8 +633,8 @@ export const SOURCE_DEFAULT_CONFIG = {
       },
       "composition": {
         "center_x_px": 540,
-        "center_y_px": 960,
-        "background_color": "#202020",
+        "center_y_px": 804,
+        "background_color": "#161616",
         "scale": 0.75,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -710,9 +710,9 @@ export const SOURCE_DEFAULT_CONFIG = {
         "radial_u": 0.6
       },
       "layout_grid": {
-        "show_baseline_grid": false,
+        "show_baseline_grid": true,
         "baseline_step_px": 8,
-        "show_composition_grid": false,
+        "show_composition_grid": true,
         "row_count": 4,
         "column_count": 4,
         "margin_top_baselines": 6,
@@ -745,7 +745,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_row_index": 1,
-        "main_heading_y_offset_baselines": 6,
+        "main_heading_y_offset_baselines": 0,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -792,22 +792,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_row_index": 1,
-              "y_offset_baselines": 40
+              "y_row_index": 2,
+              "y_offset_baselines": 0
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 4,
-              "y_offset_baselines": 31
+              "y_offset_baselines": 28
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 4,
-              "y_offset_baselines": 37
+              "y_offset_baselines": 34
             }
           }
         },
@@ -828,21 +828,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 3,
-              "y_offset_baselines": 32
+              "y_offset_baselines": 29
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 4,
-              "y_offset_baselines": 7
+              "y_offset_baselines": 4
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 4,
-              "y_offset_baselines": 17
+              "y_offset_baselines": 14
             }
           }
         }
@@ -929,7 +929,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       "composition": {
         "center_x_px": 1920,
         "center_y_px": 1080,
-        "background_color": "#202020",
+        "background_color": "#161616",
         "scale": 0.75,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -1040,7 +1040,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_row_index": 1,
-        "main_heading_y_offset_baselines": 5,
+        "main_heading_y_offset_baselines": 0,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1088,21 +1088,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 3,
-              "y_offset_baselines": 2
+              "y_offset_baselines": 1
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
               "y_row_index": 2,
-              "y_offset_baselines": 2
+              "y_offset_baselines": 1
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 1,
               "y_row_index": 2,
-              "y_offset_baselines": 6
+              "y_offset_baselines": 5
             }
           }
         },
@@ -1123,21 +1123,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 4,
-              "y_offset_baselines": 24
+              "y_offset_baselines": 23
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 5,
-              "y_offset_baselines": 10
+              "y_offset_baselines": 9
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 5,
-              "y_offset_baselines": 20
+              "y_offset_baselines": 19
             }
           }
         }
@@ -1224,7 +1224,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       "composition": {
         "center_x_px": 1280,
         "center_y_px": 800,
-        "background_color": "#202020",
+        "background_color": "#2b2b2b",
         "scale": 0.75,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -1335,7 +1335,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_row_index": 1,
-        "main_heading_y_offset_baselines": 12,
+        "main_heading_y_offset_baselines": 6,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1383,21 +1383,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 5,
-              "y_offset_baselines": 31
+              "y_offset_baselines": 28
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 6,
-              "y_offset_baselines": 3
+              "y_offset_baselines": 0
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 2,
-              "y_offset_baselines": 13
+              "y_offset_baselines": 10
             }
           }
         },
@@ -1418,21 +1418,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 4,
-              "y_offset_baselines": 21
+              "y_offset_baselines": 18
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 5,
-              "y_offset_baselines": 4
+              "y_offset_baselines": 1
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
               "y_row_index": 5,
-              "y_offset_baselines": 14
+              "y_offset_baselines": 11
             }
           }
         }
@@ -1630,7 +1630,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
         "main_heading_y_row_index": 1,
-        "main_heading_y_offset_baselines": 12,
+        "main_heading_y_offset_baselines": 6,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1678,21 +1678,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 1,
               "column_span": 1,
               "y_row_index": 4,
-              "y_offset_baselines": 13
+              "y_offset_baselines": 10
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
               "y_row_index": 4,
-              "y_offset_baselines": 18
+              "y_offset_baselines": 15
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
               "y_row_index": 1,
-              "y_offset_baselines": 46
+              "y_offset_baselines": 43
             }
           }
         },
@@ -1713,21 +1713,21 @@ export const SOURCE_DEFAULT_CONFIG = {
               "keyline_index": 1,
               "column_span": 1,
               "y_row_index": 3,
-              "y_offset_baselines": 20
+              "y_offset_baselines": 17
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
               "y_row_index": 3,
-              "y_offset_baselines": 36
+              "y_offset_baselines": 33
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
               "y_row_index": 3,
-              "y_offset_baselines": 46
+              "y_offset_baselines": 43
             }
           }
         }
@@ -1795,7 +1795,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       }
     }
   },
-  "output_profile_key": "instagram_1080x1350",
+  "output_profile_key": "landscape_1280x720",
   "mascot_fade": {
     "enabled": false,
     "duration_sec": 3
@@ -1812,10 +1812,10 @@ export const SOURCE_DEFAULT_CONFIG = {
     "overshoot_frac": 0.75
   },
   "composition": {
-    "center_x_px": 540,
-    "center_y_px": 554,
+    "center_x_px": 640,
+    "center_y_px": 334,
     "background_color": "#161616",
-    "scale": 0.75,
+    "scale": 0.5,
     "radial_scale": 1,
     "global_rotation_deg": 0
   },
@@ -1872,8 +1872,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "echo_marker_stroke_px": 2.2,
     "echo_marker_scale_mult": 1.5,
     "echo_sparse_scale_boost": 0.5,
-    "phase_start_width_px": 8,
-    "phase_end_width_px": 4,
+    "phase_start_width_px": 0.36,
+    "phase_end_width_px": 7.1,
     "echo_count": 16,
     "echo_style": "mixed",
     "echo_shape_seed": 0,
@@ -1890,30 +1890,30 @@ export const SOURCE_DEFAULT_CONFIG = {
     "radial_u": 0.6
   },
   "layout_grid": {
-    "show_baseline_grid": false,
+    "show_baseline_grid": true,
     "baseline_step_px": 8,
     "show_composition_grid": true,
-    "row_count": 8,
+    "row_count": 4,
     "column_count": 4,
-    "margin_top_baselines": 5,
-    "margin_bottom_baselines": 6,
+    "margin_top_baselines": 4,
+    "margin_bottom_baselines": 4,
     "margin_side_baselines": 0,
-    "margin_left_baselines": 5,
-    "margin_right_baselines": 5,
+    "margin_left_baselines": 4,
+    "margin_right_baselines": 4,
     "row_gutter_baselines": 4,
     "column_gutter_baselines": 4,
-    "fit_within_safe_area": false,
-    "safe_top_px": 24,
-    "safe_right_px": 24,
-    "safe_bottom_px": 24,
-    "safe_left_px": 24,
+    "fit_within_safe_area": true,
+    "safe_top_px": 0,
+    "safe_right_px": 0,
+    "safe_bottom_px": 0,
+    "safe_left_px": 0,
     "safe_area_fill_color": "#161616",
     "safe_area_fill_above_animation": false
   },
   "overlay_logo": {
     "enabled": true,
     "asset_path": "./assets/UbuntuTagLogo.svg",
-    "x_px": 41,
+    "x_px": 32,
     "y_px": 0,
     "height_px": 108
   },
@@ -1925,7 +1925,7 @@ export const SOURCE_DEFAULT_CONFIG = {
     "subtitle_text": "A showcase for the innovative and the ambitious",
     "main_heading_x_px": 490,
     "main_heading_y_row_index": 1,
-    "main_heading_y_offset_baselines": 7,
+    "main_heading_y_offset_baselines": 0,
     "main_heading_max_width_px": 381,
     "text_1_x_px": 490,
     "text_1_y_baselines": 163,
@@ -1936,22 +1936,22 @@ export const SOURCE_DEFAULT_CONFIG = {
     "text_3_x_px": 490,
     "text_3_y_baselines": 46,
     "text_3_max_width_px": 458,
-    "title_font_size_px": 63,
-    "title_line_height_px": 64,
-    "b_head_font_size_px": 32,
-    "b_head_line_height_px": 36,
-    "paragraph_font_size_px": 32,
-    "paragraph_line_height_px": 36,
+    "title_font_size_px": 42,
+    "title_line_height_px": 48,
+    "b_head_font_size_px": 24,
+    "b_head_line_height_px": 32,
+    "paragraph_font_size_px": 24,
+    "paragraph_line_height_px": 32,
     "link_title_size_to_logo_height": true,
     "color": "#ffffff",
     "title_font_weight": 200,
     "b_head_font_weight": 400,
-    "main_heading_keyline_index": 3,
-    "main_heading_column_span": 2,
+    "main_heading_keyline_index": 2,
+    "main_heading_column_span": 1,
     "text_1_keyline_index": 3,
-    "text_1_column_span": 2,
+    "text_1_column_span": 1,
     "text_2_keyline_index": 3,
-    "text_2_column_span": 2,
+    "text_2_column_span": 1,
     "text_3_keyline_index": 3,
     "text_3_column_span": 2
   },
@@ -1969,32 +1969,32 @@ export const SOURCE_DEFAULT_CONFIG = {
       "text_3_max_width_px": 458,
       "fields": {
         "body_intro": {
-          "style": "b_head",
-          "keyline_index": 3,
-          "column_span": 2,
-          "y_row_index": 3,
-              "y_offset_baselines": 3
-        },
-        "detail_primary": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 8,
-              "y_offset_baselines": 3
+          "y_row_index": 1,
+          "y_offset_baselines": 0
+        },
+        "detail_primary": {
+          "style": "paragraph",
+          "keyline_index": 2,
+          "column_span": 1,
+          "y_row_index": 4,
+          "y_offset_baselines": 15
         },
         "detail_secondary": {
           "style": "paragraph",
           "keyline_index": 3,
-          "column_span": 2,
-          "y_row_index": 8,
-              "y_offset_baselines": 8
+          "column_span": 1,
+          "y_row_index": 4,
+          "y_offset_baselines": 15
         }
       },
-      "text_1_keyline_index": 3,
-      "text_2_keyline_index": 3,
-      "text_3_keyline_index": 3,
-      "text_1_column_span": 2,
-      "text_2_column_span": 2,
+      "text_1_keyline_index": 2,
+      "text_2_keyline_index": 2,
+      "text_3_keyline_index": 2,
+      "text_1_column_span": 1,
+      "text_2_column_span": 1,
       "text_3_column_span": 2
     },
     "speaker_highlight": {
@@ -2014,29 +2014,29 @@ export const SOURCE_DEFAULT_CONFIG = {
           "keyline_index": 3,
           "column_span": 2,
           "y_row_index": 6,
-              "y_offset_baselines": 15
+          "y_offset_baselines": 9
         },
         "speaker_name": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
           "y_row_index": 7,
-              "y_offset_baselines": 11
+          "y_offset_baselines": 4
         },
         "speaker_role": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 8,
-              "y_offset_baselines": 1
+          "y_row_index": 7,
+          "y_offset_baselines": 14
         }
       },
-      "text_1_keyline_index": 3,
-      "text_2_keyline_index": 3,
-      "text_3_keyline_index": 3,
-      "text_1_column_span": 2,
-      "text_2_column_span": 2,
-      "text_3_column_span": 2
+      "text_1_keyline_index": 2,
+      "text_2_keyline_index": 2,
+      "text_3_keyline_index": 2,
+      "text_1_column_span": 1,
+      "text_2_column_span": 1,
+      "text_3_column_span": 1
     }
   },
   "mascot": {
