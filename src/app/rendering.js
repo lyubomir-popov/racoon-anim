@@ -1928,19 +1928,26 @@ export function createRenderer({
     return config.spoke_lines.echo_color || config.spoke_lines.color;
   }
 
-  // Returns a 0–1 alpha multiplier that fades shapes to the background colour
-  // as radius_from_center approaches the vignette outer edge. Uses the same
-  // outer_radius_px / feather_px / outside_choke values as the vignette so the
-  // two effects are visually coupled without extra config knobs.
+  // Returns a 0–1 alpha multiplier that fades shapes toward the background
+  // colour as radius_from_center approaches the vignette outer edge.
+  // Mirrors the field names used by fill_configured_vignette: the outside-safe-area
+  // variant (outside_radius_px / outside_feather_px / outside_choke) is used when
+  // present, falling back to the general (radius_px / feather_px / choke) values.
   function get_radial_fade_alpha(radius_from_center) {
-    const outer_r = Number(config.vignette?.outer_radius_px ?? 0);
-    const feather_px = Math.max(0, Number(config.vignette?.feather_px ?? 0));
+    const outer_r = Number(
+      config.vignette?.outside_radius_px ?? config.vignette?.radius_px ?? 0
+    );
+    const feather_px = Math.max(0, Number(
+      config.vignette?.outside_feather_px ?? config.vignette?.feather_px ?? 0
+    ));
     if (outer_r <= 0 || feather_px <= 0) {
       return 1;
     }
     const inner_r = Math.max(0, outer_r - feather_px);
     const fade_u = clamp((radius_from_center - inner_r) / feather_px, 0, 1);
-    const choke = clamp(Number(config.vignette?.outside_choke ?? 0), 0, 1);
+    const choke = clamp(Number(
+      config.vignette?.outside_choke ?? config.vignette?.choke ?? 0
+    ), 0, 1);
     const gamma = lerp(3.5, 1.2, choke);
     return 1 - Math.pow(fade_u, gamma);
   }
