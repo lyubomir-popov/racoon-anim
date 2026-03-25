@@ -1170,8 +1170,18 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "vignette.shape_fade": {
     label: "Shape Fade",
-    help_text: "Fades construction lines, echo shapes, and release labels toward the background colour by radial distance. 0 = no fade, 1 = full fade. Transition point is controlled by Outside Choke (higher choke → fade starts further out).",
+    help_text: "Fades construction lines, echo shapes, and release labels toward the background colour by radial distance. 0 = no fade, 1 = full fade.",
     numeric: { min: 0, max: 1, step: 0.05 }
+  },
+  "vignette.shape_fade_start": {
+    label: "Shape Fade Start",
+    help_text: "Fraction of the full-frame radius at which the shape fade begins (0 = centre, 1 = canvas corner). Shapes inside this radius are fully opaque.",
+    numeric: { min: 0, max: 1, step: 0.01 }
+  },
+  "vignette.shape_fade_end": {
+    label: "Shape Fade End",
+    help_text: "Fraction of the full-frame radius at which shapes are fully transparent. Must be greater than Shape Fade Start.",
+    numeric: { min: 0, max: 1, step: 0.01 }
   },
   "vignette.dither": {
     label: "Dither",

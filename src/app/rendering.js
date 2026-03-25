@@ -1928,27 +1928,20 @@ export function createRenderer({
     return config.spoke_lines.echo_color || config.spoke_lines.color;
   }
 
-  // Returns a 0–1 alpha multiplier that fades shapes toward the background
-  // colour as radius_from_center approaches the canvas edge.
-  // full_frame_outer_radius_px is the distance from composition center to the
-  // farthest canvas corner – shapes extend to this radius.
-  // outside_choke controls WHERE the fade starts: choke=1 → starts at 75% of
-  // the full-frame radius; choke=0 → starts at 40%. shape_fade controls strength.
+  // Returns a 0–1 alpha multiplier that fades shapes toward the background colour.
+  // shape_fade_start/end are fractions of full_frame_outer_radius_px (0–1).
+  // At shape_fade_start radius: alpha = 1. At shape_fade_end radius: alpha = 0.
   function get_radial_fade_alpha(radius_from_center, full_frame_outer_radius_px) {
     const strength = clamp(Number(config.vignette?.shape_fade ?? 1), 0, 1);
     if (strength <= 0 || full_frame_outer_radius_px <= 0) {
       return 1;
     }
-    const choke = clamp(Number(
-      config.vignette?.outside_choke ?? config.vignette?.choke ?? 0
-    ), 0, 1);
-    // fade zone: inner_r to full_frame_outer_radius_px
-    const fade_start_u = lerp(0.4, 0.75, choke);
-    const inner_r = full_frame_outer_radius_px * fade_start_u;
-    const feather = Math.max(1, full_frame_outer_radius_px - inner_r);
-    const fade_u = clamp((radius_from_center - inner_r) / feather, 0, 1);
-    const gamma = lerp(3.5, 1.2, choke);
-    return 1 - strength * Math.pow(fade_u, gamma);
+    const start_u = clamp(Number(config.vignette?.shape_fade_start ?? 0.3), 0, 1);
+    const end_u = clamp(Number(config.vignette?.shape_fade_end ?? 1.0), start_u + 0.01, 1);
+    const inner_r = full_frame_outer_radius_px * start_u;
+    const outer_r = full_frame_outer_radius_px * end_u;
+    const fade_u = clamp((radius_from_center - inner_r) / Math.max(1, outer_r - inner_r), 0, 1);
+    return 1 - strength * fade_u;
   }
 
   function get_echo_shape_seed() {
