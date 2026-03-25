@@ -164,16 +164,14 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "overlay_text.title_text",
   "overlay_text.subtitle_text",
   "overlay_text.main_heading_x_px",
-  "overlay_text.main_heading_y_baselines",
+  "overlay_text.main_heading_y_row_index",
+  "overlay_text.main_heading_y_offset_baselines",
   "overlay_text.main_heading_column_span",
   "overlay_text.text_1_x_px",
-  "overlay_text.text_1_y_baselines",
   "overlay_text.text_1_column_span",
   "overlay_text.text_2_x_px",
-  "overlay_text.text_2_y_baselines",
   "overlay_text.text_2_column_span",
   "overlay_text.text_3_x_px",
-  "overlay_text.text_3_y_baselines",
   "overlay_text.text_3_column_span",
   "overlay_text.title_font_size_px",
   "overlay_text.title_line_height_px",
@@ -1972,18 +1970,26 @@ function get_overlay_field_tab_specs() {
         Object.freeze({
           columns: Object.freeze([
             Object.freeze({
-              path: get_overlay_field_layout_path(format_key, field_spec.id, "keyline_index"),
-              label: "Column"
+              path: get_overlay_field_layout_path(format_key, field_spec.id, "y_row_index"),
+              label: "Row",
+              number_input_only: true
             }),
             Object.freeze({
-              path: get_overlay_field_layout_path(format_key, field_spec.id, "y_baselines"),
-              label: "Y (Baselines)"
+              path: get_overlay_field_layout_path(format_key, field_spec.id, "y_offset_baselines"),
+              label: "Y Offset",
+              number_input_only: true
+            }),
+            Object.freeze({
+              path: get_overlay_field_layout_path(format_key, field_spec.id, "keyline_index"),
+              label: "Col",
+              number_input_only: true
+            }),
+            Object.freeze({
+              path: get_overlay_field_layout_path(format_key, field_spec.id, "column_span"),
+              label: "Span",
+              number_input_only: true
             })
           ])
-        }),
-        Object.freeze({
-          path: get_overlay_field_layout_path(format_key, field_spec.id, "column_span"),
-          label: "Span (Columns)"
         })
       ])
     })
@@ -1996,11 +2002,12 @@ function get_overlay_field_tab_specs() {
       rows: Object.freeze([
         Object.freeze({
           columns: Object.freeze([
-            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Column" }),
-            Object.freeze({ path: "overlay_text.main_heading_y_baselines", label: "Y (Baselines)" })
+            Object.freeze({ path: "overlay_text.main_heading_y_row_index", label: "Row", number_input_only: true }),
+            Object.freeze({ path: "overlay_text.main_heading_y_offset_baselines", label: "Y Offset", number_input_only: true }),
+            Object.freeze({ path: "overlay_text.main_heading_keyline_index", label: "Col", number_input_only: true }),
+            Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span", number_input_only: true })
           ])
-        }),
-        Object.freeze({ path: "overlay_text.main_heading_column_span", label: "Span (Columns)" })
+        })
       ])
     }),
     ...variable_field_tabs

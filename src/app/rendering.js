@@ -2509,7 +2509,8 @@ export function createRenderer({
   function draw_overlay_text_field({
     text,
     keyline_index,
-    y_baselines,
+    y_row_index,
+    y_offset_baselines,
     column_span,
     font,
     line_height_px
@@ -2527,7 +2528,11 @@ export function createRenderer({
       return;
     }
 
-    let baseline_y_px = grid.layout_top_px + Number(y_baselines ?? 0) * baseline_step_px;
+    const row_idx = Math.max(0, (Number.isFinite(Number(y_row_index)) ? Number(y_row_index) : 1) - 1);
+    let baseline_y_px =
+      grid.content_top_px +
+      row_idx * (grid.row_height_px + grid.row_gutter_px) +
+      Number(y_offset_baselines ?? 0) * baseline_step_px;
     const draw_x_px = get_overlay_text_keyline_x_px(keyline_index);
 
     text_overlay_context.font = font;
@@ -2593,7 +2598,8 @@ export function createRenderer({
     draw_overlay_text_field({
       text: content.main_heading,
       keyline_index: config.overlay_text.main_heading_keyline_index,
-      y_baselines: config.overlay_text.main_heading_y_baselines,
+      y_row_index: config.overlay_text.main_heading_y_row_index,
+      y_offset_baselines: config.overlay_text.main_heading_y_offset_baselines,
       column_span: config.overlay_text.main_heading_column_span,
       font: title_font,
       line_height_px: title_line_height_px
@@ -2615,7 +2621,8 @@ export function createRenderer({
       draw_overlay_text_field({
         text: field.text,
         keyline_index: field_layout.keyline_index,
-        y_baselines: field_layout.y_baselines,
+        y_row_index: field_layout.y_row_index,
+        y_offset_baselines: field_layout.y_offset_baselines,
         column_span: field_layout.column_span,
         font: uses_b_head ? b_head_font : paragraph_font,
         line_height_px: uses_b_head ? b_head_line_height_px : paragraph_line_height_px

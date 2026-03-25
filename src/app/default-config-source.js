@@ -154,7 +154,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 8,
+        "main_heading_y_row_index": 1,
+        "main_heading_y_offset_baselines": 4,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -201,19 +202,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 76
+              "y_row_index": 4,
+              "y_offset_baselines": 9
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 4,
               "column_span": 1,
-              "y_baselines": 8
+              "y_row_index": 1,
+              "y_offset_baselines": 4
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 4,
               "column_span": 1,
-              "y_baselines": 12
+              "y_row_index": 1,
+              "y_offset_baselines": 8
             }
           }
         },
@@ -233,19 +237,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 120
+              "y_row_index": 6,
+              "y_offset_baselines": 11
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 136
+              "y_row_index": 7,
+              "y_offset_baselines": 6
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 146
+              "y_row_index": 7,
+              "y_offset_baselines": 16
             }
           }
         }
@@ -390,8 +397,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "echo_marker_stroke_px": 2.2,
         "echo_marker_scale_mult": 1.5,
         "echo_sparse_scale_boost": 0.5,
-        "phase_start_width_px": 1.44,
-        "phase_end_width_px": 8,
+        "phase_start_width_px": 8,
+        "phase_end_width_px": 4,
         "echo_count": 16,
         "echo_style": "mixed",
         "echo_shape_seed": 0,
@@ -411,16 +418,16 @@ export const SOURCE_DEFAULT_CONFIG = {
         "show_baseline_grid": false,
         "baseline_step_px": 8,
         "show_composition_grid": true,
-        "row_count": 4,
+        "row_count": 8,
         "column_count": 4,
-        "margin_top_baselines": 0,
-        "margin_bottom_baselines": 9,
+        "margin_top_baselines": 5,
+        "margin_bottom_baselines": 6,
         "margin_side_baselines": 0,
-        "margin_left_baselines": 0,
-        "margin_right_baselines": 0,
+        "margin_left_baselines": 5,
+        "margin_right_baselines": 5,
         "row_gutter_baselines": 4,
         "column_gutter_baselines": 4,
-        "fit_within_safe_area": true,
+        "fit_within_safe_area": false,
         "safe_top_px": 24,
         "safe_right_px": 24,
         "safe_bottom_px": 24,
@@ -431,7 +438,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       "overlay_logo": {
         "enabled": true,
         "asset_path": "./assets/UbuntuTagLogo.svg",
-        "x_px": 64,
+        "x_px": 41,
         "y_px": 0,
         "height_px": 108
       },
@@ -442,7 +449,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 12,
+        "main_heading_y_row_index": 1,
+        "main_heading_y_offset_baselines": 7,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -489,19 +497,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 42
+              "y_row_index": 3,
+              "y_offset_baselines": 3
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 147
+              "y_row_index": 8,
+              "y_offset_baselines": 3
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 152
+              "y_row_index": 8,
+              "y_offset_baselines": 8
             }
           }
         },
@@ -521,19 +532,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 120
+              "y_row_index": 6,
+              "y_offset_baselines": 15
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 136
+              "y_row_index": 7,
+              "y_offset_baselines": 11
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 146
+              "y_row_index": 8,
+              "y_offset_baselines": 1
             }
           }
         }
@@ -730,7 +744,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 12,
+        "main_heading_y_row_index": 1,
+        "main_heading_y_offset_baselines": 6,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -777,19 +792,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 46
+              "y_row_index": 1,
+              "y_offset_baselines": 40
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 160
+              "y_row_index": 4,
+              "y_offset_baselines": 31
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 166
+              "y_row_index": 4,
+              "y_offset_baselines": 37
             }
           }
         },
@@ -809,19 +827,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 120
+              "y_row_index": 3,
+              "y_offset_baselines": 32
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 136
+              "y_row_index": 4,
+              "y_offset_baselines": 7
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 146
+              "y_row_index": 4,
+              "y_offset_baselines": 17
             }
           }
         }
@@ -1018,7 +1039,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 11,
+        "main_heading_y_row_index": 1,
+        "main_heading_y_offset_baselines": 5,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1065,19 +1087,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 68
+              "y_row_index": 3,
+              "y_offset_baselines": 2
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 2,
-              "y_baselines": 38
+              "y_row_index": 2,
+              "y_offset_baselines": 2
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 3,
               "column_span": 1,
-              "y_baselines": 42
+              "y_row_index": 2,
+              "y_offset_baselines": 6
             }
           }
         },
@@ -1097,19 +1122,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 120
+              "y_row_index": 4,
+              "y_offset_baselines": 24
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 136
+              "y_row_index": 5,
+              "y_offset_baselines": 10
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 146
+              "y_row_index": 5,
+              "y_offset_baselines": 20
             }
           }
         }
@@ -1306,7 +1334,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 12,
+        "main_heading_y_row_index": 1,
+        "main_heading_y_offset_baselines": 12,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1353,19 +1382,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 163
+              "y_row_index": 5,
+              "y_offset_baselines": 31
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 168
+              "y_row_index": 6,
+              "y_offset_baselines": 3
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 46
+              "y_row_index": 2,
+              "y_offset_baselines": 13
             }
           }
         },
@@ -1385,19 +1417,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 120
+              "y_row_index": 4,
+              "y_offset_baselines": 21
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 136
+              "y_row_index": 5,
+              "y_offset_baselines": 4
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 2,
               "column_span": 1,
-              "y_baselines": 146
+              "y_row_index": 5,
+              "y_offset_baselines": 14
             }
           }
         }
@@ -1594,7 +1629,8 @@ export const SOURCE_DEFAULT_CONFIG = {
         "title_text": "Ubuntu\nSummit\n26.04",
         "subtitle_text": "A showcase for the innovative and the ambitious",
         "main_heading_x_px": 490,
-        "main_heading_y_baselines": 12,
+        "main_heading_y_row_index": 1,
+        "main_heading_y_offset_baselines": 12,
         "main_heading_max_width_px": 381,
         "text_1_x_px": 490,
         "text_1_y_baselines": 163,
@@ -1641,19 +1677,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 1,
               "column_span": 1,
-              "y_baselines": 163
+              "y_row_index": 4,
+              "y_offset_baselines": 13
             },
             "detail_primary": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
-              "y_baselines": 168
+              "y_row_index": 4,
+              "y_offset_baselines": 18
             },
             "detail_secondary": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
-              "y_baselines": 46
+              "y_row_index": 1,
+              "y_offset_baselines": 46
             }
           }
         },
@@ -1673,19 +1712,22 @@ export const SOURCE_DEFAULT_CONFIG = {
               "style": "b_head",
               "keyline_index": 1,
               "column_span": 1,
-              "y_baselines": 120
+              "y_row_index": 3,
+              "y_offset_baselines": 20
             },
             "speaker_name": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
-              "y_baselines": 136
+              "y_row_index": 3,
+              "y_offset_baselines": 36
             },
             "speaker_role": {
               "style": "paragraph",
               "keyline_index": 1,
               "column_span": 1,
-              "y_baselines": 146
+              "y_row_index": 3,
+              "y_offset_baselines": 46
             }
           }
         }
@@ -1830,8 +1872,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "echo_marker_stroke_px": 2.2,
     "echo_marker_scale_mult": 1.5,
     "echo_sparse_scale_boost": 0.5,
-    "phase_start_width_px": 1.44,
-    "phase_end_width_px": 8,
+    "phase_start_width_px": 8,
+    "phase_end_width_px": 4,
     "echo_count": 16,
     "echo_style": "mixed",
     "echo_shape_seed": 0,
@@ -1851,16 +1893,16 @@ export const SOURCE_DEFAULT_CONFIG = {
     "show_baseline_grid": false,
     "baseline_step_px": 8,
     "show_composition_grid": true,
-    "row_count": 4,
+    "row_count": 8,
     "column_count": 4,
-    "margin_top_baselines": 0,
-    "margin_bottom_baselines": 9,
+    "margin_top_baselines": 5,
+    "margin_bottom_baselines": 6,
     "margin_side_baselines": 0,
-    "margin_left_baselines": 0,
-    "margin_right_baselines": 0,
+    "margin_left_baselines": 5,
+    "margin_right_baselines": 5,
     "row_gutter_baselines": 4,
     "column_gutter_baselines": 4,
-    "fit_within_safe_area": true,
+    "fit_within_safe_area": false,
     "safe_top_px": 24,
     "safe_right_px": 24,
     "safe_bottom_px": 24,
@@ -1871,7 +1913,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   "overlay_logo": {
     "enabled": true,
     "asset_path": "./assets/UbuntuTagLogo.svg",
-    "x_px": 64,
+    "x_px": 41,
     "y_px": 0,
     "height_px": 108
   },
@@ -1882,7 +1924,8 @@ export const SOURCE_DEFAULT_CONFIG = {
     "title_text": "Ubuntu\nSummit\n26.04",
     "subtitle_text": "A showcase for the innovative and the ambitious",
     "main_heading_x_px": 490,
-    "main_heading_y_baselines": 12,
+    "main_heading_y_row_index": 1,
+    "main_heading_y_offset_baselines": 7,
     "main_heading_max_width_px": 381,
     "text_1_x_px": 490,
     "text_1_y_baselines": 163,
@@ -1929,19 +1972,22 @@ export const SOURCE_DEFAULT_CONFIG = {
           "style": "b_head",
           "keyline_index": 3,
           "column_span": 2,
-          "y_baselines": 42
+          "y_row_index": 3,
+              "y_offset_baselines": 3
         },
         "detail_primary": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_baselines": 147
+          "y_row_index": 8,
+              "y_offset_baselines": 3
         },
         "detail_secondary": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_baselines": 152
+          "y_row_index": 8,
+              "y_offset_baselines": 8
         }
       },
       "text_1_keyline_index": 3,
@@ -1967,19 +2013,22 @@ export const SOURCE_DEFAULT_CONFIG = {
           "style": "b_head",
           "keyline_index": 3,
           "column_span": 2,
-          "y_baselines": 120
+          "y_row_index": 6,
+              "y_offset_baselines": 15
         },
         "speaker_name": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_baselines": 136
+          "y_row_index": 7,
+              "y_offset_baselines": 11
         },
         "speaker_role": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_baselines": 146
+          "y_row_index": 8,
+              "y_offset_baselines": 1
         }
       },
       "text_1_keyline_index": 3,

@@ -259,6 +259,39 @@ function compute_overlay_layout_metrics_for_target(target) {
   };
 }
 
+function compute_grid_y_row_from_baselines(target, y_baselines_val) {
+  const y_baselines = Number(y_baselines_val);
+  if (!Number.isFinite(y_baselines)) {
+    return { y_row_index: 1, y_offset_baselines: 0 };
+  }
+  const grid = target?.layout_grid ?? {};
+  const profile_key = target?.output_profile_key ?? DEFAULT_OUTPUT_PROFILE_KEY;
+  const profile = OUTPUT_PROFILES[profile_key] ?? OUTPUT_PROFILES[DEFAULT_OUTPUT_PROFILE_KEY];
+  const step = Math.max(1, Math.round(Number(grid.baseline_step_px ?? 8)));
+  const row_count = Math.max(1, Math.round(Number(grid.row_count ?? 4)));
+  const row_gutter = Math.max(0, Math.round(Number(grid.row_gutter_baselines ?? 2)));
+  const margin_top = Math.max(0, Number(grid.margin_top_baselines ?? 3));
+  const margin_bottom = Math.max(0, Number(grid.margin_bottom_baselines ?? 0));
+  const use_safe = Boolean(grid.fit_within_safe_area);
+  const safe_top = use_safe ? Math.max(0, Number(grid.safe_top_px ?? 0)) : 0;
+  const safe_bottom = use_safe ? Math.max(0, Number(grid.safe_bottom_px ?? 0)) : 0;
+  const layout_h = Math.max(0, profile.height_px - safe_top - safe_bottom);
+  const top_margin_px = margin_top * step;
+  const bot_margin_px = margin_bottom * step;
+  const row_gutter_px = row_gutter * step;
+  const max_space = layout_h - top_margin_px - bot_margin_px - row_gutter_px * Math.max(0, row_count - 1);
+  const row_height_px = Math.max(0, Math.floor(Math.max(0, max_space) / (row_count * step)) * step);
+  const row_height_baselines = row_height_px / step;
+  const row_step = row_height_baselines + row_gutter;
+  const adj = y_baselines - margin_top;
+  if (row_step <= 0 || adj < 0) {
+    return { y_row_index: 1, y_offset_baselines: adj };
+  }
+  const y_row_index = Math.floor(adj / row_step) + 1;
+  const y_offset_baselines = adj - (y_row_index - 1) * row_step;
+  return { y_row_index, y_offset_baselines };
+}
+
 function derive_keyline_index_from_legacy_x(target, legacy_x_px) {
   const x_px = Number(legacy_x_px);
   if (!Number.isFinite(x_px)) {
@@ -342,15 +375,44 @@ function ensure_overlay_text_keyline_defaults(target) {
         }
       }
 
-      if (!Number.isFinite(Number(field_bucket.y_baselines))) {
-        if (Number.isFinite(Number(legacy_y_value))) {
-          field_bucket.y_baselines = Number(legacy_y_value);
-        } else if (Number.isFinite(Number(target.overlay_text[`${legacy_slot}_y_baselines`]))) {
-          field_bucket.y_baselines = Number(target.overlay_text[`${legacy_slot}_y_baselines`]);
+      if (!Number.isFinite(Number(field_bucket.y_row_index)) ||
+          !Number.isFinite(Number(field_bucket.y_offset_baselines))) {
+        // Migrate from old y_baselines if present, otherwise seed from legacy slot
+        const existing_y =
+          Number.isFinite(Number(field_bucket.y_row_index))
+            ? null
+            : Number.isFinite(Number(field_bucket.y_baselines))
+            ? Number(field_bucket.y_baselines)
+            : Number.isFinite(Number(legacy_y_value))
+            ? Number(legacy_y_value)
+            : Number.isFinite(Number(target.overlay_text?.[`${legacy_slot}_y_baselines`]))
+            ? Number(target.overlay_text[`${legacy_slot}_y_baselines`])
+            : null;
+
+        if (existing_y !== null) {
+          const converted = compute_grid_y_row_from_baselines(target, existing_y);
+          field_bucket.y_row_index = converted.y_row_index;
+          field_bucket.y_offset_baselines = converted.y_offset_baselines;
         } else {
-          field_bucket.y_baselines = 0;
+          field_bucket.y_row_index = 1;
+          field_bucket.y_offset_baselines = 0;
         }
       }
+    }
+  }
+
+  // Migrate main_heading_y_baselines → y_row_index + y_offset_baselines for old presets
+  const ot = target.overlay_text;
+  if (is_plain_object(ot) &&
+      (!Number.isFinite(Number(ot.main_heading_y_row_index)) ||
+       !Number.isFinite(Number(ot.main_heading_y_offset_baselines)))) {
+    if (Number.isFinite(Number(ot.main_heading_y_baselines))) {
+      const converted = compute_grid_y_row_from_baselines(target, Number(ot.main_heading_y_baselines));
+      ot.main_heading_y_row_index = converted.y_row_index;
+      ot.main_heading_y_offset_baselines = converted.y_offset_baselines;
+    } else if (!Number.isFinite(Number(ot.main_heading_y_row_index))) {
+      ot.main_heading_y_row_index = 1;
+      ot.main_heading_y_offset_baselines = 0;
     }
   }
 }
@@ -671,10 +733,15 @@ export const CONFIG_FIELD_META = Object.freeze({
     label: "Span (Columns)",
     numeric: { min: 1, max: 24, step: 1 }
   },
-  "overlay_text.main_heading_y_baselines": {
-    label: "A-head Y (Baselines)",
-    help_text: "Always snaps to the baseline grid.",
-    numeric: { min: -200, max: 2000, step: 1 }
+  "overlay_text.main_heading_y_row_index": {
+    label: "Row",
+    help_text: "Grid row for the A-head baseline (1 = first row below the top margin).",
+    numeric: { min: 1, max: 24, step: 1 }
+  },
+  "overlay_text.main_heading_y_offset_baselines": {
+    label: "Y Offset (Baselines)",
+    help_text: "Fine-tune vertical offset from the row top, in baselines.",
+    numeric: { min: -200, max: 500, step: 1 }
   },
   "overlay_text.main_heading_max_width_px": {
     hidden: true,
@@ -1251,9 +1318,14 @@ const OVERLAY_FIELD_STYLE_META = Object.freeze({
   ])
 });
 
-const OVERLAY_FIELD_Y_BASELINES_META = Object.freeze({
-  label: "Y (Baselines)",
-  numeric: { min: -200, max: 2000, step: 1 }
+const OVERLAY_FIELD_Y_ROW_INDEX_META = Object.freeze({
+  label: "Row",
+  numeric: { min: 1, max: 24, step: 1 }
+});
+
+const OVERLAY_FIELD_Y_OFFSET_BASELINES_META = Object.freeze({
+  label: "Y Offset",
+  numeric: { min: -200, max: 500, step: 1 }
 });
 
 const OVERLAY_FIELD_KEYLINE_META = Object.freeze({
@@ -1267,7 +1339,8 @@ const OVERLAY_FIELD_COLUMN_SPAN_META = Object.freeze({
 });
 
 const OVERLAY_FIELD_STYLE_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.style$/;
-const OVERLAY_FIELD_Y_BASELINES_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.y_baselines$/;
+const OVERLAY_FIELD_Y_ROW_INDEX_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.y_row_index$/;
+const OVERLAY_FIELD_Y_OFFSET_BASELINES_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.y_offset_baselines$/;
 const OVERLAY_FIELD_KEYLINE_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.keyline_index$/;
 const OVERLAY_FIELD_COLUMN_SPAN_PATH_RE = /^overlay_content_formats\.[^.]+\.fields\.[^.]+\.column_span$/;
 
@@ -1278,8 +1351,11 @@ export function get_field_meta(path_key) {
   if (OVERLAY_FIELD_STYLE_PATH_RE.test(path_key)) {
     return OVERLAY_FIELD_STYLE_META;
   }
-  if (OVERLAY_FIELD_Y_BASELINES_PATH_RE.test(path_key)) {
-    return OVERLAY_FIELD_Y_BASELINES_META;
+  if (OVERLAY_FIELD_Y_ROW_INDEX_PATH_RE.test(path_key)) {
+    return OVERLAY_FIELD_Y_ROW_INDEX_META;
+  }
+  if (OVERLAY_FIELD_Y_OFFSET_BASELINES_PATH_RE.test(path_key)) {
+    return OVERLAY_FIELD_Y_OFFSET_BASELINES_META;
   }
   if (OVERLAY_FIELD_KEYLINE_PATH_RE.test(path_key)) {
     return OVERLAY_FIELD_KEYLINE_META;
