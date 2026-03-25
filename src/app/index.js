@@ -577,14 +577,17 @@ async function apply_automation_snapshot(payload = {}) {
     config.export_settings.frame_rate = Math.max(1, Math.round(Number(payload.frame_rate)));
   }
 
-  const next_profile_key =
-    typeof payload.output_profile_key === "string" && OUTPUT_PROFILES[payload.output_profile_key]
-      ? payload.output_profile_key
-      : get_current_output_profile_key();
-  const next_metrics = get_output_profile_metrics(next_profile_key);
+  const explicit_profile_switch =
+    typeof payload.output_profile_key === "string" && Boolean(OUTPUT_PROFILES[payload.output_profile_key]);
+  const next_profile_key = explicit_profile_switch
+    ? payload.output_profile_key
+    : get_current_output_profile_key();
   config.output_profile_key = next_profile_key;
-  config.composition.center_x_px = next_metrics.center_x_px;
-  config.composition.center_y_px = next_metrics.center_y_px;
+  if (explicit_profile_switch) {
+    const next_metrics = get_output_profile_metrics(next_profile_key);
+    config.composition.center_x_px = next_metrics.center_x_px;
+    config.composition.center_y_px = next_metrics.center_y_px;
+  }
 
   renderer.stopAnimation();
   renderer.setOutputProfile(next_profile_key);
