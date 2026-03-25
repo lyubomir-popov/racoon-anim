@@ -924,22 +924,17 @@ export const CONFIG_FIELD_META = Object.freeze({
       "Adds extra size to plus signs and triangles as the breathing loop reduces the visible spoke count. Zero disables the effect.",
     numeric: { min: 0, max: 6, step: 0.01 }
   },
-  "spoke_lines.inner_width_px": {
-    label: "Inner Spoke Thickness (px)",
+  "spoke_lines.phase_start_width_px": {
+    label: "Inner Spoke Start Thickness (px)",
     help_text:
-      "Controls the heavier clipped spoke pass inside the left and right phase circles. This is the full thickness reached by the end of each phase.",
+      "Thickness of the heavy inner spoke pass at the start of each phase. Linearly interpolates to the end thickness as each spoke sweeps through the phase.",
     numeric: { min: 0, max: 20, step: 0.1 }
   },
-  "spoke_lines.phase_start_scale": {
-    label: "Phase Start Thickness Scale",
+  "spoke_lines.phase_end_width_px": {
+    label: "Inner Spoke End Thickness (px)",
     help_text:
-      "Only affects the thick echoed spoke pass. Lower values start each phase thinner and ramp back up to the base thick-spoke width by the phase end.",
-    numeric: { min: 0.05, max: 1, step: 0.01 }
-  },
-  "spoke_lines.reverse_inner_spoke_thickness_scale": {
-    label: "Reverse Inner Spoke Thickness Scale",
-    help_text:
-      "Flips the thick inner-spoke width ramp so the phase-start scaling is applied in reverse. Useful for A/B testing the phase thickness mapping."
+      "Thickness of the heavy inner spoke pass at the end of each phase. The spoke interpolates from the start thickness to this value over the phase duration.",
+    numeric: { min: 0, max: 20, step: 0.1 }
   },
   "spoke_lines.echo_count": {
     label: "Echo Count",

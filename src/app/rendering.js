@@ -1838,13 +1838,11 @@ export function createRenderer({
     return smoothstep(0, fade_width_u, display_u - seam_display_u);
   }
 
-  function get_spoke_width_scale(spoke) {
-    const phase_start_scale = clamp(config.spoke_lines.phase_start_scale ?? 1, 0.01, 1);
+  function get_thick_spoke_width_px(spoke, halo_geometry_scale) {
+    const start_px = Math.max(0, config.spoke_lines.phase_start_width_px ?? 0);
+    const end_px = Math.max(0, config.spoke_lines.phase_end_width_px ?? 0);
     const width_phase_u = clamp(spoke.width_phase_u ?? spoke.phase_u ?? 1, 0, 1);
-    const remapped_phase_u = config.spoke_lines.reverse_inner_spoke_thickness_scale
-      ? 1 - width_phase_u
-      : width_phase_u;
-    return lerp(phase_start_scale, 1, remapped_phase_u);
+    return lerp(start_px, end_px, width_phase_u) * halo_geometry_scale;
   }
 
   function get_reveal_local_alpha(local_x, local_y, reveal_state) {
@@ -2773,8 +2771,9 @@ export function createRenderer({
     const field_center_y = config.composition.center_y_px;
     const halo_geometry_scale = get_halo_geometry_scale(box);
     const outer_width_px = Math.max(0, config.spoke_lines.width_px || 0) * halo_geometry_scale;
-    const inner_width_px =
-      Math.max(0, config.spoke_lines.inner_width_px || 0) * halo_geometry_scale;
+    const thick_spoke_enabled =
+      (config.spoke_lines.phase_start_width_px ?? 0) > 0 ||
+      (config.spoke_lines.phase_end_width_px ?? 0) > 0;
     const echo_count = Math.max(0, Math.round(config.spoke_lines.echo_count || 0));
     const echo_dot_scale_mult = clamp(config.spoke_lines.echo_width_mult ?? 1, 0.01, 1);
     const echo_wave_count = Math.max(0, Number(config.spoke_lines.echo_wave_count || 0));
@@ -2868,7 +2867,7 @@ export function createRenderer({
         }
       }
 
-      if (inner_width_px <= 0) {
+      if (!thick_spoke_enabled) {
         continue;
       }
 
@@ -2898,7 +2897,7 @@ export function createRenderer({
             local_segment_start_y,
             local_segment_end_x,
             local_segment_end_y,
-            inner_width_px * get_spoke_width_scale(spoke),
+            get_thick_spoke_width_px(spoke, halo_geometry_scale),
             spoke_alpha * reveal_alpha
           );
         }
