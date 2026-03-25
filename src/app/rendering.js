@@ -1684,7 +1684,7 @@ export function createRenderer({
         const r0 = lerp(spoke.start_radius, full_frame_outer_radius_px, t0);
         const r1 = lerp(spoke.start_radius, full_frame_outer_radius_px, t1);
         const mid_r = (r0 + r1) * 0.5;
-        const fade = get_radial_fade_alpha(mid_r);
+        const fade = get_radial_fade_alpha(mid_r, full_frame_outer_radius_px);
         if (fade <= 0) {
           continue;
         }
@@ -1929,28 +1929,25 @@ export function createRenderer({
   }
 
   // Returns a 0–1 alpha multiplier that fades shapes toward the background
-  // colour as radius_from_center approaches the vignette outer edge.
-  // Mirrors the field names used by fill_configured_vignette: the outside-safe-area
-  // variant (outside_radius_px / outside_feather_px / outside_choke) is used when
-  // present, falling back to the general (radius_px / feather_px / choke) values.
-  function get_radial_fade_alpha(radius_from_center) {
-    const outer_r = Number(
-      config.vignette?.outside_radius_px ?? config.vignette?.radius_px ?? 0
-    );
-    const feather_px = Math.max(0, Number(
-      config.vignette?.outside_feather_px ?? config.vignette?.feather_px ?? 0
-    ));
-    if (outer_r <= 0 || feather_px <= 0) {
+  // colour as radius_from_center approaches the canvas edge.
+  // full_frame_outer_radius_px is the distance from composition center to the
+  // farthest canvas corner – shapes extend to this radius.
+  // outside_choke controls WHERE the fade starts: choke=1 → starts at 75% of
+  // the full-frame radius; choke=0 → starts at 40%. shape_fade controls strength.
+  function get_radial_fade_alpha(radius_from_center, full_frame_outer_radius_px) {
+    const strength = clamp(Number(config.vignette?.shape_fade ?? 1), 0, 1);
+    if (strength <= 0 || full_frame_outer_radius_px <= 0) {
       return 1;
     }
-    const inner_r = Math.max(0, outer_r - feather_px);
-    const fade_u = clamp((radius_from_center - inner_r) / feather_px, 0, 1);
     const choke = clamp(Number(
       config.vignette?.outside_choke ?? config.vignette?.choke ?? 0
     ), 0, 1);
+    // fade zone: inner_r to full_frame_outer_radius_px
+    const fade_start_u = lerp(0.4, 0.75, choke);
+    const inner_r = full_frame_outer_radius_px * fade_start_u;
+    const feather = Math.max(1, full_frame_outer_radius_px - inner_r);
+    const fade_u = clamp((radius_from_center - inner_r) / feather, 0, 1);
     const gamma = lerp(3.5, 1.2, choke);
-    const strength = clamp(Number(config.vignette?.shape_fade ?? 1), 0, 1);
-    // lerp between fully opaque (strength=0) and full fade curve (strength=1)
     return 1 - strength * Math.pow(fade_u, gamma);
   }
 
@@ -2304,7 +2301,7 @@ export function createRenderer({
       }
       text_overlay_context.rotate(label_rotation);
       text_overlay_context.textAlign = should_flip ? "right" : "left";
-      text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha * get_radial_fade_alpha(text_metrics.start_radius);
+      text_overlay_context.globalAlpha = spoke_alpha * reveal_alpha * get_radial_fade_alpha(text_metrics.start_radius, full_frame_outer_radius_px);
       text_overlay_context.fillStyle = label_fill_color;
       text_overlay_context.fillRect(
         should_flip ? -label_measure.width - label_pad_x : -label_pad_x,
@@ -3074,7 +3071,7 @@ export function createRenderer({
           spoke_alpha *
           reveal_alpha *
           (1 - smoothstep(ripple_fade_start_u, 1, ripple_u)) *
-          get_radial_fade_alpha(dot_radius);
+          get_radial_fade_alpha(dot_radius, full_frame_outer_radius_px);
         if (dot_alpha <= 0) {
           continue;
         }

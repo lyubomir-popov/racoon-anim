@@ -1170,7 +1170,7 @@ export const CONFIG_FIELD_META = Object.freeze({
   },
   "vignette.shape_fade": {
     label: "Shape Fade",
-    help_text: "Fades construction lines, echo shapes, and release labels toward the background colour by radial distance. 0 = no fade, 1 = full fade matching the vignette geometry.",
+    help_text: "Fades construction lines, echo shapes, and release labels toward the background colour by radial distance. 0 = no fade, 1 = full fade. Transition point is controlled by Outside Choke (higher choke → fade starts further out).",
     numeric: { min: 0, max: 1, step: 0.05 }
   },
   "vignette.dither": {
