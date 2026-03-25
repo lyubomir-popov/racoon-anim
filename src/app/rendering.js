@@ -3079,11 +3079,11 @@ export function createRenderer({
         }
 
         // Marker shape choice must stay stable across reveal/post-finale handoffs.
-        // Seed it from source spoke identity plus radial orbit index, not from
-        // the current clip-derived echo rank, which can shift when mask geometry changes.
+        // Use display_slot_id (the visual angular slot, consistent across both paths) not
+        // source_spoke_id, which maps to different angles in the intro vs post-finale builders.
         const echo_marker_variant = get_echo_marker_variant(
           echo_style,
-          spoke.source_spoke_id ?? spoke.display_slot_id ?? spoke_index,
+          spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index,
           orbit_index
         );
         let marker_outer_extent_px = dot_radius_px;
