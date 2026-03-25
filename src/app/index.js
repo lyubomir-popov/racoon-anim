@@ -1195,7 +1195,7 @@ async function write_blob_file(file_handle, blob) {
   await writable.close();
 }
 
-async function get_sequence_output_directory_handle() {
+async function get_sequence_output_directory_handle(type = "single") {
   set_preset_meta("Choose the project folder or its output folder for this PNG export.", false);
   const directory_handle = await request_export_directory_handle({
     picker_id: "radial-mascot-png-export",
@@ -1210,9 +1210,10 @@ async function get_sequence_output_directory_handle() {
   const directory_name = directory_handle.name.toLowerCase();
 
   if (directory_name === dimensions_folder_name.toLowerCase()) {
+    const type_directory_handle = await directory_handle.getDirectoryHandle(type, { create: true });
     return {
-      directory_handle,
-      output_path_label: directory_handle.name
+      directory_handle: type_directory_handle,
+      output_path_label: `${directory_handle.name}/${type}`
     };
   }
 
@@ -1223,13 +1224,14 @@ async function get_sequence_output_directory_handle() {
     dimensions_folder_name,
     { create: true }
   );
+  const type_directory_handle = await dimension_directory_handle.getDirectoryHandle(type, { create: true });
   const base_path_label = directory_name === "output"
     ? directory_handle.name
     : `${directory_handle.name}/${output_directory_handle.name}`;
 
   return {
-    directory_handle: dimension_directory_handle,
-    output_path_label: `${base_path_label}/${dimension_directory_handle.name}`
+    directory_handle: type_directory_handle,
+    output_path_label: `${base_path_label}/${dimension_directory_handle.name}/${type}`
   };
 }
 
@@ -2772,7 +2774,7 @@ async function export_png_sequence() {
       throw new Error("Frame count must be a positive number.");
     }
 
-    const output_selection = await get_sequence_output_directory_handle();
+    const output_selection = await get_sequence_output_directory_handle("sequence");
     if (!output_selection) {
       return;
     }
@@ -2878,7 +2880,7 @@ async function export_current_frame_png() {
       transparent_background: Boolean(config.export_settings?.transparent_background),
       hide_overlay_guides: true
     });
-    const output_selection = await get_sequence_output_directory_handle();
+    const output_selection = await get_sequence_output_directory_handle("single");
     if (output_selection) {
       const file_name = await get_next_png_export_file_name(
         output_selection.directory_handle,
