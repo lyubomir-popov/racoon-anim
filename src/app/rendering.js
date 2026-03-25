@@ -2603,17 +2603,13 @@ export function createRenderer({
       return;
     }
 
-    // Set font first so we can measure cap height for the auto-offset.
-    // cap_height_px = distance from baseline to top of capital letters (H has no ascenders).
-    // This makes y_offset_baselines=0 mean "cap height at the top of the row cell".
+    // Set font for correct metrics, but baseline sits directly on the grid.
     text_overlay_context.font = font;
-    const cap_height_px = text_overlay_context.measureText("H").actualBoundingBoxAscent;
 
     const row_idx = Math.max(0, (Number.isFinite(Number(y_row_index)) ? Number(y_row_index) : 1) - 1);
     let baseline_y_px =
       grid.content_top_px +
       row_idx * (grid.row_height_px + grid.row_gutter_px) +
-      Math.round(cap_height_px) +
       Number(y_offset_baselines ?? 0) * baseline_step_px;
     const draw_x_px = get_overlay_text_keyline_x_px(keyline_index);
 
