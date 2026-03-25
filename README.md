@@ -90,6 +90,49 @@ It changes:
 
 Each output size keeps separate text-block layout for each content format. So `Speaker Highlight` at `1080x1920` can have different placement from `Speaker Highlight` at `3840x2160`.
 
+## Export reference
+
+### File naming
+
+All exports follow the pattern `{ExportName}_{dims}_f{nnnn}.ext` and land in typed subfolders:
+
+```
+output/
+  1080x1920/
+    single/    UbuntuSummit2026_1080x1920_f0053.png   ← Export Frame
+    sequence/  UbuntuSummit2026_1080x1920_f0001.png … ← Export PNG Seq
+    mp4/       UbuntuSummit2026_1080x1920.mp4          ← Export MP4
+```
+
+`ExportName` is configured per-preset via the **Export Name** control in the UI. Only alphanumeric characters, `_`, and `-` are kept.
+
+### Two distinct exports
+
+**Reveal** — the full animation (empty screen → spoke reveal → finale).
+Post as an Instagram Reel or standalone video. Ends on the held final frame.
+
+**Screensaver loop** — the breathing/pulsing post-finale animation only, looping seamlessly.
+Used for ambient video screens between sessions.
+
+### Screensaver loop timing (story_1080x1920 at 30 fps)
+
+Timing chain for the default `story_1080x1920` profile:
+
+| Event | Time | Frame |
+|---|---|---|
+| Dot animation ends | 1.00 s | 30 |
+| Finale sweep ends | 1.75 s | 52 |
+| Blink ends (`playback_end_sec`) | 1.91 s | **57** |
+| Screensaver starts | 1.91 s | **58** |
+| Ramp-in settles (`ramp_in_sec` = 2 s) | 3.91 s | **118** |
+| One full cycle ends (`cycle_sec` = 60 s) | 63.91 s | **1918** |
+
+**For a clean seamless loop: export frames 118–1918 (1800 frames = 60 seconds).**
+
+To export a tighter loop, reduce `screensaver.cycle_sec` to 30 s and export 900 frames (frames 118–1018).
+
+Instagram upload recommendations: 1080×1920 H.264 at ~3.5–5 Mbps, 30 fps.
+
 ### Recommended operator workflow
 
 1. Open `Output` and choose the screen size.
