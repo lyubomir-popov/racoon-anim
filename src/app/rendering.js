@@ -587,7 +587,7 @@ export function createRenderer({
     text_overlay_canvas.style.height = "";
     text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
     text_overlay_context.textAlign = "center";
-    text_overlay_context.textBaseline = "middle";
+    text_overlay_context.textBaseline = "alphabetic";
     text_overlay_context.lineJoin = "miter";
     text_overlay_context.lineCap = "butt";
   }
