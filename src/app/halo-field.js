@@ -357,7 +357,11 @@ export function build_intro_halo_field_state({
     });
 
     spokes[spoke_id] = {
-      source_spoke_id: spoke_id,
+      // Use the same source_spoke_id convention as build_post_finale_halo_field_state so that
+      // get_echo_marker_variant seeds consistently across the intro→screensaver handoff.
+      // Post-finale assigns source_spoke_id = source_index, and the source_index for visual
+      // slot j at full spoke count is wrap_positive(round(N/2) - j, N).
+      source_spoke_id: wrap_positive(Math.round(generator.spoke_count * 0.5) - spoke_id, generator.spoke_count),
       display_slot_id: spoke_id,
       label_slot_id: wrap_positive(label_anchor_slot_id - spoke_id, generator.spoke_count),
       spoke_pattern_id,

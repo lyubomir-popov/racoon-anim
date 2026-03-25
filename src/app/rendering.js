@@ -3078,12 +3078,13 @@ export function createRenderer({
           continue;
         }
 
-        // Marker shape choice must stay stable across reveal/post-finale handoffs.
-        // Use display_slot_id (the visual angular slot, consistent across both paths) not
-        // source_spoke_id, which maps to different angles in the intro vs post-finale builders.
+        // Marker shape choice must stay stable across reveal/post-finale handoffs and
+        // during screensaver spoke-count pulsing. source_spoke_id is the right seed:
+        // post-finale assigns it = source_index (invariant as effective_spoke_count changes),
+        // and the intro builder now uses the same convention via the round(N/2)-j mapping.
         const echo_marker_variant = get_echo_marker_variant(
           echo_style,
-          spoke.display_slot_id ?? spoke.source_spoke_id ?? spoke_index,
+          spoke.source_spoke_id ?? spoke.display_slot_id ?? spoke_index,
           orbit_index
         );
         let marker_outer_extent_px = dot_radius_px;
