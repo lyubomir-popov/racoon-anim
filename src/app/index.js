@@ -670,6 +670,12 @@ function get_preset_export_dimension_folder_name(profile_key = get_current_outpu
   return `${profile_metrics.width_px}x${profile_metrics.height_px}`;
 }
 
+function get_export_file_stem(frame_number) {
+  const name = String(config.export_settings?.export_name || "export").replace(/[^a-zA-Z0-9_-]/g, "") || "export";
+  const dims = get_preset_export_dimension_folder_name();
+  return `${name}_${dims}_f${String(frame_number).padStart(4, "0")}`;
+}
+
 function escape_regexp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -2788,7 +2794,7 @@ async function export_png_sequence() {
         hide_overlay_guides: true
       });
       const file_handle = await output_selection.directory_handle.getFileHandle(
-        `${get_preset_export_dimension_folder_name()}-frame-${String(frame_index + 1).padStart(4, "0")}.png`,
+        `${get_export_file_stem(frame_index + 1)}.png`,
         { create: true }
       );
       await write_blob_file(file_handle, blob);
@@ -2857,7 +2863,7 @@ async function export_current_frame_png() {
     return;
   }
   const playback_time_sec = (frame_number - 1) / frame_rate;
-  const frame_label = `${get_preset_export_dimension_folder_name()}-frame-${String(frame_number).padStart(4, "0")}`;
+  const frame_label = get_export_file_stem(frame_number);
   const was_animating = renderer.isAnimating();
 
   try {
@@ -3003,6 +3009,7 @@ async function export_current_mp4() {
         output_profile_key: get_current_output_profile_key(),
         output_width_px: output_profile.width_px,
         output_height_px: output_profile.height_px,
+        export_name: String(config.export_settings?.export_name || "export").replace(/[^a-zA-Z0-9_-]/g, "") || "export",
         frame_rate,
         frame_count
       })

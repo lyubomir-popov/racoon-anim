@@ -1,10 +1,10 @@
 export const SOURCE_DEFAULT_CONFIG = {
   "global_shared_config": {
     "composition": {
-      "background_color": "#262626"
+      "background_color": "#202020"
     },
     "layout_grid": {
-      "safe_area_fill_color": "#262626"
+      "safe_area_fill_color": "#202020"
     },
     "spoke_lines": {
       "construction_color": "#333333",
@@ -321,6 +321,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "dither": 1
       },
       "export_settings": {
+        "export_name": "UbuntuSummit2026",
         "frame_rate": 24,
         "transparent_background": false
       }
@@ -345,7 +346,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       "composition": {
         "center_x_px": 540,
         "center_y_px": 554,
-        "background_color": "#262626",
+        "background_color": "#202020",
         "scale": 0.67,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -438,7 +439,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "safe_right_px": 0,
         "safe_bottom_px": 0,
         "safe_left_px": 0,
-        "safe_area_fill_color": "#262626",
+        "safe_area_fill_color": "#202020",
         "safe_area_fill_above_animation": false
       },
       "overlay_logo": {
@@ -620,6 +621,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "dither": 1
       },
       "export_settings": {
+        "export_name": "UbuntuSummit2026",
         "frame_rate": 30,
         "transparent_background": false
       }
@@ -644,7 +646,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       "composition": {
         "center_x_px": 540,
         "center_y_px": 804,
-        "background_color": "#262626",
+        "background_color": "#202020",
         "scale": 0.75,
         "radial_scale": 1,
         "global_rotation_deg": 0
@@ -720,7 +722,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "radial_u": 0.6
       },
       "layout_grid": {
-        "show_baseline_grid": true,
+        "show_baseline_grid": false,
         "baseline_step_px": 8,
         "show_composition_grid": true,
         "row_count": 4,
@@ -737,7 +739,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "safe_right_px": 65,
         "safe_bottom_px": 250,
         "safe_left_px": 65,
-        "safe_area_fill_color": "#262626",
+        "safe_area_fill_color": "#202020",
         "safe_area_fill_above_animation": false
       },
       "overlay_logo": {
@@ -919,6 +921,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "dither": 1
       },
       "export_settings": {
+        "export_name": "UbuntuSummit2026",
         "frame_rate": 30,
         "transparent_background": false
       }
@@ -1218,6 +1221,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "dither": 1
       },
       "export_settings": {
+        "export_name": "UbuntuSummit2026",
         "frame_rate": 24,
         "transparent_background": false
       }
@@ -1517,6 +1521,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "dither": 1
       },
       "export_settings": {
+        "export_name": "UbuntuSummit2026",
         "frame_rate": 24,
         "transparent_background": false
       }
@@ -1816,12 +1821,13 @@ export const SOURCE_DEFAULT_CONFIG = {
         "dither": 1
       },
       "export_settings": {
+        "export_name": "UbuntuSummit2026",
         "frame_rate": 24,
         "transparent_background": false
       }
     }
   },
-  "output_profile_key": "instagram_1080x1350",
+  "output_profile_key": "story_1080x1920",
   "mascot_fade": {
     "enabled": false,
     "duration_sec": 3
@@ -1839,9 +1845,9 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "composition": {
     "center_x_px": 540,
-    "center_y_px": 554,
-    "background_color": "#262626",
-    "scale": 0.67,
+    "center_y_px": 804,
+    "background_color": "#202020",
+    "scale": 0.75,
     "radial_scale": 1,
     "global_rotation_deg": 0
   },
@@ -1919,27 +1925,27 @@ export const SOURCE_DEFAULT_CONFIG = {
     "show_baseline_grid": false,
     "baseline_step_px": 8,
     "show_composition_grid": true,
-    "row_count": 8,
+    "row_count": 4,
     "column_count": 4,
-    "margin_top_baselines": 5,
-    "margin_bottom_baselines": 6,
-    "margin_side_baselines": 0,
-    "margin_left_baselines": 6,
-    "margin_right_baselines": 6,
+    "margin_top_baselines": 6,
+    "margin_bottom_baselines": 9,
+    "margin_side_baselines": 16,
+    "margin_left_baselines": 0,
+    "margin_right_baselines": 0,
     "row_gutter_baselines": 0,
     "column_gutter_baselines": 0,
     "fit_within_safe_area": true,
-    "safe_top_px": 0,
-    "safe_right_px": 0,
-    "safe_bottom_px": 0,
-    "safe_left_px": 0,
-    "safe_area_fill_color": "#262626",
+    "safe_top_px": 250,
+    "safe_right_px": 65,
+    "safe_bottom_px": 250,
+    "safe_left_px": 65,
+    "safe_area_fill_color": "#202020",
     "safe_area_fill_above_animation": false
   },
   "overlay_logo": {
     "enabled": true,
     "asset_path": "./assets/UbuntuTagLogo.svg",
-    "x_px": 49,
+    "x_px": 1,
     "y_px": 0,
     "height_px": 108
   },
@@ -1998,22 +2004,22 @@ export const SOURCE_DEFAULT_CONFIG = {
           "style": "b_head",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 3,
+          "y_row_index": 2,
           "y_offset_baselines": 0
         },
         "detail_primary": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 8,
-          "y_offset_baselines": 11
+          "y_row_index": 4,
+          "y_offset_baselines": 32
         },
         "detail_secondary": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 8,
-          "y_offset_baselines": 16
+          "y_row_index": 4,
+          "y_offset_baselines": 37
         }
       },
       "text_1_keyline_index": 3,
@@ -2039,22 +2045,22 @@ export const SOURCE_DEFAULT_CONFIG = {
           "style": "b_head",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 6,
-          "y_offset_baselines": 12
+          "y_row_index": 3,
+          "y_offset_baselines": 29
         },
         "speaker_name": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 7,
-          "y_offset_baselines": 8
+          "y_row_index": 4,
+          "y_offset_baselines": 4
         },
         "speaker_role": {
           "style": "paragraph",
           "keyline_index": 3,
           "column_span": 2,
-          "y_row_index": 8,
-          "y_offset_baselines": -2
+          "y_row_index": 4,
+          "y_offset_baselines": 14
         }
       },
       "text_1_keyline_index": 3,
@@ -2127,10 +2133,10 @@ export const SOURCE_DEFAULT_CONFIG = {
     "dither": 1
   },
   "export_settings": {
+    "export_name": "UbuntuSummit2026",
     "frame_rate": 24,
     "transparent_background": false
   }
 };
 
 export default SOURCE_DEFAULT_CONFIG;
-

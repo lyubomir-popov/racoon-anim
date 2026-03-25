@@ -309,6 +309,7 @@ const server = http.createServer(async (request, response) => {
       const next_config = payload?.config;
       const output_width_px = Math.max(1, Number(payload?.output_width_px || 0));
       const output_height_px = Math.max(1, Number(payload?.output_height_px || 0));
+      const export_name = String(payload?.export_name || "export").replace(/[^a-zA-Z0-9_-]/g, "") || "export";
       const frame_rate = Math.max(1, Math.round(Number(payload?.frame_rate || 24)));
       const frame_count = Math.max(1, Math.round(Number(payload?.frame_count || 1)));
 
@@ -363,7 +364,7 @@ const server = http.createServer(async (request, response) => {
         { cwd: project_root, log_prefix: "encode-mp4" }
       );
 
-      const mp4_path = path.join(output_dir, `${output_width_px}x${output_height_px}-master.mp4`);
+      const mp4_path = path.join(output_dir, `${export_name}_${output_width_px}x${output_height_px}.mp4`);
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(
         JSON.stringify({

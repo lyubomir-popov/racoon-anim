@@ -1233,6 +1233,10 @@ export const CONFIG_FIELD_META = Object.freeze({
     hidden: true,
     locked_value: true
   },
+  "export_settings.export_name": {
+    label: "Export Name",
+    help_text: "Project name used as a prefix in exported file names, e.g. UbuntuSummit2026."
+  },
   "export_settings.frame_rate": {
     hidden: true,
     locked_value: 24,
