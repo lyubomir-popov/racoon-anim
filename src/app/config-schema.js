@@ -208,6 +208,19 @@ export function get_overlay_format_csv_path(format_key) {
   return `overlay_content_formats.${format_key}.csv_path`;
 }
 
+export function get_overlay_format_content_source_path(format_key) {
+  return `overlay_content_formats.${format_key}.content_source`;
+}
+
+export function get_overlay_field_inline_text_path(format_key, field_id) {
+  return `overlay_content_formats.${format_key}.fields.${field_id}.inline_text`;
+}
+
+export function get_overlay_format_content_source(config_ref, format_key) {
+  const value = config_ref?.overlay_content_formats?.[format_key]?.content_source;
+  return value === "inline" ? "inline" : "csv";
+}
+
 export function get_overlay_field_layout_path(format_key, field_id, layout_key) {
   return `overlay_content_formats.${format_key}.fields.${field_id}.${layout_key}`;
 }

@@ -476,6 +476,17 @@ body.editor-docked .drawer-panel {
   margin-bottom: 0;
 }
 
+.control-radio-inline {
+  display: inline-flex;
+  margin-inline-end: 1rem;
+  margin-bottom: 0;
+}
+
+.control-inline-text {
+  width: 100%;
+  resize: vertical;
+}
+
 .p-form-help-text.preset-meta {
   margin-top: 0;
   margin-bottom: 0;

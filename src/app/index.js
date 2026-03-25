@@ -20,6 +20,9 @@ import {
   get_overlay_content_format_spec,
   get_overlay_field_layout_path,
   get_overlay_format_csv_path,
+  get_overlay_format_content_source_path,
+  get_overlay_format_content_source,
+  get_overlay_field_inline_text_path,
   get_field_meta,
   get_numeric_control_spec,
   get_object_path_value,
@@ -245,10 +248,6 @@ const OUTPUT_PROFILE_CONFIGS_KEY = "output_profile_configs";
 const INTERNAL_CONFIG_BUCKET_KEYS = new Set([
   GLOBAL_SHARED_CONFIG_KEY,
   OUTPUT_PROFILE_CONFIGS_KEY
-]);
-
-const OVERLAY_CONTENT_CONTROL_ROWS = Object.freeze([
-  Object.freeze({ path: "overlay_text.content_format" })
 ]);
 
 const OVERLAY_VISIBILITY_CONTROL_ROWS = Object.freeze([
@@ -1842,16 +1841,124 @@ function get_active_overlay_format_key() {
   return get_overlay_content_format_spec(config.overlay_text?.content_format).key;
 }
 
-function get_overlay_content_control_rows() {
+function build_overlay_content_section() {
+  const section = document.createElement("div");
+  section.className = "config-section";
+
+  const heading = document.createElement("h2");
+  heading.className = "p-muted-heading u-no-margin--bottom";
+  heading.textContent = "Content";
+  section.appendChild(heading);
+
+  // Format selector row (existing control)
+  const format_path = "overlay_text.content_format";
+  const format_value = get_config_value(format_path.split("."));
+  const format_row = create_control_row(format_path.split("."), format_value, {
+    excluded_paths: COLOR_CONTROL_PATH_SET
+  });
+  if (format_row) {
+    section.appendChild(format_row);
+  }
+
   const format_key = get_active_overlay_format_key();
   const format_spec = get_overlay_content_format_spec(format_key);
-  return Object.freeze([
-    ...OVERLAY_CONTENT_CONTROL_ROWS,
-    Object.freeze({
-      path: get_overlay_format_csv_path(format_key),
-      label: `${format_spec.label} CSV Path`
-    })
-  ]);
+  const content_source = get_overlay_format_content_source(config, format_key);
+  const source_path = get_overlay_format_content_source_path(format_key);
+
+  // Radio group – CSV / Inline inputs
+  const radio_group = document.createElement("div");
+  radio_group.className = "p-form__group";
+  const radio_label = document.createElement("label");
+  radio_label.className = "p-form__label u-no-margin--bottom";
+  radio_label.textContent = "Content source";
+  radio_group.appendChild(radio_label);
+
+  const radio_wrap = document.createElement("div");
+  radio_wrap.className = "p-form__control";
+
+  for (const option of [
+    { value: "csv", label: "CSV file" },
+    { value: "inline", label: "Inline inputs" }
+  ]) {
+    const radio_label_el = document.createElement("label");
+    radio_label_el.className = "p-radio control-radio-inline";
+
+    const radio_input = document.createElement("input");
+    radio_input.type = "radio";
+    radio_input.className = "p-radio__input";
+    radio_input.name = `content-source-${format_key}`;
+    radio_input.value = option.value;
+    radio_input.checked = content_source === option.value;
+    radio_input.addEventListener("change", async () => {
+      if (!radio_input.checked) return;
+      set_config_value(source_path.split("."), option.value);
+      persist_current_profile_runtime(config);
+      rebuild_config_editor();
+      try {
+        await renderer.refreshScene({ rebuild_scene: false, invalidate_layers: true });
+      } catch (error) {
+        console.error(error);
+      }
+    });
+
+    const radio_span = document.createElement("span");
+    radio_span.className = "p-radio__label";
+    radio_span.textContent = option.label;
+
+    radio_label_el.appendChild(radio_input);
+    radio_label_el.appendChild(radio_span);
+    radio_wrap.appendChild(radio_label_el);
+  }
+  radio_group.appendChild(radio_wrap);
+  section.appendChild(radio_group);
+
+  if (content_source === "inline") {
+    // One textarea per format field
+    for (const field_spec of format_spec.fields) {
+      const text_path = get_overlay_field_inline_text_path(format_key, field_spec.id);
+      const text_parts = text_path.split(".");
+      const existing_value = get_config_value(text_parts);
+      const current_text = typeof existing_value === "string" ? existing_value : "";
+
+      const field_row = document.createElement("div");
+      field_row.className = "p-form__group";
+
+      const field_label = document.createElement("label");
+      field_label.className = "p-form__label u-no-margin--bottom";
+      field_label.htmlFor = `control-${text_path.replace(/\./g, "-")}`;
+      field_label.textContent = field_spec.label;
+      field_row.appendChild(field_label);
+
+      const field_control = document.createElement("div");
+      field_control.className = "p-form__control";
+
+      const textarea = document.createElement("textarea");
+      textarea.id = field_label.htmlFor;
+      textarea.className = "p-form-validation__input is-dense u-no-margin--bottom control-inline-text";
+      textarea.rows = 3;
+      textarea.dataset.configPath = text_path;
+      textarea.value = current_text;
+      textarea.addEventListener("change", handle_control_commit);
+      state.editor_controls.set(text_path, { type: "single", input: textarea });
+
+      field_control.appendChild(textarea);
+      field_row.appendChild(field_control);
+      section.appendChild(field_row);
+    }
+  } else {
+    // CSV path input
+    const csv_path = get_overlay_format_csv_path(format_key);
+    const csv_value = get_config_value(csv_path.split("."));
+    const csv_row = create_control_row(csv_path.split("."), csv_value, {
+      excluded_paths: COLOR_CONTROL_PATH_SET,
+      label_override: `${format_spec.label} CSV path`
+    });
+    if (csv_row) {
+      section.appendChild(csv_row);
+    }
+  }
+
+  return section;
 }
 
 function get_overlay_field_tab_specs() {
@@ -2074,7 +2181,7 @@ function build_overlay_form(panel, form) {
     form.appendChild(visibility_section);
   }
 
-  const content_section = build_control_rows_section("Content", get_overlay_content_control_rows());
+  const content_section = build_overlay_content_section();
   if (content_section) {
     form.appendChild(content_section);
   }

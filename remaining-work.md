@@ -52,8 +52,8 @@ This is the central mental model for the user: select screen size → tune that 
 
 Let non-operator stakeholders supply CSV content without navigating the full authoring UI.
 
-- [ ] Add a simplified CSV upload flow.
-- [ ] Add row selection by row index or stable row ID.
+- [x] Add a content-source toggle (CSV / Inline inputs) to the overlay Content section. (`build_overlay_content_section` renders radio pair; switching to Inline replaces the CSV path field with a textarea per format field; renderer reads `inline_text` values directly when source is `inline`)
+- [ ] Add row selection by row index or stable row ID (CSV mode only).
 - [ ] Allow the operator to choose a content format and then upload CSV matching that format.
 - [ ] Keep the full tuning UI for operator use, but provide a simpler surface for stakeholders.
 

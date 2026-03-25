@@ -15,6 +15,7 @@ import {
   clamp,
   get_output_profile_metrics,
   get_overlay_content_format_spec,
+  get_overlay_format_content_source,
   is_plain_object,
   lerp,
   smoothstep,
@@ -860,10 +861,24 @@ export function createRenderer({
   }
 
   function get_overlay_content_record() {
-    ensure_overlay_content_rows();
-    const first_record = runtime.overlay_content_rows[0];
     const format_key = get_overlay_content_format_key();
     const format_spec = get_overlay_content_format_spec(format_key);
+    const content_source = get_overlay_format_content_source(config, format_key);
+
+    if (content_source === "inline") {
+      const format_bucket = config?.overlay_content_formats?.[format_key];
+      return {
+        main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
+        variable_fields: format_spec.fields.map((field_spec) => ({
+          id: field_spec.id,
+          style: get_field_style_override(format_key, field_spec),
+          text: normalize_overlay_copy(format_bucket?.fields?.[field_spec.id]?.inline_text || "")
+        }))
+      };
+    }
+
+    ensure_overlay_content_rows();
+    const first_record = runtime.overlay_content_rows[0];
     if (first_record && typeof first_record === "object") {
       return {
         main_heading: normalize_overlay_copy(config.overlay_text?.title_text),
