@@ -2841,9 +2841,20 @@ async function export_current_frame_png() {
   const export_frame_button_label = export_frame_button ? export_frame_button.textContent : "";
   const export_mp4_button_label = export_mp4_button ? export_mp4_button.textContent : "";
   const export_sequence_button_label = export_sequence_button ? export_sequence_button.textContent : "";
-  const playback_time_sec = renderer.getCurrentPlaybackTimeSec();
   const frame_rate = Math.max(1, Math.round(config.export_settings.frame_rate || 24));
-  const frame_number = Math.max(1, Math.floor(playback_time_sec * frame_rate) + 1);
+  const current_frame_number = Math.max(1, Math.floor(renderer.getCurrentPlaybackTimeSec() * frame_rate) + 1);
+  const frame_input = window.prompt(
+    `Frame number to export at ${frame_rate} fps (1 = start, frame 1 of the animation):`,
+    String(current_frame_number)
+  );
+  if (frame_input === null) {
+    return;
+  }
+  const frame_number = Math.max(1, Math.round(Number(frame_input)));
+  if (!Number.isFinite(frame_number)) {
+    return;
+  }
+  const playback_time_sec = (frame_number - 1) / frame_rate;
   const frame_label = `frame-${String(frame_number).padStart(4, "0")}`;
   const was_animating = renderer.isAnimating();
 
