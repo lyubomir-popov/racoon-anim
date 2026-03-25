@@ -2378,12 +2378,16 @@ export function createRenderer({
         off_ctx.fillStyle = gradient;
         off_ctx.fillRect(0, 0, phys_w, phys_h);
 
-        // TPDF dither: α channel only, scaled by dither_amount.
+        // TPDF dither: α channel only.
+        // Amplitude: dither_amount × 32 so that dither=1 gives ±32 in 0–255 space
+        // (Lightroom-grade visible grain). Pure quantisation dithering only needs ±1
+        // but that is invisible; ±32 actually breaks banding rings visually.
         if (dither_amount > 0) {
+          const amplitude = dither_amount * 32;
           const img_data = off_ctx.getImageData(0, 0, phys_w, phys_h);
           const data = img_data.data;
           for (let i = 3; i < data.length; i += 4) {
-            const noise = (Math.random() + Math.random() - 1) * dither_amount;
+            const noise = (Math.random() + Math.random() - 1) * amplitude;
             data[i] = clamp(Math.round(data[i] + noise), 0, 255);
           }
           off_ctx.putImageData(img_data, 0, 0);
