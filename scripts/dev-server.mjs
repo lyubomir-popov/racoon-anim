@@ -349,12 +349,16 @@ const server = http.createServer(async (request, response) => {
         { cwd: project_root, log_prefix: "export-mp4" }
       );
 
+      const mp4_path = path.join(output_dir, `${export_name}_${output_width_px}x${output_height_px}.mp4`);
+
       await run_process(
         python,
         [
           "scripts/encode_mp4.py",
           "--input-dir",
           output_dir,
+          "--output",
+          mp4_path,
           "--fps",
           String(frame_rate),
           "--delivery",
@@ -363,8 +367,6 @@ const server = http.createServer(async (request, response) => {
         ],
         { cwd: project_root, log_prefix: "encode-mp4" }
       );
-
-      const mp4_path = path.join(output_dir, `${export_name}_${output_width_px}x${output_height_px}.mp4`);
       response.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
       response.end(
         JSON.stringify({
