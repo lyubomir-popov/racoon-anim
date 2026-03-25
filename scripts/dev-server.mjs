@@ -327,8 +327,7 @@ const server = http.createServer(async (request, response) => {
         project_root,
         "output",
         `${output_width_px}x${output_height_px}`,
-        "mp4",
-        `ui-mp4-${Date.now()}`
+        "mp4"
       );
       fs.mkdirSync(output_dir, { recursive: true });
 
