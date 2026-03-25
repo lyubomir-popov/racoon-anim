@@ -2335,7 +2335,6 @@ export function createRenderer({
       const inner_stop = safe_feather_px <= 0
         ? 0.999
         : clamp(clear_radius_px / safe_outer_radius_px, 0, 0.999);
-      const midpoint_stop = lerp(inner_stop, 1, safe_choke);
       const gradient = text_overlay_context.createRadialGradient(
         center_x_px,
         center_y_px,
@@ -2344,10 +2343,23 @@ export function createRenderer({
         center_y_px,
         outer_radius_px
       );
+      // Use many stops with a gamma curve through the feather zone to avoid
+      // the 8-bit banding that appears with a small number of linear stops.
       gradient.addColorStop(0, rgba_fn(0));
-      gradient.addColorStop(inner_stop, rgba_fn(0));
-      gradient.addColorStop(midpoint_stop, rgba_fn(0.5));
-      gradient.addColorStop(1, rgba_fn(1));
+      if (inner_stop > 0.001) {
+        gradient.addColorStop(inner_stop, rgba_fn(0));
+      }
+      // Power curve exponent: controls the shape of the roll-off.
+      // safe_choke maps [0..1] → sharp..soft; mirror that into an exponent.
+      const gamma = lerp(3.5, 1.2, safe_choke);
+      const STEPS = 24;
+      const feather_span = 1 - inner_stop;
+      for (let s = 1; s <= STEPS; s += 1) {
+        const t = s / STEPS;                              // 0..1 through feather zone
+        const stop_pos = inner_stop + t * feather_span;
+        const alpha = Math.pow(t, gamma);
+        gradient.addColorStop(clamp(stop_pos, 0, 1), rgba_fn(alpha));
+      }
 
       text_overlay_context.save();
       text_overlay_context.setTransform(runtime.dpr, 0, 0, runtime.dpr, 0, 0);
