@@ -4,12 +4,14 @@ export const SOURCE_DEFAULT_CONFIG = {
       "background_color": "#161616"
     },
     "layout_grid": {
-      "safe_area_fill_color": "#161616"
+      "safe_area_fill_color": "#262626"
     },
     "spoke_lines": {
       "construction_color": "#333333",
       "reference_color": "#666666",
-      "echo_color": "#444444"
+      "echo_color": "#444444",
+      "phase_start_width_px": 8,
+      "phase_end_width_px": 4
     },
     "overlay_text": {
       "color": "#ffffff",
@@ -116,7 +118,7 @@ export const SOURCE_DEFAULT_CONFIG = {
       },
       "spoke_text": {
         "enabled": true,
-        "font_size_px": 14,
+        "font_size_px": 18,
         "radial_u": 0.6
       },
       "layout_grid": {
@@ -128,22 +130,22 @@ export const SOURCE_DEFAULT_CONFIG = {
         "margin_top_baselines": 4,
         "margin_bottom_baselines": 4,
         "margin_side_baselines": 0,
-        "margin_left_baselines": 4,
-        "margin_right_baselines": 4,
+        "margin_left_baselines": 5,
+        "margin_right_baselines": 5,
         "row_gutter_baselines": 4,
-        "column_gutter_baselines": 2,
+        "column_gutter_baselines": 0,
         "fit_within_safe_area": true,
         "safe_top_px": 0,
         "safe_right_px": 0,
         "safe_bottom_px": 0,
         "safe_left_px": 0,
-        "safe_area_fill_color": "#161616",
+        "safe_area_fill_color": "#262626",
         "safe_area_fill_above_animation": false
       },
       "overlay_logo": {
         "enabled": true,
         "asset_path": "./assets/UbuntuTagLogo.svg",
-        "x_px": 32,
+        "x_px": 41,
         "y_px": 0,
         "height_px": 108
       },
@@ -305,14 +307,15 @@ export const SOURCE_DEFAULT_CONFIG = {
         "phase_boundary_transition_sec": 0.04
       },
       "vignette": {
-        "enabled": true,
-        "apply_outside_safe_area": true,
+        "enabled": false,
+        "apply_outside_safe_area": false,
         "radius_px": 595,
         "feather_px": 787,
         "choke": 0.62,
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1,
+        "shape_fade": 1,
         "dither": 1
       },
       "export_settings": {
@@ -609,6 +612,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1,
+        "shape_fade": 1,
         "dither": 1
       },
       "export_settings": {
@@ -905,6 +909,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1,
+        "shape_fade": 1,
         "dither": 1
       },
       "export_settings": {
@@ -1201,6 +1206,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1,
+        "shape_fade": 1,
         "dither": 1
       },
       "export_settings": {
@@ -1497,6 +1503,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1,
+        "shape_fade": 1,
         "dither": 1
       },
       "export_settings": {
@@ -1793,6 +1800,7 @@ export const SOURCE_DEFAULT_CONFIG = {
         "outside_radius_px": 2160,
         "outside_feather_px": 507,
         "outside_choke": 1,
+        "shape_fade": 1,
         "dither": 1
       },
       "export_settings": {
@@ -1892,7 +1900,7 @@ export const SOURCE_DEFAULT_CONFIG = {
   },
   "spoke_text": {
     "enabled": true,
-    "font_size_px": 14,
+    "font_size_px": 18,
     "radial_u": 0.6
   },
   "layout_grid": {
@@ -1904,22 +1912,22 @@ export const SOURCE_DEFAULT_CONFIG = {
     "margin_top_baselines": 4,
     "margin_bottom_baselines": 4,
     "margin_side_baselines": 0,
-    "margin_left_baselines": 4,
-    "margin_right_baselines": 4,
+    "margin_left_baselines": 5,
+    "margin_right_baselines": 5,
     "row_gutter_baselines": 4,
-    "column_gutter_baselines": 2,
+    "column_gutter_baselines": 0,
     "fit_within_safe_area": true,
     "safe_top_px": 0,
     "safe_right_px": 0,
     "safe_bottom_px": 0,
     "safe_left_px": 0,
-    "safe_area_fill_color": "#161616",
+    "safe_area_fill_color": "#262626",
     "safe_area_fill_above_animation": false
   },
   "overlay_logo": {
     "enabled": true,
     "asset_path": "./assets/UbuntuTagLogo.svg",
-    "x_px": 32,
+    "x_px": 41,
     "y_px": 0,
     "height_px": 108
   },
@@ -1996,9 +2004,9 @@ export const SOURCE_DEFAULT_CONFIG = {
           "y_offset_baselines": 15
         }
       },
-      "text_1_keyline_index": 2,
-      "text_2_keyline_index": 2,
-      "text_3_keyline_index": 2,
+      "text_1_keyline_index": 3,
+      "text_2_keyline_index": 3,
+      "text_3_keyline_index": 3,
       "text_1_column_span": 1,
       "text_2_column_span": 1,
       "text_3_column_span": 2
@@ -2037,9 +2045,9 @@ export const SOURCE_DEFAULT_CONFIG = {
           "y_offset_baselines": 14
         }
       },
-      "text_1_keyline_index": 2,
-      "text_2_keyline_index": 2,
-      "text_3_keyline_index": 2,
+      "text_1_keyline_index": 3,
+      "text_2_keyline_index": 3,
+      "text_3_keyline_index": 3,
       "text_1_column_span": 1,
       "text_2_column_span": 1,
       "text_3_column_span": 1
@@ -2093,16 +2101,17 @@ export const SOURCE_DEFAULT_CONFIG = {
     "phase_boundary_transition_sec": 0.04
   },
   "vignette": {
-    "enabled": true,
-    "apply_outside_safe_area": true,
+    "enabled": false,
+    "apply_outside_safe_area": false,
     "radius_px": 595,
     "feather_px": 787,
     "choke": 0.62,
     "outside_radius_px": 2160,
     "outside_feather_px": 507,
     "outside_choke": 1,
-        "dither": 1
-      },
+    "shape_fade": 1,
+    "dither": 1
+  },
   "export_settings": {
     "frame_rate": 24,
     "transparent_background": false

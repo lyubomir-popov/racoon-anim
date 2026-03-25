@@ -1949,7 +1949,9 @@ export function createRenderer({
       config.vignette?.outside_choke ?? config.vignette?.choke ?? 0
     ), 0, 1);
     const gamma = lerp(3.5, 1.2, choke);
-    return 1 - Math.pow(fade_u, gamma);
+    const strength = clamp(Number(config.vignette?.shape_fade ?? 1), 0, 1);
+    // lerp between fully opaque (strength=0) and full fade curve (strength=1)
+    return 1 - strength * Math.pow(fade_u, gamma);
   }
 
   function get_echo_shape_seed() {

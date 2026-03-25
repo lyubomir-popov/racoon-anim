@@ -120,6 +120,7 @@ const RENDER_ONLY_CONTROL_PATHS = new Set([
   "vignette.outside_radius_px",
   "vignette.outside_feather_px",
   "vignette.outside_choke",
+  "vignette.shape_fade",
   "vignette.dither",
   "sneeze.nose_bob_up_px",
   "spoke_lines.show_reference_halo",
