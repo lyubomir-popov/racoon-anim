@@ -241,15 +241,38 @@ function parse_csv_records(csv_text) {
     });
 }
 
-function normalize_svg_markup(svg_markup) {
-  if (/\swidth\s*=/.test(svg_markup) && /\sheight\s*=/.test(svg_markup)) {
-    return svg_markup;
+function normalize_svg_markup(svg_markup, render_size_px = null) {
+  // Always ensure a viewBox exists so the browser can scale the SVG correctly.
+  // If render_size_px is provided, override width/height so the browser
+  // rasterises the SVG at that exact resolution rather than at its natural
+  // (often small) viewbox size, avoiding a lossy bitmap upscale step.
+  let markup = svg_markup;
+
+  // Inject viewBox from width/height if missing
+  if (!/\sviewBox\s*=/.test(markup)) {
+    const w_match = markup.match(/\swidth\s*=\s*["']([0-9.]+)/);
+    const h_match = markup.match(/\sheight\s*=\s*["']([0-9.]+)/);
+    if (w_match && h_match) {
+      markup = markup.replace(/<svg\b/, `<svg viewBox="0 0 ${w_match[1]} ${h_match[1]}"`);
+    }
   }
 
-  return svg_markup.replace(
-    /<svg\b/,
-    `<svg width="${MASCOT_VIEWBOX_SIZE}" height="${MASCOT_VIEWBOX_SIZE}" preserveAspectRatio="xMidYMid meet"`
-  );
+  if (render_size_px != null) {
+    // Replace or add width/height so the browser rasterises at full resolution
+    markup = markup
+      .replace(/\swidth\s*=\s*["'][^"']*["']/, ` width="${render_size_px}"`)
+      .replace(/\sheight\s*=\s*["'][^"']*["']/, ` height="${render_size_px}"`);
+    if (!/\swidth\s*=/.test(markup)) {
+      markup = markup.replace(/<svg\b/, `<svg width="${render_size_px}" height="${render_size_px}"`);
+    }
+  } else if (!/\swidth\s*=/.test(markup) || !/\sheight\s*=/.test(markup)) {
+    markup = markup.replace(
+      /<svg\b/,
+      `<svg width="${MASCOT_VIEWBOX_SIZE}" height="${MASCOT_VIEWBOX_SIZE}" preserveAspectRatio="xMidYMid meet"`
+    );
+  }
+
+  return markup;
 }
 
 export function createRenderer({
@@ -964,7 +987,11 @@ export function createRenderer({
       throw new Error(`Failed to fetch texture: ${texture_url}`);
     }
 
-    const svg_markup = normalize_svg_markup(await response.text());
+    // Pass texture_size_px so the SVG width/height attributes are set to the
+    // target raster size. The browser will then rasterise the SVG at full
+    // vector resolution rather than at its declared viewbox size (~600 px),
+    // eliminating the lossy bitmap upscale step that preceded the drawImage.
+    const svg_markup = normalize_svg_markup(await response.text(), texture_size_px);
     const svg_blob = new Blob([svg_markup], {
       type: "image/svg+xml;charset=utf-8"
     });
@@ -3472,6 +3499,8 @@ export function createRenderer({
       }
 
       export_context.clearRect(0, 0, export_canvas.width, export_canvas.height);
+      export_context.imageSmoothingEnabled = true;
+      export_context.imageSmoothingQuality = "high";
       export_context.drawImage(canvas, 0, 0, export_canvas.width, export_canvas.height);
       if (text_overlay_canvas) {
         export_context.drawImage(
